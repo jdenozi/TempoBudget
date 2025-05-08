@@ -1,0 +1,11 @@
+# Copyright (c) 2024 Tempo Budget
+# SPDX-License-Identifier: MIT
+#
+# Cargo Workspace Configuration
+#
+# This is the root workspace manifest for the Tempo Budget application.
+# It includes the backend crate which provides the REST API server.
+
+[workspace]
+members = ["backend"]
+resolver = "2"

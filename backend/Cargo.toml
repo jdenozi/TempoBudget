@@ -1,0 +1,49 @@
+# Copyright (c) 2024 Tempo Budget
+# SPDX-License-Identifier: MIT
+#
+# Backend Crate Configuration
+#
+# REST API server for the Tempo Budget application.
+# Built with Axum web framework and SQLite database.
+
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+description = "Tempo Budget REST API server"
+license = "MIT"
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database - SQLx with raw SQL
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono", "uuid"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Auth & Security
+jsonwebtoken = "9"
+bcrypt = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Environment
+dotenvy = "0.15"
