@@ -21,6 +21,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     models::{
@@ -41,6 +42,18 @@ use crate::{
 /// # Returns
 /// - `200 OK` with array of `Category` objects
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/budgets/{budget_id}/categories",
+    tag = "categories",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 200, description = "List of categories", body = Vec<Category>),
+        (status = 500, description = "Failed to fetch categories")
+    )
+)]
 pub async fn get_categories(
     State(pool): State<Arc<DbPool>>,
     Path(budget_id): Path<String>,
@@ -71,6 +84,19 @@ pub async fn get_categories(
 /// # Returns
 /// - `200 OK` with the created `Category` object
 /// - `500 Internal Server Error` if creation fails
+#[utoipa::path(
+    post,
+    path = "/api/budgets/{budget_id}/categories",
+    tag = "categories",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    request_body = CreateCategory,
+    responses(
+        (status = 200, description = "Category created successfully", body = Category),
+        (status = 500, description = "Failed to create category")
+    )
+)]
 pub async fn create_category(
     State(pool): State<Arc<DbPool>>,
     Path(budget_id): Path<String>,
@@ -119,6 +145,21 @@ pub async fn create_category(
 /// - `400 Bad Request` if no fields are provided
 /// - `404 Not Found` if the category doesn't exist
 /// - `500 Internal Server Error` if update fails
+#[utoipa::path(
+    put,
+    path = "/api/categories/{id}",
+    tag = "categories",
+    params(
+        ("id" = String, Path, description = "Category unique identifier")
+    ),
+    request_body = UpdateCategory,
+    responses(
+        (status = 200, description = "Category updated successfully", body = Category),
+        (status = 400, description = "No fields provided"),
+        (status = 404, description = "Category not found"),
+        (status = 500, description = "Failed to update category")
+    )
+)]
 pub async fn update_category(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,
@@ -176,6 +217,18 @@ pub async fn update_category(
 /// # Returns
 /// - `204 No Content` on successful deletion
 /// - `500 Internal Server Error` if deletion fails
+#[utoipa::path(
+    delete,
+    path = "/api/categories/{id}",
+    tag = "categories",
+    params(
+        ("id" = String, Path, description = "Category unique identifier")
+    ),
+    responses(
+        (status = 204, description = "Category deleted successfully"),
+        (status = 500, description = "Failed to delete category")
+    )
+)]
 pub async fn delete_category(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,

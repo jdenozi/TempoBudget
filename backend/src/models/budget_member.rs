@@ -10,9 +10,10 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents a member of a group budget.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct BudgetMember {
     /// Unique identifier (UUID)
     pub id: String,
@@ -27,7 +28,7 @@ pub struct BudgetMember {
 }
 
 /// Request payload for inviting a member to a budget.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct InviteMemberRequest {
     /// Email address of the user to invite
     pub email: String,
@@ -38,7 +39,7 @@ pub struct InviteMemberRequest {
 /// Budget member with associated user information.
 ///
 /// This structure is used when displaying member lists with user details.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct BudgetMemberWithUser {
     /// Unique identifier (UUID)
     pub id: String,

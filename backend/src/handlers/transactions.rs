@@ -24,6 +24,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     models::{
@@ -43,6 +44,18 @@ use crate::{
 /// # Returns
 /// - `200 OK` with array of `Transaction` objects (sorted by date descending)
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/budgets/{budget_id}/transactions",
+    tag = "transactions",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 200, description = "List of transactions", body = Vec<Transaction>),
+        (status = 500, description = "Failed to fetch transactions")
+    )
+)]
 pub async fn get_transactions(
     State(pool): State<Arc<DbPool>>,
     Path(budget_id): Path<String>,
@@ -76,6 +89,16 @@ pub async fn get_transactions(
 /// # Returns
 /// - `200 OK` with the created `Transaction` object
 /// - `500 Internal Server Error` if creation fails
+#[utoipa::path(
+    post,
+    path = "/api/budgets/{budget_id}/transactions",
+    tag = "transactions",
+    request_body = CreateTransaction,
+    responses(
+        (status = 200, description = "Transaction created successfully", body = Transaction),
+        (status = 500, description = "Failed to create transaction")
+    )
+)]
 pub async fn create_transaction(
     State(pool): State<Arc<DbPool>>,
     Json(payload): Json<CreateTransaction>,
@@ -124,6 +147,18 @@ pub async fn create_transaction(
 /// # Returns
 /// - `204 No Content` on successful deletion
 /// - `500 Internal Server Error` if deletion fails
+#[utoipa::path(
+    delete,
+    path = "/api/transactions/{id}",
+    tag = "transactions",
+    params(
+        ("id" = String, Path, description = "Transaction unique identifier")
+    ),
+    responses(
+        (status = 204, description = "Transaction deleted successfully"),
+        (status = 500, description = "Failed to delete transaction")
+    )
+)]
 pub async fn delete_transaction(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,
@@ -148,6 +183,18 @@ pub async fn delete_transaction(
 /// # Returns
 /// - `200 OK` with array of `RecurringTransaction` objects
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/budgets/{budget_id}/recurring",
+    tag = "transactions",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 200, description = "List of recurring transactions", body = Vec<RecurringTransaction>),
+        (status = 500, description = "Failed to fetch recurring transactions")
+    )
+)]
 pub async fn get_recurring_transactions(
     State(pool): State<Arc<DbPool>>,
     Path(budget_id): Path<String>,
@@ -181,6 +228,16 @@ pub async fn get_recurring_transactions(
 /// # Returns
 /// - `200 OK` with the created `RecurringTransaction` object
 /// - `500 Internal Server Error` if creation fails
+#[utoipa::path(
+    post,
+    path = "/api/budgets/{budget_id}/recurring",
+    tag = "transactions",
+    request_body = CreateRecurringTransaction,
+    responses(
+        (status = 200, description = "Recurring transaction created successfully", body = RecurringTransaction),
+        (status = 500, description = "Failed to create recurring transaction")
+    )
+)]
 pub async fn create_recurring_transaction(
     State(pool): State<Arc<DbPool>>,
     Json(payload): Json<CreateRecurringTransaction>,
@@ -230,6 +287,19 @@ pub async fn create_recurring_transaction(
 /// - `200 OK` with the updated `RecurringTransaction` object
 /// - `404 Not Found` if the recurring transaction doesn't exist
 /// - `500 Internal Server Error` if update fails
+#[utoipa::path(
+    put,
+    path = "/api/recurring/{id}/toggle",
+    tag = "transactions",
+    params(
+        ("id" = String, Path, description = "Recurring transaction unique identifier")
+    ),
+    responses(
+        (status = 200, description = "Recurring transaction toggled successfully", body = RecurringTransaction),
+        (status = 404, description = "Recurring transaction not found"),
+        (status = 500, description = "Failed to toggle recurring transaction")
+    )
+)]
 pub async fn toggle_recurring_transaction(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,
@@ -278,6 +348,18 @@ pub async fn toggle_recurring_transaction(
 /// # Returns
 /// - `204 No Content` on successful deletion
 /// - `500 Internal Server Error` if deletion fails
+#[utoipa::path(
+    delete,
+    path = "/api/recurring/{id}",
+    tag = "transactions",
+    params(
+        ("id" = String, Path, description = "Recurring transaction unique identifier")
+    ),
+    responses(
+        (status = 204, description = "Recurring transaction deleted successfully"),
+        (status = 500, description = "Failed to delete recurring transaction")
+    )
+)]
 pub async fn delete_recurring_transaction(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,

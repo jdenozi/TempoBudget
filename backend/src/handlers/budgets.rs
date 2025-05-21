@@ -19,6 +19,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     auth::AuthUser,
@@ -38,6 +39,16 @@ use crate::models::InviteMemberRequest;
 /// # Returns
 /// - `200 OK` with array of `Budget` objects
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/budgets",
+    tag = "budgets",
+    responses(
+        (status = 200, description = "List of user's budgets", body = Vec<Budget>),
+        (status = 500, description = "Failed to fetch budgets")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_budgets(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -75,6 +86,17 @@ pub async fn get_budgets(
 ///
 /// # Notes
 /// For group budgets, the creator is automatically added as the owner.
+#[utoipa::path(
+    post,
+    path = "/api/budgets",
+    tag = "budgets",
+    request_body = CreateBudget,
+    responses(
+        (status = 200, description = "Budget created successfully", body = Budget),
+        (status = 500, description = "Failed to create budget")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn create_budget(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -145,6 +167,18 @@ pub async fn create_budget(
 /// # Returns
 /// - `200 OK` with the `Budget` object
 /// - `404 Not Found` if the budget doesn't exist
+#[utoipa::path(
+    get,
+    path = "/api/budgets/{id}",
+    tag = "budgets",
+    params(
+        ("id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 200, description = "Budget details", body = Budget),
+        (status = 404, description = "Budget not found")
+    )
+)]
 pub async fn get_budget(
     State(pool): State<Arc<DbPool>>,
     Path(id): Path<String>,
@@ -183,6 +217,20 @@ pub async fn get_budget(
 /// # Authorization
 /// User must be either the budget owner (for group budgets) or the creator
 /// (for personal budgets).
+#[utoipa::path(
+    delete,
+    path = "/api/budgets/{id}",
+    tag = "budgets",
+    params(
+        ("id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 204, description = "Budget deleted successfully"),
+        (status = 403, description = "Not authorized to delete this budget"),
+        (status = 500, description = "Failed to delete budget")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn delete_budget(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,

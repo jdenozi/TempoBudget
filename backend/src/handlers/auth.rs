@@ -17,6 +17,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     auth::create_token,
@@ -37,6 +38,16 @@ use crate::{
 /// # Returns
 /// - `200 OK` with `AuthResponse` containing JWT token and user details
 /// - `500 Internal Server Error` if registration fails
+#[utoipa::path(
+    post,
+    path = "/api/auth/register",
+    tag = "auth",
+    request_body = CreateUser,
+    responses(
+        (status = 200, description = "User registered successfully", body = AuthResponse),
+        (status = 500, description = "Registration failed")
+    )
+)]
 pub async fn register(
     State(pool): State<Arc<DbPool>>,
     Json(payload): Json<CreateUser>,
@@ -92,6 +103,17 @@ pub async fn register(
 /// - `200 OK` with `AuthResponse` containing JWT token and user details
 /// - `401 Unauthorized` if credentials are invalid
 /// - `500 Internal Server Error` if authentication fails
+#[utoipa::path(
+    post,
+    path = "/api/auth/login",
+    tag = "auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = AuthResponse),
+        (status = 401, description = "Invalid credentials"),
+        (status = 500, description = "Authentication failed")
+    )
+)]
 pub async fn login(
     State(pool): State<Arc<DbPool>>,
     Json(payload): Json<LoginRequest>,

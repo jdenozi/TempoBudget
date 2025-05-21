@@ -10,9 +10,10 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents a financial transaction (income or expense).
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Transaction {
     /// Unique identifier (UUID)
     pub id: String,
@@ -37,7 +38,7 @@ pub struct Transaction {
 }
 
 /// Request payload for creating a new transaction.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateTransaction {
     /// ID of the budget for the transaction
     pub budget_id: String,
@@ -59,7 +60,7 @@ pub struct CreateTransaction {
 ///
 /// Recurring transactions are templates that can automatically generate
 /// regular transactions based on a specified frequency.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct RecurringTransaction {
     /// Unique identifier (UUID)
     pub id: String,
@@ -84,7 +85,7 @@ pub struct RecurringTransaction {
 }
 
 /// Request payload for creating a new recurring transaction.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateRecurringTransaction {
     /// ID of the budget for the recurring transaction
     pub budget_id: String,

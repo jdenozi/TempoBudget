@@ -10,12 +10,13 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents a category within a budget.
 ///
 /// Categories are used to organize and track different types of expenses/income
 /// within a budget (e.g., "Groceries", "Rent", "Salary").
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Category {
     /// Unique identifier (UUID)
     pub id: String,
@@ -30,7 +31,7 @@ pub struct Category {
 }
 
 /// Request payload for creating a new category.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateCategory {
     /// Name for the new category
     pub name: String,
@@ -41,7 +42,7 @@ pub struct CreateCategory {
 /// Request payload for updating an existing category.
 ///
 /// All fields are optional; only provided fields will be updated.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateCategory {
     /// New name for the category
     pub name: Option<String>,
@@ -53,7 +54,7 @@ pub struct UpdateCategory {
 ///
 /// Budget profiles allow users to save and reuse category configurations
 /// across multiple budgets.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct BudgetProfile {
     /// Unique identifier (UUID)
     pub id: String,
@@ -66,7 +67,7 @@ pub struct BudgetProfile {
 }
 
 /// Represents a category within a budget profile template.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct BudgetProfileCategory {
     /// Unique identifier (UUID)
     pub id: String,
@@ -79,7 +80,7 @@ pub struct BudgetProfileCategory {
 }
 
 /// Request payload for creating a new budget profile.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateBudgetProfile {
     /// Name for the new profile
     pub name: String,
@@ -88,7 +89,7 @@ pub struct CreateBudgetProfile {
 }
 
 /// Request payload for a category within a budget profile creation request.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CreateBudgetProfileCategory {
     /// Category name
     pub name: String,

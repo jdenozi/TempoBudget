@@ -10,11 +10,12 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents a user account in the system.
 ///
 /// The `password_hash` field is excluded from serialization for security.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct User {
     /// Unique identifier (UUID)
     pub id: String,
@@ -36,7 +37,7 @@ pub struct User {
 }
 
 /// Request payload for user registration.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateUser {
     /// Email address for the new account
     pub email: String,
@@ -47,7 +48,7 @@ pub struct CreateUser {
 }
 
 /// Request payload for user login.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LoginRequest {
     /// User's email address
     pub email: String,
@@ -56,7 +57,7 @@ pub struct LoginRequest {
 }
 
 /// Response payload for successful authentication.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AuthResponse {
     /// JWT token for subsequent authenticated requests
     pub token: String,

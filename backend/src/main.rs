@@ -12,6 +12,7 @@
 mod auth;
 mod handlers;
 mod models;
+mod openapi;
 mod routes;
 
 use sqlx::sqlite::{SqlitePool, SqliteConnectOptions};
@@ -19,6 +20,10 @@ use dotenvy::dotenv;
 use std::{env, sync::Arc, str::FromStr};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use openapi::ApiDoc;
 
 /// Type alias for the SQLite connection pool used throughout the application.
 pub type DbPool = SqlitePool;
@@ -73,8 +78,10 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Create the application router
-    let app = routes::create_router(pool).layer(cors);
+    // Create the application router with Swagger UI
+    let app = routes::create_router(pool)
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(cors);
 
     // Start the HTTP server
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());

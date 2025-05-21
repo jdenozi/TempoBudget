@@ -10,12 +10,13 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents a budget in the system.
 ///
 /// A budget can be either personal (owned by a single user) or a group budget
 /// (shared among multiple users via the budget_members table).
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Budget {
     /// Unique identifier (UUID)
     pub id: String,
@@ -34,7 +35,7 @@ pub struct Budget {
 }
 
 /// Request payload for creating a new budget.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateBudget {
     /// Name/title for the new budget
     pub name: String,
@@ -45,7 +46,7 @@ pub struct CreateBudget {
 /// Request payload for updating an existing budget.
 ///
 /// All fields are optional; only provided fields will be updated.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateBudget {
     /// New name for the budget
     pub name: Option<String>,

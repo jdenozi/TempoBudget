@@ -18,6 +18,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     auth::AuthUser,
@@ -40,6 +41,20 @@ use crate::{
 /// - `200 OK` with array of `BudgetMemberWithUser` objects
 /// - `403 Forbidden` if the user is not a member of the budget
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/budgets/{budget_id}/members",
+    tag = "members",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    responses(
+        (status = 200, description = "List of budget members", body = Vec<BudgetMemberWithUser>),
+        (status = 403, description = "Not a member of this budget"),
+        (status = 500, description = "Failed to fetch members")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_budget_members(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -103,6 +118,23 @@ pub async fn get_budget_members(
 /// - `404 Not Found` if the invited email doesn't exist
 /// - `409 Conflict` if the user is already a member
 /// - `500 Internal Server Error` if the invitation fails
+#[utoipa::path(
+    post,
+    path = "/api/budgets/{budget_id}/members",
+    tag = "members",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier")
+    ),
+    request_body = InviteMemberRequest,
+    responses(
+        (status = 201, description = "Member invited successfully"),
+        (status = 403, description = "Not authorized to invite members"),
+        (status = 404, description = "Invited user not found"),
+        (status = 409, description = "User is already a member"),
+        (status = 500, description = "Failed to invite member")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn invite_member(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -192,6 +224,21 @@ pub async fn invite_member(
 /// - `204 No Content` on successful removal
 /// - `403 Forbidden` if the user is not the budget owner
 /// - `500 Internal Server Error` if the removal fails
+#[utoipa::path(
+    delete,
+    path = "/api/budgets/{budget_id}/members/{member_id}",
+    tag = "members",
+    params(
+        ("budget_id" = String, Path, description = "Budget unique identifier"),
+        ("member_id" = String, Path, description = "Member record unique identifier")
+    ),
+    responses(
+        (status = 204, description = "Member removed successfully"),
+        (status = 403, description = "Not authorized to remove members"),
+        (status = 500, description = "Failed to remove member")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn remove_member(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,

@@ -18,6 +18,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
+use utoipa;
 
 use crate::{
     auth::AuthUser,
@@ -36,6 +37,16 @@ use crate::{
 /// # Returns
 /// - `200 OK` with array of `BudgetInvitationWithDetails` objects
 /// - `500 Internal Server Error` if the query fails
+#[utoipa::path(
+    get,
+    path = "/api/invitations",
+    tag = "invitations",
+    responses(
+        (status = 200, description = "List of pending invitations", body = Vec<BudgetInvitationWithDetails>),
+        (status = 500, description = "Failed to fetch invitations")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_my_invitations(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -104,6 +115,22 @@ pub async fn get_my_invitations(
 /// # Side Effects
 /// - Creates a new budget member record
 /// - Updates the invitation status to "accepted"
+#[utoipa::path(
+    post,
+    path = "/api/invitations/{id}/accept",
+    tag = "invitations",
+    params(
+        ("id" = String, Path, description = "Invitation unique identifier")
+    ),
+    responses(
+        (status = 200, description = "Invitation accepted successfully"),
+        (status = 400, description = "Invitation is not pending"),
+        (status = 403, description = "Not the intended recipient"),
+        (status = 404, description = "Invitation not found"),
+        (status = 500, description = "Failed to accept invitation")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn accept_invitation(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,
@@ -183,6 +210,22 @@ pub async fn accept_invitation(
 /// - `403 Forbidden` if the user is not the intended recipient
 /// - `404 Not Found` if the invitation doesn't exist
 /// - `500 Internal Server Error` if the operation fails
+#[utoipa::path(
+    post,
+    path = "/api/invitations/{id}/reject",
+    tag = "invitations",
+    params(
+        ("id" = String, Path, description = "Invitation unique identifier")
+    ),
+    responses(
+        (status = 200, description = "Invitation rejected successfully"),
+        (status = 400, description = "Invitation is not pending"),
+        (status = 403, description = "Not the intended recipient"),
+        (status = 404, description = "Invitation not found"),
+        (status = 500, description = "Failed to reject invitation")
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn reject_invitation(
     State(pool): State<Arc<DbPool>>,
     auth: AuthUser,

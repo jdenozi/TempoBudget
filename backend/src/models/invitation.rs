@@ -10,9 +10,10 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 
 /// Represents an invitation to join a group budget.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct BudgetInvitation {
     /// Unique identifier (UUID)
     pub id: String,
@@ -33,7 +34,7 @@ pub struct BudgetInvitation {
 /// Budget invitation with additional context details.
 ///
 /// This structure includes budget and inviter information for display purposes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct BudgetInvitationWithDetails {
     /// Unique identifier (UUID)
     pub id: String,
