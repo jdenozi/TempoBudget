@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "name": "Tempo Budget Frontend Documentation",
+  "readme": "README.md",
+  "plugin": ["typedoc-plugin-vue"],
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "**/node_modules/**"],
+  "excludeExternals": true,
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "sort": ["source-order"],
+  "searchInComments": true
+}
