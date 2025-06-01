@@ -50,8 +50,10 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 use crate::{handlers, DbPool};
+use crate::openapi::ApiDoc;
 
 /// Creates and configures the main application router.
 ///
@@ -105,6 +107,8 @@ pub fn create_router(pool: Arc<DbPool>) -> Router {
         .route("/api/recurring/:id/toggle", put(handlers::toggle_recurring_transaction))
         .route("/api/recurring/:id", delete(handlers::delete_recurring_transaction))
 
+        // Swagger UI documentation
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
 
         .with_state(pool)
 }

@@ -20,10 +20,6 @@ use dotenvy::dotenv;
 use std::{env, sync::Arc, str::FromStr};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-
-use openapi::ApiDoc;
 
 /// Type alias for the SQLite connection pool used throughout the application.
 pub type DbPool = SqlitePool;
@@ -50,7 +46,7 @@ async fn main() {
         .init();
 
     // Create the SQLx connection pool with create_if_missing option
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:budget.db".into());
 
     let connect_options = SqliteConnectOptions::from_str(&database_url)
         .expect("Invalid DATABASE_URL")
@@ -78,11 +74,10 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Create the application router with Swagger UI
+    // Create the application router (includes Swagger UI)
     let app = routes::create_router(pool)
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(cors);
-
+    
     // Start the HTTP server
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
