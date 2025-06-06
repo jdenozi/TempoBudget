@@ -1,11 +1,13 @@
 {
   "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "tsconfig.app.json",
   "entryPoints": ["src"],
   "entryPointStrategy": "expand",
   "out": "docs",
   "name": "Tempo Budget Frontend Documentation",
   "readme": "README.md",
   "plugin": ["typedoc-plugin-vue"],
+  "skipErrorChecking": true,
   "exclude": ["**/*.spec.ts", "**/*.test.ts", "**/node_modules/**"],
   "excludeExternals": true,
   "excludePrivate": false,
