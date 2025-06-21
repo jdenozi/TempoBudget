@@ -2,6 +2,20 @@
 node_modules/
 frontend/node_modules/
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.egg-info/
+*.egg
+.mypy_cache/
+.ruff_cache/
+
 # Build outputs
 target/
 dist/
