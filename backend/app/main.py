@@ -11,6 +11,9 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+# Disable docs in production
+DOCS_ENABLED = os.getenv("DOCS_ENABLED", "true").lower() == "true"
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -39,9 +42,9 @@ app = FastAPI(
     description="Personal and group budget management API",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/api-docs/openapi.json",
+    docs_url="/docs" if DOCS_ENABLED else None,
+    redoc_url="/redoc" if DOCS_ENABLED else None,
+    openapi_url="/api-docs/openapi.json" if DOCS_ENABLED else None,
 )
 
 # Configure CORS
