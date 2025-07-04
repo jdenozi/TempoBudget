@@ -88,7 +88,7 @@
  * - Bar chart for budget vs actual comparison
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { NSpace, NCard, NSelect, NDatePicker, NGrid, NGi } from 'naive-ui'
 import { Pie, Doughnut, Bar } from 'vue-chartjs'
 import {
@@ -101,6 +101,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import { useBudgetStore } from '@/stores/budget'
 
 // Register Chart.js components
 ChartJS.register(
@@ -113,11 +114,13 @@ ChartJS.register(
   Legend
 )
 
+const budgetStore = useBudgetStore()
+
 /** Whether the viewport is mobile-sized */
 const isMobile = ref(false)
 
 /** Selected budget ID */
-const selectedBudget = ref(2)
+const selectedBudget = ref<string | null>(null)
 
 /** Selected month timestamp */
 const selectedMonth = ref(Date.now())
@@ -129,53 +132,112 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-onMounted(() => {
+onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  await budgetStore.fetchBudgets()
+  if (budgetStore.budgets.length > 0) {
+    selectedBudget.value = budgetStore.budgets[0].id
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 
+// Watch budget selection and load data
+watch(selectedBudget, async (budgetId) => {
+  if (budgetId) {
+    await Promise.all([
+      budgetStore.fetchCategories(budgetId),
+      budgetStore.fetchTransactions(budgetId)
+    ])
+  }
+}, { immediate: true })
+
 /** Budget options for the selector */
-const budgetOptions = [
-  { label: 'Personal Budget', value: 1 },
-  { label: 'Couple Budget', value: 2 }
-]
+const budgetOptions = computed(() =>
+  budgetStore.budgets.map(b => ({ label: b.name, value: b.id }))
+)
 
-// Mock data for demonstration
-const expensesByCategory = {
-  'Housing': 300.00,
-  'Groceries': 220.50,
-  'Health': 45.00,
-  'Vehicle': 203.00,
-  'Leisure': 65.00,
-  'Sports': 15.00,
-  'Couple': 36.39,
-  'Pets': 10.00
-}
+/** Selected month as Date */
+const selectedMonthDate = computed(() => new Date(selectedMonth.value))
 
-const incomeByCategory = {
-  'Salary': 2860.00,
-  'Freelance': 500.00,
-  'Other': 150.00
-}
+/** Filter transactions by selected month */
+const filteredTransactions = computed(() => {
+  const month = selectedMonthDate.value.getMonth()
+  const year = selectedMonthDate.value.getFullYear()
+  return budgetStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date.getMonth() === month && date.getFullYear() === year
+  })
+})
 
-const monthlyData = [
-  { month: 'July', income: 3200, expenses: 2100 },
-  { month: 'August', income: 3100, expenses: 2350 },
-  { month: 'September', income: 3400, expenses: 2200 },
-  { month: 'October', income: 3500, expenses: 2450 },
-  { month: 'November', income: 3510, expenses: 2300 },
-  { month: 'December', income: 3200, expenses: 1894.89 }
-]
+/** Expenses by category for the selected month */
+const expensesByCategory = computed(() => {
+  const expenses: Record<string, number> = {}
+  filteredTransactions.value
+    .filter(t => t.transaction_type === 'expense')
+    .forEach(t => {
+      const category = budgetStore.categories.find(c => c.id === t.category_id)
+      const name = category?.name || 'Other'
+      expenses[name] = (expenses[name] || 0) + t.amount
+    })
+  return expenses
+})
 
-const budgetVsActual = {
-  categories: ['Housing', 'Groceries', 'Health', 'Vehicle', 'Leisure', 'Sports', 'Couple', 'Pets'],
-  budget: [379.53, 181.94, 80.00, 203.00, 50.00, 27.00, 36.39, 10.00],
-  actual: [300.00, 220.50, 45.00, 203.00, 65.00, 15.00, 36.39, 10.00]
-}
+/** Income by category for the selected month */
+const incomeByCategory = computed(() => {
+  const income: Record<string, number> = {}
+  filteredTransactions.value
+    .filter(t => t.transaction_type === 'income')
+    .forEach(t => {
+      const category = budgetStore.categories.find(c => c.id === t.category_id)
+      const name = category?.name || 'Other'
+      income[name] = (income[name] || 0) + t.amount
+    })
+  return income
+})
+
+/** Monthly data for the last 6 months */
+const monthlyData = computed(() => {
+  const months: { month: string; income: number; expenses: number }[] = []
+  const now = new Date(selectedMonth.value)
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthName = date.toLocaleString('en-US', { month: 'long' })
+    const monthNum = date.getMonth()
+    const yearNum = date.getFullYear()
+
+    const monthTransactions = budgetStore.transactions.filter(t => {
+      const tDate = new Date(t.date)
+      return tDate.getMonth() === monthNum && tDate.getFullYear() === yearNum
+    })
+
+    const income = monthTransactions
+      .filter(t => t.transaction_type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const expenses = monthTransactions
+      .filter(t => t.transaction_type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    months.push({ month: monthName, income, expenses })
+  }
+  return months
+})
+
+/** Budget vs Actual comparison data */
+const budgetVsActual = computed(() => {
+  const categories = budgetStore.categories.map(c => c.name)
+  const budget = budgetStore.categories.map(c => c.amount)
+  const actual = budgetStore.categories.map(c => {
+    return filteredTransactions.value
+      .filter(t => t.category_id === c.id && t.transaction_type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0)
+  })
+  return { categories, budget, actual }
+})
 
 /** Color palette for charts */
 const colors = [
@@ -192,9 +254,9 @@ const colors = [
 
 /** Pie chart data for expense distribution */
 const pieChartData = computed(() => ({
-  labels: Object.keys(expensesByCategory),
+  labels: Object.keys(expensesByCategory.value),
   datasets: [{
-    data: Object.values(expensesByCategory),
+    data: Object.values(expensesByCategory.value),
     backgroundColor: colors,
     borderWidth: 2,
     borderColor: '#fff'
@@ -232,10 +294,10 @@ const pieChartOptions = {
 
 /** Doughnut chart data for income distribution */
 const doughnutChartData = computed(() => ({
-  labels: Object.keys(incomeByCategory),
+  labels: Object.keys(incomeByCategory.value),
   datasets: [{
-    data: Object.values(incomeByCategory),
-    backgroundColor: ['#18a058', '#91cc75', '#73c0de'],
+    data: Object.values(incomeByCategory.value),
+    backgroundColor: ['#18a058', '#91cc75', '#73c0de', '#fac858', '#ee6666'],
     borderWidth: 2,
     borderColor: '#fff'
   }]
@@ -270,17 +332,17 @@ const doughnutChartOptions = {
 
 /** Bar chart data for monthly evolution */
 const barChartData = computed(() => ({
-  labels: monthlyData.map(d => d.month),
+  labels: monthlyData.value.map(d => d.month),
   datasets: [
     {
       label: 'Income',
-      data: monthlyData.map(d => d.income),
+      data: monthlyData.value.map(d => d.income),
       backgroundColor: '#18a058',
       borderRadius: 4
     },
     {
       label: 'Expenses',
-      data: monthlyData.map(d => d.expenses),
+      data: monthlyData.value.map(d => d.expenses),
       backgroundColor: '#d03050',
       borderRadius: 4
     }
@@ -332,17 +394,17 @@ const barChartOptions = {
 
 /** Comparison chart data for budget vs actual */
 const comparisonChartData = computed(() => ({
-  labels: budgetVsActual.categories,
+  labels: budgetVsActual.value.categories,
   datasets: [
     {
       label: 'Planned Budget',
-      data: budgetVsActual.budget,
+      data: budgetVsActual.value.budget,
       backgroundColor: '#5470c6',
       borderRadius: 4
     },
     {
       label: 'Actual',
-      data: budgetVsActual.actual,
+      data: budgetVsActual.value.actual,
       backgroundColor: '#91cc75',
       borderRadius: 4
     }

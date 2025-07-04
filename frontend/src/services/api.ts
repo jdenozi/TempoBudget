@@ -21,7 +21,7 @@
 import axios from 'axios'
 
 /** Base URL for the API server */
-const API_URL = 'http://localhost:3000/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 /**
  * Configured Axios instance with default headers.
