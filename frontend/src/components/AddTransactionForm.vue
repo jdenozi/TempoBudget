@@ -146,24 +146,28 @@
  * - Dynamic category selection with tagging
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   NForm, NFormItem, NInput, NInputNumber, NSelect, NRadioGroup,
   NRadioButton, NButton, NDatePicker, NCheckbox, NCollapseTransition,
   NSpace, useMessage
 } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
+import { useBudgetStore } from '@/stores/budget'
+import { recurringAPI } from '@/services/api'
 
 const emit = defineEmits(['success'])
 const message = useMessage()
 const formRef = ref<FormInst | null>(null)
+const budgetStore = useBudgetStore()
+const loading = ref(false)
 
 /** Transaction form data */
 const transaction = ref({
   type: 'expense',
-  budgetId: null,
-  category: null,
-  amount: null,
+  budgetId: null as string | null,
+  category: null as string | null,
+  amount: null as number | null,
   title: '',
   date: Date.now(),
   comment: '',
@@ -197,24 +201,15 @@ const rules: FormRules = {
   }
 }
 
-/** Available budget options */
-const budgetOptions = [
-  { label: 'Personal Budget', value: 1 },
-  { label: 'Couple Budget', value: 2 }
-]
+/** Available budget options from API */
+const budgetOptions = computed(() =>
+  budgetStore.budgets.map(b => ({ label: b.name, value: b.id }))
+)
 
-/** Available category options */
-const categoryOptions = [
-  { label: 'Housing', value: 'Housing' },
-  { label: 'Groceries', value: 'Groceries' },
-  { label: 'Health', value: 'Health' },
-  { label: 'Vehicle', value: 'Vehicle' },
-  { label: 'Leisure', value: 'Leisure' },
-  { label: 'Sports', value: 'Sports' },
-  { label: 'Couple', value: 'Couple' },
-  { label: 'Savings', value: 'Savings' },
-  { label: 'Pets', value: 'Pets' }
-]
+/** Available category options from API */
+const categoryOptions = computed(() =>
+  budgetStore.categories.map(c => ({ label: c.name, value: c.id }))
+)
 
 /** Available frequency options for recurring transactions */
 const frequencyOptions = [
@@ -223,31 +218,87 @@ const frequencyOptions = [
   { label: 'Yearly', value: 'yearly' }
 ]
 
+// Load budgets on mount
+onMounted(async () => {
+  await budgetStore.fetchBudgets()
+  if (budgetStore.budgets.length > 0) {
+    transaction.value.budgetId = budgetStore.budgets[0].id
+  }
+})
+
+// Load categories when budget changes
+watch(() => transaction.value.budgetId, async (budgetId) => {
+  if (budgetId) {
+    await budgetStore.fetchCategories(budgetId)
+    transaction.value.category = null
+  }
+})
+
 /**
  * Handles form submission.
- * Validates the form and emits success event if valid.
+ * Validates the form and creates transaction via API.
  */
-const handleSubmit = () => {
-  formRef.value?.validate((errors) => {
-    if (!errors) {
-      console.log('Transaction:', transaction.value)
-      message.success('Transaction saved!')
-      emit('success')
+const handleSubmit = async () => {
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
 
-      // Reset form
-      transaction.value = {
-        type: 'expense',
-        budgetId: null,
-        category: null,
-        amount: null,
-        title: '',
-        date: Date.now(),
-        comment: '',
-        isRecurring: false,
-        recurringFrequency: 'monthly',
-        recurringDay: 1
-      }
+  if (!transaction.value.budgetId || !transaction.value.category || !transaction.value.amount) {
+    return
+  }
+
+  loading.value = true
+  try {
+    const dateString = new Date(transaction.value.date).toISOString().split('T')[0]
+
+    if (transaction.value.isRecurring) {
+      await recurringAPI.create({
+        budget_id: transaction.value.budgetId,
+        category_id: transaction.value.category,
+        title: transaction.value.title,
+        amount: transaction.value.amount,
+        transaction_type: transaction.value.type,
+        frequency: transaction.value.recurringFrequency,
+        day: transaction.value.recurringFrequency === 'monthly'
+          ? transaction.value.recurringDay
+          : undefined,
+      })
+      message.success('Recurring transaction created!')
+    } else {
+      await budgetStore.createTransaction({
+        budget_id: transaction.value.budgetId,
+        category_id: transaction.value.category,
+        title: transaction.value.title,
+        amount: transaction.value.amount,
+        transaction_type: transaction.value.type,
+        date: dateString,
+        comment: transaction.value.comment || undefined,
+      })
+      message.success('Transaction saved!')
     }
-  })
+
+    emit('success')
+
+    // Reset form
+    transaction.value = {
+      type: 'expense',
+      budgetId: budgetStore.budgets[0]?.id ?? null,
+      category: null,
+      amount: null,
+      title: '',
+      date: Date.now(),
+      comment: '',
+      isRecurring: false,
+      recurringFrequency: 'monthly',
+      recurringDay: 1
+    }
+  } catch (error) {
+    console.error('Error creating transaction:', error)
+    message.error('Error creating transaction')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
