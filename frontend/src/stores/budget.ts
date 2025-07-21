@@ -105,8 +105,8 @@ export const useBudgetStore = defineStore('budget', () => {
    * @param amount - Allocated amount
    * @returns The created category
    */
-  async function createCategory(budgetId: string, name: string, amount: number) {
-    const category = await categoriesAPI.create(budgetId, name, amount)
+  async function createCategory(budgetId: string, name: string, amount: number, parentId?: string, tags?: string[]) {
+    const category = await categoriesAPI.create(budgetId, name, amount, parentId, tags)
     categories.value.push(category)
     return category
   }
@@ -117,7 +117,7 @@ export const useBudgetStore = defineStore('budget', () => {
    * @param data - Fields to update
    * @returns The updated category
    */
-  async function updateCategory(id: string, data: { name?: string; amount?: number }) {
+  async function updateCategory(id: string, data: { name?: string; amount?: number; tags?: string[] }) {
     const updated = await categoriesAPI.update(id, data)
     const index = categories.value.findIndex(c => c.id === id)
     if (index !== -1) {

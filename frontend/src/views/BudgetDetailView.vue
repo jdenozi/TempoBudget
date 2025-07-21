@@ -94,12 +94,35 @@
           </template>
         </n-empty>
 
-        <n-grid v-else :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
-          <n-gi v-for="category in categoriesWithSpent" :key="category.id">
+        <n-grid v-else :cols="isMobile ? 1 : 2" :x-gap="12" :y-gap="12">
+          <n-gi v-for="category in parentCategories" :key="category.id">
             <n-card size="small">
-              <div style="margin-bottom: 8px;">
-                <strong>{{ category.name }}</strong>
-              </div>
+              <template #header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong>{{ category.name }}</strong>
+                  <n-space size="small">
+                    <n-button size="tiny" quaternary @click="openEditModal(category)">
+                      Edit
+                    </n-button>
+                    <n-popconfirm @positive-click="handleDeleteCategory(category.id)">
+                      <template #trigger>
+                        <n-button size="tiny" quaternary type="error">
+                          Delete
+                        </n-button>
+                      </template>
+                      Delete this category?
+                    </n-popconfirm>
+                  </n-space>
+                </div>
+              </template>
+
+              <!-- Tags -->
+              <n-space v-if="category.tags && category.tags.length > 0" size="small" style="margin-bottom: 8px;">
+                <n-tag v-for="tag in category.tags" :key="tag" size="small" :type="getTagType(tag)">
+                  {{ tag }}
+                </n-tag>
+              </n-space>
+
               <div style="font-size: 12px; color: #888; margin-bottom: 8px;">
                 {{ category.spent.toFixed(2) }} / {{ category.amount.toFixed(2) }} €
               </div>
@@ -114,6 +137,33 @@
               >
                 Remaining: {{ category.remaining.toFixed(2) }} €
               </div>
+
+              <!-- Subcategories -->
+              <div v-if="getSubcategories(category.id).length > 0" style="margin-top: 12px; padding-left: 12px; border-left: 2px solid #333;">
+                <div v-for="sub in getSubcategories(category.id)" :key="sub.id" style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px;">{{ sub.name }}</span>
+                    <n-space size="small">
+                      <n-button size="tiny" quaternary @click="openEditModal(sub)">Edit</n-button>
+                      <n-popconfirm @positive-click="handleDeleteCategory(sub.id)">
+                        <template #trigger>
+                          <n-button size="tiny" quaternary type="error">Del</n-button>
+                        </template>
+                        Delete?
+                      </n-popconfirm>
+                    </n-space>
+                  </div>
+                  <div style="font-size: 11px; color: #888;">
+                    {{ sub.spent.toFixed(2) }} €
+                  </div>
+                </div>
+              </div>
+
+              <template #footer>
+                <n-button size="tiny" dashed @click="openAddSubcategory(category.id)">
+                  + Subcategory
+                </n-button>
+              </template>
             </n-card>
           </n-gi>
         </n-grid>
@@ -188,7 +238,7 @@
     <!-- Add category modal -->
     <n-modal v-model:show="showAddCategory">
       <n-card
-        title="Add a Category"
+        :title="newCategory.parentId ? 'Add Subcategory' : 'Add Category'"
         :bordered="false"
         size="huge"
         role="dialog"
@@ -199,7 +249,7 @@
             <n-input v-model:value="newCategory.name" placeholder="Housing" />
           </n-form-item>
 
-          <n-form-item label="Amount">
+          <n-form-item label="Budget Amount">
             <n-input-number
               v-model:value="newCategory.amount"
               :min="0"
@@ -209,13 +259,72 @@
               <template #suffix>€</template>
             </n-input-number>
           </n-form-item>
+
+          <n-form-item label="Tags">
+            <n-checkbox-group v-model:value="newCategory.tags">
+              <n-space>
+                <n-checkbox value="crédit">Crédit</n-checkbox>
+                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="loisir">Loisir</n-checkbox>
+                <n-checkbox value="épargne">Épargne</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
+          </n-form-item>
         </n-form>
 
         <template #footer>
           <n-space justify="end">
-            <n-button @click="showAddCategory = false">Cancel</n-button>
+            <n-button @click="closeAddModal">Cancel</n-button>
             <n-button type="primary" :loading="addingCategory" @click="handleAddCategory">
               Add
+            </n-button>
+          </n-space>
+        </template>
+      </n-card>
+    </n-modal>
+
+    <!-- Edit category modal -->
+    <n-modal v-model:show="showEditCategory">
+      <n-card
+        title="Edit Category"
+        :bordered="false"
+        size="huge"
+        role="dialog"
+        :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
+      >
+        <n-form :model="editCategory">
+          <n-form-item label="Name">
+            <n-input v-model:value="editCategory.name" placeholder="Category name" />
+          </n-form-item>
+
+          <n-form-item label="Budget Amount">
+            <n-input-number
+              v-model:value="editCategory.amount"
+              :min="0"
+              :precision="2"
+              style="width: 100%;"
+            >
+              <template #suffix>€</template>
+            </n-input-number>
+          </n-form-item>
+
+          <n-form-item label="Tags">
+            <n-checkbox-group v-model:value="editCategory.tags">
+              <n-space>
+                <n-checkbox value="crédit">Crédit</n-checkbox>
+                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="loisir">Loisir</n-checkbox>
+                <n-checkbox value="épargne">Épargne</n-checkbox>
+              </n-space>
+            </n-checkbox-group>
+          </n-form-item>
+        </n-form>
+
+        <template #footer>
+          <n-space justify="end">
+            <n-button @click="showEditCategory = false">Cancel</n-button>
+            <n-button type="primary" :loading="editingCategory" @click="handleEditCategory">
+              Save
             </n-button>
           </n-space>
         </template>
@@ -282,6 +391,7 @@ import {
   NStatistic, NProgress, NEmpty, NModal, NForm, NFormItem,
   NInput, NInputNumber, NSpin, NList, NListItem, NThing,
   NAvatar, NTag, NIcon, NRadioGroup, NRadio, NPopconfirm,
+  NCheckbox, NCheckboxGroup,
   useMessage
 } from 'naive-ui'
 import { TrashOutline } from '@vicons/ionicons5'
@@ -314,6 +424,22 @@ const categoryFormRef = ref<any>(null)
 const newCategory = ref({
   name: '',
   amount: 0,
+  parentId: null as string | null,
+  tags: [] as string[],
+})
+
+/** Edit category modal visibility */
+const showEditCategory = ref(false)
+
+/** Loading state for editing category */
+const editingCategory = ref(false)
+
+/** Edit category form data */
+const editCategory = ref({
+  id: '',
+  name: '',
+  amount: 0,
+  tags: [] as string[],
 })
 
 /** List of budget members */
@@ -511,11 +637,67 @@ const percentage = computed(() => {
 })
 
 /**
+ * Parent categories (categories without parent_id).
+ */
+const parentCategories = computed(() => {
+  return categoriesWithSpent.value.filter(c => !c.parent_id)
+})
+
+/**
+ * Get subcategories for a parent category.
+ */
+const getSubcategories = (parentId: string) => {
+  return categoriesWithSpent.value.filter(c => c.parent_id === parentId)
+}
+
+/**
+ * Get tag color type.
+ */
+const getTagType = (tag: string) => {
+  const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
+    'crédit': 'error',
+    'obligé': 'warning',
+    'loisir': 'info',
+    'épargne': 'success',
+  }
+  return types[tag] || 'default'
+}
+
+/**
+ * Open add subcategory modal.
+ */
+const openAddSubcategory = (parentId: string) => {
+  newCategory.value = { name: '', amount: 0, parentId, tags: [] }
+  showAddCategory.value = true
+}
+
+/**
+ * Close add modal and reset form.
+ */
+const closeAddModal = () => {
+  showAddCategory.value = false
+  newCategory.value = { name: '', amount: 0, parentId: null, tags: [] }
+}
+
+/**
+ * Open edit modal for a category.
+ */
+const openEditModal = (category: any) => {
+  editCategory.value = {
+    id: category.id,
+    name: category.name,
+    amount: category.amount,
+    tags: category.tags || [],
+  }
+  showEditCategory.value = true
+}
+
+/**
  * Adds a new category to the budget.
  */
 const handleAddCategory = async () => {
-  if (!newCategory.value.name || newCategory.value.amount <= 0) {
-    message.error('Please fill in all fields')
+  if (!newCategory.value.name) {
+    message.error('Please enter a name')
     return
   }
 
@@ -525,16 +707,60 @@ const handleAddCategory = async () => {
     await budgetStore.createCategory(
       budgetId,
       newCategory.value.name,
-      newCategory.value.amount
+      newCategory.value.amount,
+      newCategory.value.parentId || undefined,
+      newCategory.value.tags
     )
     message.success('Category added!')
-    showAddCategory.value = false
-    newCategory.value = { name: '', amount: 0 }
+    closeAddModal()
   } catch (error) {
     console.error('Error adding category:', error)
     message.error('Error adding category')
   } finally {
     addingCategory.value = false
+  }
+}
+
+/**
+ * Edit an existing category.
+ */
+const handleEditCategory = async () => {
+  if (!editCategory.value.name) {
+    message.error('Please enter a name')
+    return
+  }
+
+  editingCategory.value = true
+  try {
+    await budgetStore.updateCategory(editCategory.value.id, {
+      name: editCategory.value.name,
+      amount: editCategory.value.amount,
+      tags: editCategory.value.tags,
+    })
+    message.success('Category updated!')
+    showEditCategory.value = false
+  } catch (error) {
+    console.error('Error updating category:', error)
+    message.error('Error updating category')
+  } finally {
+    editingCategory.value = false
+  }
+}
+
+/**
+ * Delete a category.
+ */
+const handleDeleteCategory = async (categoryId: string) => {
+  try {
+    await budgetStore.deleteCategory(categoryId)
+    message.success('Category deleted!')
+  } catch (error: any) {
+    console.error('Error deleting category:', error)
+    if (error.response?.data?.detail?.includes('subcategories')) {
+      message.error('Delete subcategories first')
+    } else {
+      message.error('Error deleting category')
+    }
   }
 }
 </script>

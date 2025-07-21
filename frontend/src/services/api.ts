@@ -82,8 +82,10 @@ export interface Budget {
 export interface Category {
   id: string
   budget_id: string
+  parent_id: string | null
   name: string
   amount: number
+  tags: string[]
   created_at: string
 }
 
@@ -200,10 +202,12 @@ export const categoriesAPI = {
    * @param amount - Allocated amount
    * @returns The created category
    */
-  create: async (budgetId: string, name: string, amount: number) => {
+  create: async (budgetId: string, name: string, amount: number, parentId?: string, tags?: string[]) => {
     const response = await api.post<Category>(`/budgets/${budgetId}/categories`, {
       name,
       amount,
+      parent_id: parentId || null,
+      tags: tags || [],
     })
     return response.data
   },
@@ -214,7 +218,7 @@ export const categoriesAPI = {
    * @param data - Fields to update (name and/or amount)
    * @returns The updated category
    */
-  update: async (id: string, data: { name?: string; amount?: number }) => {
+  update: async (id: string, data: { name?: string; amount?: number; tags?: string[] }) => {
     const response = await api.put<Category>(`/categories/${id}`, data)
     return response.data
   },

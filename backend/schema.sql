@@ -26,10 +26,13 @@ CREATE TABLE IF NOT EXISTS budgets (
 CREATE TABLE IF NOT EXISTS categories (
                                           id TEXT PRIMARY KEY,
                                           budget_id TEXT NOT NULL,
+                                          parent_id TEXT,
                                           name TEXT NOT NULL,
                                           amount REAL NOT NULL,
+                                          tags TEXT,
                                           created_at TEXT NOT NULL,
-                                          FOREIGN KEY (budget_id) REFERENCES budgets(id)
+                                          FOREIGN KEY (budget_id) REFERENCES budgets(id),
+                                          FOREIGN KEY (parent_id) REFERENCES categories(id)
     );
 
 -- Transactions
