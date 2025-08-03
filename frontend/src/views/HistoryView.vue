@@ -34,21 +34,18 @@
             <n-statistic label="Transactions" :value="budgetStore.transactions.length" />
           </n-gi>
           <n-gi>
-            <n-statistic label="Total Income">
-              <template #prefix>€</template>
-              {{ totalIncome.toFixed(2) }}
+            <n-statistic label="Total Income" :value="totalIncome.toFixed(2)">
+              <template #suffix>€</template>
             </n-statistic>
           </n-gi>
           <n-gi>
-            <n-statistic label="Total Expenses">
-              <template #prefix>€</template>
-              {{ totalExpenses.toFixed(2) }}
+            <n-statistic label="Total Expenses" :value="totalExpenses.toFixed(2)">
+              <template #suffix>€</template>
             </n-statistic>
           </n-gi>
           <n-gi>
-            <n-statistic label="Balance">
-              <template #prefix>€</template>
-              {{ (totalIncome - totalExpenses).toFixed(2) }}
+            <n-statistic label="Balance" :value="(totalIncome - totalExpenses).toFixed(2)">
+              <template #suffix>€</template>
             </n-statistic>
           </n-gi>
         </n-grid>
