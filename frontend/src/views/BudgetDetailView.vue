@@ -325,7 +325,7 @@
             <n-input v-model:value="editCategory.name" placeholder="Category name" />
           </n-form-item>
 
-          <n-form-item label="Budget Amount">
+          <n-form-item v-if="!editCategory.isSubcategory" label="Budget Amount">
             <n-input-number
               v-model:value="editCategory.amount"
               :min="0"
@@ -469,6 +469,7 @@ const editCategory = ref({
   name: '',
   amount: 0,
   tags: [] as string[],
+  isSubcategory: false,
 })
 
 /** List of budget members */
@@ -758,6 +759,7 @@ const openEditModal = (category: any) => {
     name: category.name,
     amount: category.amount,
     tags: category.tags || [],
+    isSubcategory: !!category.parent_id,
   }
   showEditCategory.value = true
 }
