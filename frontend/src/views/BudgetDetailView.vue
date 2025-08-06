@@ -81,6 +81,35 @@
         </n-grid>
       </n-card>
 
+      <!-- Tag Statistics -->
+      <n-card v-if="tagStatistics.length > 0" title="Statistics by Tag">
+        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+          <n-gi v-for="stat in tagStatistics" :key="stat.tag">
+            <n-card size="small" :style="{ borderLeft: `3px solid ${getTagColor(stat.tag)}` }">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <n-tag :type="getTagType(stat.tag)" size="small">{{ stat.tag }}</n-tag>
+                <span style="font-size: 12px; color: #888;">{{ stat.percentage.toFixed(0) }}%</span>
+              </div>
+              <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">
+                {{ stat.spent.toFixed(2) }} / {{ stat.budget.toFixed(2) }} €
+              </div>
+              <n-progress
+                :percentage="Math.min(stat.percentage, 100)"
+                :color="stat.percentage > 100 ? '#d03050' : getTagColor(stat.tag)"
+                :show-indicator="false"
+                :height="6"
+              />
+              <div
+                style="font-size: 11px; margin-top: 4px;"
+                :style="{ color: stat.remaining >= 0 ? '#18a058' : '#d03050' }"
+              >
+                {{ stat.remaining >= 0 ? 'Remaining' : 'Over' }}: {{ Math.abs(stat.remaining).toFixed(2) }} €
+              </div>
+            </n-card>
+          </n-gi>
+        </n-grid>
+      </n-card>
+
       <!-- Categories -->
       <n-card title="Categories">
         <n-empty
@@ -697,6 +726,41 @@ const percentage = computed(() => {
   return totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0
 })
 
+/** Available tags */
+const VALID_TAGS = ['crédit', 'obligé', 'loisir', 'épargne']
+
+/**
+ * Statistics per tag.
+ * For each tag, calculates the total budget and spent amounts
+ * from all categories that have that tag.
+ */
+const tagStatistics = computed(() => {
+  return VALID_TAGS.map(tag => {
+    // Get all categories (parent + sub) that have this tag
+    const categoriesWithTag = categoriesWithSpent.value.filter(c =>
+      c.tags && c.tags.includes(tag)
+    )
+
+    // Sum budgets (only from parent categories to avoid counting parent budget twice)
+    const budget = categoriesWithTag
+      .filter(c => !c.parent_id)
+      .reduce((sum, c) => sum + c.amount, 0)
+
+    // Sum spending from all categories with this tag
+    const spent = categoriesWithTag.reduce((sum, c) => sum + c.spent, 0)
+
+    const percentage = budget > 0 ? (spent / budget) * 100 : 0
+
+    return {
+      tag,
+      budget,
+      spent,
+      remaining: budget - spent,
+      percentage,
+    }
+  }).filter(stat => stat.budget > 0 || stat.spent > 0) // Only show tags that have data
+})
+
 /**
  * Parent categories (categories without parent_id).
  */
@@ -722,7 +786,7 @@ const getSubcategories = (parentId: string) => {
 }
 
 /**
- * Get tag color type.
+ * Get tag color type for n-tag component.
  */
 const getTagType = (tag: string) => {
   const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
@@ -732,6 +796,19 @@ const getTagType = (tag: string) => {
     'épargne': 'success',
   }
   return types[tag] || 'default'
+}
+
+/**
+ * Get tag hex color for progress bars and borders.
+ */
+const getTagColor = (tag: string) => {
+  const colors: Record<string, string> = {
+    'crédit': '#d03050',
+    'obligé': '#f0a020',
+    'loisir': '#2080f0',
+    'épargne': '#18a058',
+  }
+  return colors[tag] || '#888888'
 }
 
 /**
