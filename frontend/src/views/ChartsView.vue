@@ -284,7 +284,7 @@ const pieChartOptions = {
           const label = context.label || ''
           const value = context.parsed || 0
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
-          const percentage = ((value / total) * 100).toFixed(1)
+          const percentage = ((value / total) * 100).toFixed(2)
           return `${label}: ${value.toFixed(2)} € (${percentage}%)`
         }
       }

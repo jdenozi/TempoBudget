@@ -88,7 +88,7 @@
             <n-card size="small" :style="{ borderLeft: `3px solid ${getTagColor(stat.tag)}` }">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <n-tag :type="getTagType(stat.tag)" size="small">{{ stat.tag }}</n-tag>
-                <span style="font-size: 12px; color: #888;">{{ stat.percentage.toFixed(0) }}%</span>
+                <span style="font-size: 12px; color: #888;">{{ stat.percentage.toFixed(2) }}%</span>
               </div>
               <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">
                 {{ stat.spent.toFixed(2) }} / {{ stat.budget.toFixed(2) }} €
@@ -321,7 +321,7 @@
             <n-checkbox-group v-model:value="newCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="besoin">besoin</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -369,7 +369,7 @@
             <n-checkbox-group v-model:value="editCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="besoin">besoin</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -727,7 +727,7 @@ const percentage = computed(() => {
 })
 
 /** Available tags */
-const VALID_TAGS = ['crédit', 'obligé', 'loisir', 'épargne']
+const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
 
 /**
  * Statistics per tag.
@@ -786,7 +786,7 @@ const getSubcategories = (parentId: string) => {
 }
 
 /**
- * Get tag color type for n-tag component.
+ * Get tag color type.
  */
 const getTagType = (tag: string) => {
   const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
@@ -796,19 +796,6 @@ const getTagType = (tag: string) => {
     'épargne': 'success',
   }
   return types[tag] || 'default'
-}
-
-/**
- * Get tag hex color for progress bars and borders.
- */
-const getTagColor = (tag: string) => {
-  const colors: Record<string, string> = {
-    'crédit': '#d03050',
-    'obligé': '#f0a020',
-    'loisir': '#2080f0',
-    'épargne': '#18a058',
-  }
-  return colors[tag] || '#888888'
 }
 
 /**
