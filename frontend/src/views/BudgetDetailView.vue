@@ -382,7 +382,7 @@
             <n-checkbox-group v-model:value="newCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="besoin">besoin</n-checkbox>
+                <n-checkbox value="obligé">Obligé</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -430,7 +430,7 @@
             <n-checkbox-group v-model:value="editCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="besoin">besoin</n-checkbox>
+                <n-checkbox value="obligé">Obligé</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -849,7 +849,7 @@ const projectedPercentage = computed(() => {
 })
 
 /** Available tags */
-const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
+const VALID_TAGS = ['crédit', 'obligé', 'loisir', 'épargne']
 
 /**
  * Statistics per tag.
@@ -1044,11 +1044,17 @@ const handleEditCategory = async () => {
 
   editingCategory.value = true
   try {
-    await budgetStore.updateCategory(editCategory.value.id, {
+    const updateData: { name?: string; amount?: number; tags?: string[] } = {
       name: editCategory.value.name,
-      amount: editCategory.value.amount,
-      tags: editCategory.value.tags,
-    })
+      tags: editCategory.value.tags || [],
+    }
+
+    // Only send amount for parent categories (not subcategories)
+    if (!editCategory.value.isSubcategory) {
+      updateData.amount = editCategory.value.amount
+    }
+
+    await budgetStore.updateCategory(editCategory.value.id, updateData)
     message.success('Category updated!')
     showEditCategory.value = false
   } catch (error) {
