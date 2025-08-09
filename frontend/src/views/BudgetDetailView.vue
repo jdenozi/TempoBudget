@@ -96,7 +96,7 @@
               <template #suffix>€</template>
             </n-statistic>
           </n-gi>
-          <n-gi :span="isMobile ? 2 : 1">
+          <n-gi>
             <div style="display: flex; justify-content: center;">
               <n-progress
                 type="circle"
@@ -106,6 +106,21 @@
               >
                 {{ projectedPercentage.toFixed(2) }}%
               </n-progress>
+            </div>
+          </n-gi>
+          <n-gi>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <div style="font-size: 12px; color: #888; margin-bottom: 4px;">By Tag</div>
+              <div :style="{ width: isMobile ? '80px' : '100px', height: isMobile ? '80px' : '100px' }">
+                <Doughnut
+                  v-if="tagStatistics.length > 0"
+                  :data="tagChartData"
+                  :options="tagChartOptions"
+                />
+                <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-size: 11px;">
+                  No tags
+                </div>
+              </div>
             </div>
           </n-gi>
         </n-grid>
@@ -498,7 +513,12 @@ import {
   useMessage
 } from 'naive-ui'
 import { TrashOutline } from '@vicons/ionicons5'
+import { Doughnut } from 'vue-chartjs'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { useBudgetStore } from '@/stores/budget'
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend)
 import { useAuthStore } from '@/stores/auth'
 import { budgetMembersAPI, budgetsAPI, type BudgetMemberWithUser } from '@/services/api'
 
@@ -862,6 +882,52 @@ const tagStatistics = computed(() => {
     }
   }).filter(stat => stat.budget > 0 || stat.spent > 0) // Only show tags that have data
 })
+
+/** Tag colors for chart */
+const TAG_COLORS: Record<string, string> = {
+  'crédit': '#d03050',
+  'obligé': '#f0a020',
+  'loisir': '#2080f0',
+  'épargne': '#18a058',
+}
+
+/**
+ * Chart data for tag distribution (doughnut chart).
+ */
+const tagChartData = computed(() => {
+  const stats = tagStatistics.value
+  return {
+    labels: stats.map(s => s.tag),
+    datasets: [{
+      data: stats.map(s => s.spent),
+      backgroundColor: stats.map(s => TAG_COLORS[s.tag] || '#888888'),
+      borderWidth: 2,
+      borderColor: '#1a1a1a',
+    }]
+  }
+})
+
+/** Chart options for tag distribution */
+const tagChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      callbacks: {
+        label: (context: any) => {
+          const label = context.label || ''
+          const value = context.parsed || 0
+          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
+          const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00'
+          return `${label}: ${value.toFixed(2)} € (${percentage}%)`
+        }
+      }
+    }
+  }
+}
 
 /**
  * Parent categories (categories without parent_id).
