@@ -12,6 +12,7 @@ class BudgetMember(BaseModel):
     budget_id: str = Field(..., description="ID of the budget")
     user_id: str = Field(..., description="ID of the user")
     role: str = Field(..., description="Role: 'owner' or 'member'")
+    share: float = Field(50.0, description="Percentage share of the budget (0-100)")
     created_at: str = Field(..., description="Creation timestamp")
 
     class Config:
@@ -24,10 +25,26 @@ class BudgetMemberWithUser(BaseModel):
     budget_id: str = Field(..., description="ID of the budget")
     user_id: str = Field(..., description="ID of the user")
     role: str = Field(..., description="Role of the member")
+    share: float = Field(50.0, description="Percentage share of the budget (0-100)")
     created_at: str = Field(..., description="Creation timestamp")
     user_name: str = Field(..., description="User's display name")
     user_email: str = Field(..., description="User's email address")
     user_avatar: str | None = Field(None, description="User's avatar URL")
+
+
+class UpdateMemberShareRequest(BaseModel):
+    """Request payload for updating a member's share."""
+    share: float = Field(..., ge=0, le=100, description="New share percentage (0-100)")
+
+
+class MemberBalance(BaseModel):
+    """Balance information for a budget member."""
+    user_id: str = Field(..., description="ID of the user")
+    user_name: str = Field(..., description="User's display name")
+    share: float = Field(..., description="Percentage share of the budget")
+    total_due: float = Field(..., description="Total amount due based on share")
+    total_paid: float = Field(..., description="Total amount paid by this member")
+    balance: float = Field(..., description="Balance (positive = overpaid, negative = underpaid)")
 
 
 class InviteMemberRequest(BaseModel):

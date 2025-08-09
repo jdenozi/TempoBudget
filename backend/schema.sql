@@ -46,9 +46,11 @@ CREATE TABLE IF NOT EXISTS transactions (
                                             date TEXT NOT NULL,
                                             comment TEXT,
                                             is_recurring INTEGER NOT NULL DEFAULT 0,
+                                            paid_by_user_id TEXT,
                                             created_at TEXT NOT NULL,
                                             FOREIGN KEY (budget_id) REFERENCES budgets(id),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    FOREIGN KEY (paid_by_user_id) REFERENCES users(id)
     );
 
 -- Recurring Transactions
@@ -92,6 +94,7 @@ CREATE TABLE IF NOT EXISTS budget_members (
                                               budget_id TEXT NOT NULL,
                                               user_id TEXT NOT NULL,
                                               role TEXT NOT NULL CHECK(role IN ('owner', 'member')),
+    share REAL NOT NULL DEFAULT 50.0,
     created_at TEXT NOT NULL,
     FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

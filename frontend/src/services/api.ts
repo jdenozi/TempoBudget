@@ -100,6 +100,7 @@ export interface Transaction {
   date: string
   comment?: string
   is_recurring: number
+  paid_by_user_id?: string
   created_at: string
 }
 
@@ -123,10 +124,35 @@ export interface BudgetMemberWithUser {
   budget_id: string
   user_id: string
   role: string
+  share: number
   created_at: string
   user_name: string
   user_email: string
   user_avatar?: string
+}
+
+/** Member balance for group budget calculations */
+export interface MemberBalance {
+  user_id: string
+  user_name: string
+  share: number
+  total_due: number
+  total_paid: number
+  balance: number
+}
+
+/** Budget summary statistics */
+export interface BudgetSummary {
+  id: string
+  name: string
+  budget_type: string
+  total_budget: number
+  total_spent: number
+  total_income: number
+  remaining: number
+  percentage: number
+  category_count: number
+  transaction_count: number
 }
 
 /** Budget invitation with full context details */
@@ -178,6 +204,18 @@ export const authAPI = {
       password,
     })
     return response.data
+  },
+
+  /**
+   * Changes the current user's password.
+   * @param currentPassword - Current password
+   * @param newPassword - New password
+   */
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    await api.post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
   },
 }
 
@@ -259,6 +297,7 @@ export const transactionsAPI = {
     transaction_type: string
     date: string
     comment?: string
+    paid_by_user_id?: string
   }) => {
     const response = await api.post<Transaction>(`/budgets/${data.budget_id}/transactions`, data)
     return response.data
@@ -322,6 +361,17 @@ export const recurringAPI = {
   delete: async (id: string) => {
     await api.delete(`/recurring/${id}`)
   },
+
+  /**
+   * Process recurring transactions and generate actual transactions.
+   * Creates transactions for any recurring templates that should have triggered.
+   * @param budgetId - The budget's unique identifier
+   * @returns Array of newly created transactions
+   */
+  process: async (budgetId: string) => {
+    const response = await api.post<Transaction[]>(`/budgets/${budgetId}/recurring/process`)
+    return response.data
+  },
 }
 
 /**
@@ -358,6 +408,30 @@ export const budgetMembersAPI = {
    */
   removeMember: async (budgetId: string, memberId: string) => {
     await api.delete(`/budgets/${budgetId}/members/${memberId}`)
+  },
+
+  /**
+   * Updates a member's share percentage.
+   * @param budgetId - The budget's unique identifier
+   * @param memberId - The member record's unique identifier
+   * @param share - New share percentage (0-100)
+   */
+  updateShare: async (budgetId: string, memberId: string, share: number) => {
+    const response = await api.put<BudgetMemberWithUser>(
+      `/budgets/${budgetId}/members/${memberId}/share`,
+      { share }
+    )
+    return response.data
+  },
+
+  /**
+   * Gets the balance calculations for all members.
+   * @param budgetId - The budget's unique identifier
+   * @returns Array of member balances
+   */
+  getBalances: async (budgetId: string) => {
+    const response = await api.get<MemberBalance[]>(`/budgets/${budgetId}/balances`)
+    return response.data
   },
 }
 
@@ -401,6 +475,15 @@ export const budgetsAPI = {
    */
   getAll: async () => {
     const response = await api.get<Budget[]>('/budgets')
+    return response.data
+  },
+
+  /**
+   * Retrieves summary statistics for all user budgets.
+   * @returns Array of budget summaries
+   */
+  getSummaries: async () => {
+    const response = await api.get<BudgetSummary[]>('/budgets/summaries')
     return response.data
   },
 

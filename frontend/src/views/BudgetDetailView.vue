@@ -126,33 +126,94 @@
         </n-grid>
       </n-card>
 
-      <!-- Tag Statistics -->
-      <n-card v-if="tagStatistics.length > 0" title="Statistics by Tag">
-        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
-          <n-gi v-for="stat in tagStatistics" :key="stat.tag">
-            <n-card size="small" :style="{ borderLeft: `3px solid ${getTagColor(stat.tag)}` }">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <n-tag :type="getTagType(stat.tag)" size="small">{{ stat.tag }}</n-tag>
-                <span style="font-size: 12px; color: #888;">{{ stat.percentage.toFixed(2) }}%</span>
-              </div>
-              <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">
-                {{ stat.spent.toFixed(2) }} / {{ stat.budget.toFixed(2) }} €
-              </div>
-              <n-progress
-                :percentage="Math.min(stat.percentage, 100)"
-                :color="stat.percentage > 100 ? '#d03050' : getTagColor(stat.tag)"
-                :show-indicator="false"
-                :height="6"
-              />
+      <!-- Balances (only for group budgets) -->
+      <n-card v-if="budgetStore.currentBudget?.budget_type === 'group' && balances.length > 0" title="Balances">
+        <n-space vertical size="large">
+          <!-- Balance summary per member -->
+          <n-list bordered>
+            <n-list-item v-for="balance in balances" :key="balance.user_id">
+              <n-thing :title="balance.user_name">
+                <template #description>
+                  <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8" style="margin-top: 8px;">
+                    <n-gi>
+                      <div style="font-size: 12px; color: #888;">Share</div>
+                      <div style="font-weight: bold;">{{ balance.share }}%</div>
+                    </n-gi>
+                    <n-gi>
+                      <div style="font-size: 12px; color: #888;">Should pay</div>
+                      <div style="font-weight: bold;">{{ balance.total_due.toFixed(2) }} €</div>
+                    </n-gi>
+                    <n-gi>
+                      <div style="font-size: 12px; color: #888;">Has paid</div>
+                      <div style="font-weight: bold;">{{ balance.total_paid.toFixed(2) }} €</div>
+                    </n-gi>
+                    <n-gi>
+                      <div style="font-size: 12px; color: #888;">Balance</div>
+                      <div :style="{ fontWeight: 'bold', color: balance.balance >= 0 ? '#18a058' : '#d03050' }">
+                        {{ balance.balance >= 0 ? '+' : '' }}{{ balance.balance.toFixed(2) }} €
+                      </div>
+                    </n-gi>
+                  </n-grid>
+                </template>
+              </n-thing>
+            </n-list-item>
+          </n-list>
+
+          <!-- Who owes whom summary -->
+          <n-card size="small" :bordered="false" style="background: rgba(255,255,255,0.05);">
+            <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">Remboursements</div>
+            <div v-if="settlements.length === 0">
+              <n-tag type="success">Tout est équilibré !</n-tag>
+            </div>
+            <n-space v-else vertical size="medium">
               <div
-                style="font-size: 11px; margin-top: 4px;"
-                :style="{ color: stat.remaining >= 0 ? '#18a058' : '#d03050' }"
+                v-for="(settlement, idx) in settlements"
+                :key="idx"
+                style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(0,0,0,0.1); border-radius: 8px;"
               >
-                {{ stat.remaining >= 0 ? 'Remaining' : 'Over' }}: {{ Math.abs(stat.remaining).toFixed(2) }} €
+                <span style="color: #d03050; font-weight: bold;">{{ settlement.from }}</span>
+                <span style="font-size: 20px;">→</span>
+                <span style="color: #18a058; font-weight: bold;">{{ settlement.to }}</span>
+                <n-tag type="warning" size="medium" style="margin-left: auto;">
+                  {{ settlement.amount.toFixed(2) }} €
+                </n-tag>
               </div>
-            </n-card>
-          </n-gi>
-        </n-grid>
+            </n-space>
+          </n-card>
+        </n-space>
+      </n-card>
+
+      <!-- Tag Statistics -->
+      <n-card v-if="tagDistribution.length > 0" title="Statistics by Tag">
+        <!-- Stacked bar chart at 100% -->
+        <div style="display: flex; height: 32px; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
+          <div
+            v-for="stat in tagDistribution"
+            :key="stat.tag"
+            :style="{
+              width: stat.distributionPercent + '%',
+              backgroundColor: getTagColor(stat.tag),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: stat.distributionPercent > 5 ? 'auto' : '0',
+            }"
+          >
+            <span v-if="stat.distributionPercent > 8" style="color: white; font-size: 12px; font-weight: bold;">
+              {{ stat.distributionPercent.toFixed(1) }}%
+            </span>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+          <div v-for="stat in tagDistribution" :key="stat.tag" style="display: flex; align-items: center; gap: 8px;">
+            <div :style="{ width: '12px', height: '12px', borderRadius: '2px', backgroundColor: getTagColor(stat.tag) }"></div>
+            <span style="font-size: 13px;">
+              <strong>{{ stat.tag }}</strong>: {{ stat.budget.toFixed(2) }} € ({{ stat.distributionPercent.toFixed(1) }}%)
+            </span>
+          </div>
+        </div>
       </n-card>
 
       <!-- Categories -->
@@ -183,6 +244,15 @@
                 </div>
                 <div style="font-size: 13px; color: #888;">
                   Budget: <strong>{{ category.amount.toFixed(2) }} €</strong>
+                </div>
+                <!-- Member shares for group budgets -->
+                <div
+                  v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0"
+                  style="display: flex; gap: 16px; margin-top: 4px; font-size: 12px;"
+                >
+                  <span v-for="member in members" :key="member.id" style="color: #888;">
+                    {{ member.user_name }}: <strong>{{ (category.amount * member.share / 100).toFixed(2) }} €</strong>
+                  </span>
                 </div>
               </div>
               <n-space size="small">
@@ -256,6 +326,15 @@
                     <span style="color: #18a058;">Spent: {{ sub.spent.toFixed(2) }} €</span>
                     <span style="color: #f0a020;">Projected: {{ sub.projected.toFixed(2) }} €</span>
                   </div>
+                  <!-- Member shares for subcategories in group budgets -->
+                  <div
+                    v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0 && sub.amount > 0"
+                    style="display: flex; gap: 12px; margin-top: 4px; font-size: 11px;"
+                  >
+                    <span v-for="member in members" :key="member.id" style="color: #666;">
+                      {{ member.user_name }}: {{ (sub.amount * member.share / 100).toFixed(2) }} €
+                    </span>
+                  </div>
                 </div>
               </n-space>
             </div>
@@ -279,7 +358,16 @@
       <!-- Members (only for group budgets) -->
       <n-card v-if="budgetStore.currentBudget?.budget_type === 'group'" title="Budget Members">
         <n-space vertical>
-          <!-- Member list -->
+          <!-- Share total warning -->
+          <n-alert
+            v-if="members.length > 0 && Math.abs(totalShares - 100) > 0.01"
+            :type="totalShares < 100 ? 'warning' : 'error'"
+            :title="totalShares < 100 ? 'Shares incomplete' : 'Shares exceed 100%'"
+          >
+            Total shares: {{ totalShares.toFixed(1) }}% (should be 100%)
+          </n-alert>
+
+          <!-- Member list with shares -->
           <n-list v-if="members.length > 0" bordered>
             <n-list-item v-for="member in members" :key="member.id">
               <template #prefix>
@@ -292,7 +380,25 @@
 
               <n-thing :title="member.user_name">
                 <template #description>
-                  {{ member.user_email }}
+                  <div>{{ member.user_email }}</div>
+                  <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; color: #888;">Share:</span>
+                    <n-input-number
+                      v-if="isOwner"
+                      :value="member.share"
+                      :min="0"
+                      :max="100"
+                      :precision="1"
+                      :step="5"
+                      size="small"
+                      :style="{ width: '100px' }"
+                      :loading="updatingShare === member.id"
+                      @update:value="(v) => handleUpdateShare(member.id, v || 0)"
+                    >
+                      <template #suffix>%</template>
+                    </n-input-number>
+                    <span v-else style="font-weight: bold;">{{ member.share }}%</span>
+                  </div>
                 </template>
               </n-thing>
 
@@ -334,6 +440,8 @@
           </n-button>
         </template>
       </n-card>
+
+
     </template>
 
     <!-- Add category modal -->
@@ -382,7 +490,7 @@
             <n-checkbox-group v-model:value="newCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="besoin">Obligé</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -430,7 +538,7 @@
             <n-checkbox-group v-model:value="editCategory.tags">
               <n-space>
                 <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="obligé">Obligé</n-checkbox>
+                <n-checkbox value="besoin">Obligé</n-checkbox>
                 <n-checkbox value="loisir">Loisir</n-checkbox>
                 <n-checkbox value="épargne">Épargne</n-checkbox>
               </n-space>
@@ -509,7 +617,7 @@ import {
   NStatistic, NProgress, NEmpty, NModal, NForm, NFormItem,
   NInput, NInputNumber, NSpin, NList, NListItem, NThing,
   NAvatar, NTag, NIcon, NRadioGroup, NRadio, NPopconfirm,
-  NCheckbox, NCheckboxGroup, NSelect, NDivider,
+  NCheckbox, NCheckboxGroup, NSelect, NDivider, NAlert,
   useMessage
 } from 'naive-ui'
 import { TrashOutline } from '@vicons/ionicons5'
@@ -520,7 +628,7 @@ import { useBudgetStore } from '@/stores/budget'
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend)
 import { useAuthStore } from '@/stores/auth'
-import { budgetMembersAPI, budgetsAPI, type BudgetMemberWithUser } from '@/services/api'
+import { budgetMembersAPI, budgetsAPI, recurringAPI, type BudgetMemberWithUser, type MemberBalance } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -569,6 +677,12 @@ const editCategory = ref({
 
 /** List of budget members */
 const members = ref<BudgetMemberWithUser[]>([])
+
+/** Member balances for group budgets */
+const balances = ref<MemberBalance[]>([])
+
+/** Loading state for updating shares */
+const updatingShare = ref<string | null>(null)
 
 /** Invite member modal visibility */
 const showInviteModal = ref(false)
@@ -625,6 +739,102 @@ const loadMembers = async () => {
     console.error('Error loading members:', error)
   }
 }
+
+/**
+ * Loads the balance calculations for group budgets.
+ */
+const loadBalances = async () => {
+  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') {
+    return
+  }
+
+  try {
+    balances.value = await budgetMembersAPI.getBalances(budgetStore.currentBudget.id)
+  } catch (error) {
+    console.error('Error loading balances:', error)
+  }
+}
+
+/**
+ * Updates a member's share percentage.
+ * @param memberId - The member ID to update
+ * @param share - The new share percentage
+ */
+const handleUpdateShare = async (memberId: string, share: number) => {
+  if (!budgetStore.currentBudget) return
+
+  updatingShare.value = memberId
+  try {
+    const updated = await budgetMembersAPI.updateShare(
+      budgetStore.currentBudget.id,
+      memberId,
+      share
+    )
+    // Update local member data
+    const index = members.value.findIndex(m => m.id === memberId)
+    if (index !== -1) {
+      members.value[index] = updated
+    }
+    // Reload balances
+    await loadBalances()
+    message.success('Share updated')
+  } catch (error: any) {
+    console.error('Error updating share:', error)
+    if (error.response?.status === 403) {
+      message.error('Only owners can update shares')
+    } else {
+      message.error('Error updating share')
+    }
+  } finally {
+    updatingShare.value = null
+  }
+}
+
+/**
+ * Total of all member shares.
+ */
+const totalShares = computed(() => {
+  return members.value.reduce((sum, m) => sum + m.share, 0)
+})
+
+/**
+ * Settlement transactions to balance the group.
+ * Calculates optimal payments from debtors to creditors.
+ */
+const settlements = computed(() => {
+  const result: { from: string; to: string; amount: number }[] = []
+
+  // Copy balances to work with
+  const debtors = balances.value
+    .filter(b => b.balance < -0.01)
+    .map(b => ({ name: b.user_name, remaining: Math.abs(b.balance) }))
+    .sort((a, b) => b.remaining - a.remaining)
+
+  const creditors = balances.value
+    .filter(b => b.balance > 0.01)
+    .map(b => ({ name: b.user_name, remaining: b.balance }))
+    .sort((a, b) => b.remaining - a.remaining)
+
+  // Match debtors to creditors
+  for (const debtor of debtors) {
+    while (debtor.remaining > 0.01) {
+      const creditor = creditors.find(c => c.remaining > 0.01)
+      if (!creditor) break
+
+      const amount = Math.min(debtor.remaining, creditor.remaining)
+      result.push({
+        from: debtor.name,
+        to: creditor.name,
+        amount: Math.round(amount * 100) / 100,
+      })
+
+      debtor.remaining -= amount
+      creditor.remaining -= amount
+    }
+  }
+
+  return result
+})
 
 /**
  * Invites a new member to the budget.
@@ -705,6 +915,10 @@ onMounted(async () => {
   const budgetId = route.params.id as string
 
   try {
+    // First, process recurring transactions to generate any pending ones
+    await recurringAPI.process(budgetId)
+
+    // Then load all budget data
     await Promise.all([
       budgetStore.fetchBudget(budgetId),
       budgetStore.fetchCategories(budgetId),
@@ -712,6 +926,7 @@ onMounted(async () => {
       budgetStore.fetchRecurringTransactions(budgetId),
     ])
     await loadMembers()
+    await loadBalances()
   } catch (error) {
     console.error('Error loading budget:', error)
     message.error('Error loading data')
@@ -849,7 +1064,7 @@ const projectedPercentage = computed(() => {
 })
 
 /** Available tags */
-const VALID_TAGS = ['crédit', 'obligé', 'loisir', 'épargne']
+const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
 
 /**
  * Statistics per tag.
@@ -883,12 +1098,36 @@ const tagStatistics = computed(() => {
   }).filter(stat => stat.budget > 0 || stat.spent > 0) // Only show tags that have data
 })
 
+/**
+ * Tag distribution for 100% stacked bar chart.
+ * Calculates what percentage of total budget each tag represents.
+ */
+const tagDistribution = computed(() => {
+  const stats = tagStatistics.value
+  const totalBudgetByTags = stats.reduce((sum, s) => sum + s.budget, 0)
+
+  return stats
+    .filter(s => s.budget > 0)
+    .map(s => ({
+      ...s,
+      distributionPercent: totalBudgetByTags > 0 ? (s.budget / totalBudgetByTags) * 100 : 0,
+    }))
+    .sort((a, b) => b.distributionPercent - a.distributionPercent)
+})
+
 /** Tag colors for chart */
 const TAG_COLORS: Record<string, string> = {
   'crédit': '#d03050',
-  'obligé': '#f0a020',
+  'besoin': '#f0a020',
   'loisir': '#2080f0',
   'épargne': '#18a058',
+}
+
+/**
+ * Get color for a tag.
+ */
+const getTagColor = (tag: string): string => {
+  return TAG_COLORS[tag] || '#888888'
 }
 
 /**
@@ -959,7 +1198,7 @@ const getSubcategories = (parentId: string) => {
 const getTagType = (tag: string) => {
   const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
     'crédit': 'error',
-    'obligé': 'warning',
+    'besoin': 'warning',
     'loisir': 'info',
     'épargne': 'success',
   }
