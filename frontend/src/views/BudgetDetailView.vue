@@ -81,6 +81,34 @@
             </div>
           </n-gi>
         </n-grid>
+
+        <!-- Projected Summary -->
+        <n-divider style="margin: 16px 0;" />
+        <div style="font-size: 12px; color: #888; margin-bottom: 8px;">PROJECTED (including recurring)</div>
+        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+          <n-gi>
+            <n-statistic label="Projected Spent" :value="totalProjected.toFixed(2)">
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+          <n-gi>
+            <n-statistic label="Projected Remaining" :value="projectedRemaining.toFixed(2)">
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+          <n-gi :span="isMobile ? 2 : 1">
+            <div style="display: flex; justify-content: center;">
+              <n-progress
+                type="circle"
+                :percentage="Math.min(projectedPercentage, 100)"
+                :color="projectedPercentage > 100 ? '#d03050' : '#f0a020'"
+                :style="{ width: isMobile ? '80px' : '100px' }"
+              >
+                {{ projectedPercentage.toFixed(2) }}%
+              </n-progress>
+            </div>
+          </n-gi>
+        </n-grid>
       </n-card>
 
       <!-- Tag Statistics -->
@@ -153,10 +181,11 @@
               </n-space>
             </div>
 
-            <!-- Progress Bar -->
+            <!-- Progress Bars -->
             <div style="margin-bottom: 8px;">
+              <!-- Spent -->
               <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                <span>{{ category.spent.toFixed(2) }} € spent ({{ category.percentage.toFixed(2) }}%)</span>
+                <span>Spent: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
                 <span :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }">
                   {{ category.remaining.toFixed(2) }} € remaining
                 </span>
@@ -164,6 +193,18 @@
               <n-progress
                 :percentage="Math.min(category.percentage, 100)"
                 :color="category.percentage > 100 ? '#d03050' : '#18a058'"
+                :show-indicator="false"
+              />
+              <!-- Projected -->
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; margin-top: 8px;">
+                <span style="color: #f0a020;">Projected: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
+                <span :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }">
+                  {{ category.projectedRemaining.toFixed(2) }} € remaining
+                </span>
+              </div>
+              <n-progress
+                :percentage="Math.min(category.projectedPercentage, 100)"
+                :color="category.projectedPercentage > 100 ? '#d03050' : '#f0a020'"
                 :show-indicator="false"
               />
             </div>
@@ -177,7 +218,7 @@
                   :key="sub.id"
                   style="background: rgba(255,255,255,0.05); border-radius: 6px; padding: 10px 12px;"
                 >
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <span style="font-size: 14px;">{{ sub.name }}</span>
                       <n-space v-if="sub.tags && sub.tags.length > 0" size="small">
@@ -187,7 +228,6 @@
                       </n-space>
                     </div>
                     <n-space size="small" align="center">
-                      <span style="font-size: 13px; color: #888;">{{ sub.spent.toFixed(2) }} €</span>
                       <n-button size="tiny" quaternary @click="openEditModal(sub)">Edit</n-button>
                       <n-popconfirm @positive-click="handleDeleteCategory(sub.id)">
                         <template #trigger>
@@ -196,6 +236,10 @@
                         Delete?
                       </n-popconfirm>
                     </n-space>
+                  </div>
+                  <div style="display: flex; gap: 16px; font-size: 12px;">
+                    <span style="color: #18a058;">Spent: {{ sub.spent.toFixed(2) }} €</span>
+                    <span style="color: #f0a020;">Projected: {{ sub.projected.toFixed(2) }} €</span>
                   </div>
                 </div>
               </n-space>
@@ -450,7 +494,7 @@ import {
   NStatistic, NProgress, NEmpty, NModal, NForm, NFormItem,
   NInput, NInputNumber, NSpin, NList, NListItem, NThing,
   NAvatar, NTag, NIcon, NRadioGroup, NRadio, NPopconfirm,
-  NCheckbox, NCheckboxGroup, NSelect,
+  NCheckbox, NCheckboxGroup, NSelect, NDivider,
   useMessage
 } from 'naive-ui'
 import { TrashOutline } from '@vicons/ionicons5'
@@ -645,6 +689,7 @@ onMounted(async () => {
       budgetStore.fetchBudget(budgetId),
       budgetStore.fetchCategories(budgetId),
       budgetStore.fetchTransactions(budgetId),
+      budgetStore.fetchRecurringTransactions(budgetId),
     ])
     await loadMembers()
   } catch (error) {
@@ -667,6 +712,38 @@ const getSubcategoryIds = (parentId: string): string[] => {
 }
 
 /**
+ * Calculate projected recurring expenses for a category until end of month.
+ */
+const getProjectedRecurring = (categoryIds: string[]): number => {
+  const now = new Date()
+  const currentDay = now.getDate()
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const daysRemaining = lastDayOfMonth - currentDay
+
+  return budgetStore.recurringTransactions
+    .filter(r => categoryIds.includes(r.category_id) && r.active && r.transaction_type === 'expense')
+    .reduce((sum, r) => {
+      let occurrences = 0
+
+      if (r.frequency === 'monthly') {
+        // Check if the recurring day is still coming this month
+        const recurringDay = r.day || 1
+        if (recurringDay > currentDay && recurringDay <= lastDayOfMonth) {
+          occurrences = 1
+        }
+      } else if (r.frequency === 'weekly') {
+        // Calculate how many weeks remain
+        occurrences = Math.floor(daysRemaining / 7)
+      } else if (r.frequency === 'yearly') {
+        // Yearly transactions are rare within a month, skip for projection
+        occurrences = 0
+      }
+
+      return sum + (r.amount * occurrences)
+    }, 0)
+}
+
+/**
  * Categories with calculated spending amounts.
  * For parent categories: includes spending from all subcategories.
  * For subcategories: only their own spending.
@@ -674,6 +751,7 @@ const getSubcategoryIds = (parentId: string): string[] => {
 const categoriesWithSpent = computed(() => {
   return budgetStore.categories.map(cat => {
     let spent: number
+    let projected: number
 
     if (!cat.parent_id) {
       // Parent category: sum spending from self + all subcategories
@@ -682,11 +760,13 @@ const categoriesWithSpent = computed(() => {
       spent = budgetStore.transactions
         .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0)
+      projected = spent + getProjectedRecurring(allCategoryIds)
     } else {
       // Subcategory: only own spending
       spent = budgetStore.transactions
         .filter(t => t.category_id === cat.id && t.transaction_type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0)
+      projected = spent + getProjectedRecurring([cat.id])
     }
 
     // For subcategories, use parent's budget for percentage calc
@@ -695,13 +775,18 @@ const categoriesWithSpent = computed(() => {
       : cat.amount
 
     const remaining = cat.parent_id ? 0 : cat.amount - spent
+    const projectedRemaining = cat.parent_id ? 0 : cat.amount - projected
     const percentage = budget > 0 ? (spent / budget) * 100 : 0
+    const projectedPercentage = budget > 0 ? (projected / budget) * 100 : 0
 
     return {
       ...cat,
       spent,
+      projected,
       remaining,
+      projectedRemaining,
       percentage,
+      projectedPercentage,
     }
   })
 })
@@ -720,12 +805,27 @@ const totalSpent = computed(() => {
     .reduce((sum, cat) => sum + cat.spent, 0)
 })
 
+/** Total projected spending */
+const totalProjected = computed(() => {
+  return categoriesWithSpent.value
+    .filter(cat => !cat.parent_id)
+    .reduce((sum, cat) => sum + cat.projected, 0)
+})
+
 /** Remaining budget amount */
 const remaining = computed(() => totalBudget.value - totalSpent.value)
+
+/** Projected remaining budget amount */
+const projectedRemaining = computed(() => totalBudget.value - totalProjected.value)
 
 /** Spending percentage of total budget */
 const percentage = computed(() => {
   return totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0
+})
+
+/** Projected spending percentage of total budget */
+const projectedPercentage = computed(() => {
+  return totalBudget.value > 0 ? (totalProjected.value / totalBudget.value) * 100 : 0
 })
 
 /** Available tags */
