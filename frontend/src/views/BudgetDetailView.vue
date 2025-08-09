@@ -72,10 +72,12 @@
             <div style="display: flex; justify-content: center;">
               <n-progress
                 type="circle"
-                :percentage="percentage"
+                :percentage="Math.min(percentage, 100)"
                 :color="percentage > 100 ? '#d03050' : '#18a058'"
                 :style="{ width: isMobile ? '80px' : '100px' }"
-              />
+              >
+                {{ percentage.toFixed(2) }}%
+              </n-progress>
             </div>
           </n-gi>
         </n-grid>
@@ -154,7 +156,7 @@
             <!-- Progress Bar -->
             <div style="margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                <span>{{ category.spent.toFixed(2) }} € spent</span>
+                <span>{{ category.spent.toFixed(2) }} € spent ({{ category.percentage.toFixed(2) }}%)</span>
                 <span :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }">
                   {{ category.remaining.toFixed(2) }} € remaining
                 </span>
