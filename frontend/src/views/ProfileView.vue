@@ -115,7 +115,7 @@
             <div style="font-weight: 500;">Password</div>
             <n-text depth="3">Manage your password</n-text>
           </div>
-          <n-button size="small" disabled>Change Password</n-button>
+          <n-button size="small" @click="showChangePassword = true">Change Password</n-button>
         </div>
 
         <n-divider />
@@ -159,6 +159,58 @@
     >
       Sign Out
     </n-button>
+
+    <!-- Change Password Modal -->
+    <n-modal v-model:show="showChangePassword">
+      <n-card
+        title="Change Password"
+        :bordered="false"
+        size="huge"
+        style="width: 400px; max-width: 95vw;"
+      >
+        <n-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules">
+          <n-form-item label="Current Password" path="currentPassword">
+            <n-input
+              v-model:value="passwordForm.currentPassword"
+              type="password"
+              show-password-on="click"
+              placeholder="Enter your current password"
+            />
+          </n-form-item>
+
+          <n-form-item label="New Password" path="newPassword">
+            <n-input
+              v-model:value="passwordForm.newPassword"
+              type="password"
+              show-password-on="click"
+              placeholder="Enter your new password"
+            />
+          </n-form-item>
+
+          <n-form-item label="Confirm New Password" path="confirmPassword">
+            <n-input
+              v-model:value="passwordForm.confirmPassword"
+              type="password"
+              show-password-on="click"
+              placeholder="Confirm your new password"
+            />
+          </n-form-item>
+        </n-form>
+
+        <template #footer>
+          <n-space justify="end">
+            <n-button @click="showChangePassword = false">Cancel</n-button>
+            <n-button
+              type="primary"
+              :loading="changingPassword"
+              @click="handleChangePassword"
+            >
+              Change Password
+            </n-button>
+          </n-space>
+        </template>
+      </n-card>
+    </n-modal>
   </n-space>
 </template>
 
@@ -179,11 +231,12 @@ import { useRouter } from 'vue-router'
 import {
   NSpace, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
   NGrid, NGi, NStatistic, NText, NDivider, NAlert, NPopconfirm,
-  NTag, useMessage
+  NTag, NModal, NForm, NFormItem, NInput, useMessage,
+  type FormInst, type FormRules
 } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
-import { invitationsAPI, type BudgetInvitationWithDetails } from '@/services/api'
+import { authAPI, invitationsAPI, type BudgetInvitationWithDetails } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
@@ -198,6 +251,42 @@ const invitations = ref<BudgetInvitationWithDetails[]>([])
 
 /** ID of invitation currently being processed */
 const processingInvitation = ref<string | null>(null)
+
+/** Whether the change password modal is visible */
+const showChangePassword = ref(false)
+
+/** Whether password change is in progress */
+const changingPassword = ref(false)
+
+/** Form ref for password validation */
+const passwordFormRef = ref<FormInst | null>(null)
+
+/** Password form data */
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+/** Password form validation rules */
+const passwordRules: FormRules = {
+  currentPassword: [
+    { required: true, message: 'Current password is required' }
+  ],
+  newPassword: [
+    { required: true, message: 'New password is required' },
+    { min: 6, message: 'Password must be at least 6 characters' }
+  ],
+  confirmPassword: [
+    { required: true, message: 'Please confirm your new password' },
+    {
+      validator: (_rule, value) => {
+        return value === passwordForm.value.newPassword
+      },
+      message: 'Passwords do not match'
+    }
+  ]
+}
 
 /**
  * Checks if the viewport is mobile-sized.
@@ -319,5 +408,42 @@ const handleLogout = () => {
  */
 const handleDeleteAccount = () => {
   message.error('Feature not implemented')
+}
+
+/**
+ * Handles password change.
+ */
+const handleChangePassword = async () => {
+  // Validate form
+  try {
+    await passwordFormRef.value?.validate()
+  } catch {
+    return
+  }
+
+  changingPassword.value = true
+  try {
+    await authAPI.changePassword(
+      passwordForm.value.currentPassword,
+      passwordForm.value.newPassword
+    )
+    message.success('Password changed successfully')
+    showChangePassword.value = false
+    // Reset form
+    passwordForm.value = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    }
+  } catch (error: any) {
+    console.error('Error changing password:', error)
+    if (error.response?.status === 400) {
+      message.error('Current password is incorrect')
+    } else {
+      message.error('Error changing password')
+    }
+  } finally {
+    changingPassword.value = false
+  }
 }
 </script>

@@ -41,3 +41,9 @@ class AuthResponse(BaseModel):
     """Response payload for successful authentication."""
     token: str = Field(..., description="JWT token for authenticated requests")
     user: User = Field(..., description="The authenticated user's details")
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request payload for changing password."""
+    current_password: str = Field(..., description="Current password")
+    new_password: str = Field(..., min_length=6, description="New password")

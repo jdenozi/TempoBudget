@@ -3,15 +3,16 @@
 """Authentication routes."""
 
 from datetime import datetime, timezone
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import create_token, hash_password, verify_password
+from ..auth import create_token, get_current_user, hash_password, verify_password
 from ..database import get_db
-from ..models import AuthResponse, CreateUser, LoginRequest, User
+from ..models import AuthResponse, ChangePasswordRequest, CreateUser, LoginRequest, User
 
 router = APIRouter()
 
@@ -103,3 +104,43 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     token = create_token(row.id)
     return AuthResponse(token=token, user=user)
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Change the current user's password."""
+    # Get current user with password hash
+    result = await db.execute(
+        text("SELECT password_hash FROM users WHERE id = :id"),
+        {"id": user_id}
+    )
+    row = result.fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Verify current password
+    if not verify_password(payload.current_password, row.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # Hash and save new password
+    new_hash = hash_password(payload.new_password)
+    now = datetime.now(timezone.utc).isoformat()
+
+    await db.execute(
+        text("UPDATE users SET password_hash = :hash, updated_at = :updated_at WHERE id = :id"),
+        {"hash": new_hash, "updated_at": now, "id": user_id}
+    )
+    await db.commit()
+
+    return {"message": "Password changed successfully"}
