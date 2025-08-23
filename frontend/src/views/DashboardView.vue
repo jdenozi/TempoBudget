@@ -23,7 +23,7 @@
     </div>
 
     <!-- Budget List -->
-    <n-grid v-else :cols="isMobile ? 1 : 3" :x-gap="16" :y-gap="16">
+    <n-grid v-else :cols="isMobile ? 1 : 2" :x-gap="16" :y-gap="16">
       <n-gi v-for="budget in budgetStore.budgets" :key="budget.id">
         <n-card
           hoverable
@@ -39,11 +39,54 @@
             </div>
           </template>
 
-          <n-statistic label="Balance" value="0.00 €">
-            <template #prefix>
-              <n-icon><CashOutline /></n-icon>
-            </template>
-          </n-statistic>
+          <!-- Stats Grid -->
+          <n-grid :cols="2" :x-gap="12" :y-gap="12">
+            <n-gi>
+              <n-statistic label="Budget" :value="(getSummary(budget.id)?.total_budget || 0).toFixed(2)">
+                <template #prefix>
+                  <n-icon color="#2080f0"><WalletOutline /></n-icon>
+                </template>
+                <template #suffix>€</template>
+              </n-statistic>
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Spent" :value="(getSummary(budget.id)?.total_spent || 0).toFixed(2)">
+                <template #prefix>
+                  <n-icon color="#d03050"><TrendingDownOutline /></n-icon>
+                </template>
+                <template #suffix>€</template>
+              </n-statistic>
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Remaining" :value="(getSummary(budget.id)?.remaining || 0).toFixed(2)">
+                <template #prefix>
+                  <n-icon :color="(getSummary(budget.id)?.remaining || 0) >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
+                </template>
+                <template #suffix>€</template>
+              </n-statistic>
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Income" :value="(getSummary(budget.id)?.total_income || 0).toFixed(2)">
+                <template #prefix>
+                  <n-icon color="#18a058"><TrendingUpOutline /></n-icon>
+                </template>
+                <template #suffix>€</template>
+              </n-statistic>
+            </n-gi>
+          </n-grid>
+
+          <!-- Progress Bar -->
+          <div style="margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% used</span>
+              <span style="color: #888;">{{ getSummary(budget.id)?.transaction_count || 0 }} transactions</span>
+            </div>
+            <n-progress
+              :percentage="Math.min(getSummary(budget.id)?.percentage || 0, 100)"
+              :color="(getSummary(budget.id)?.percentage || 0) > 100 ? '#d03050' : '#18a058'"
+              :show-indicator="false"
+            />
+          </div>
         </n-card>
       </n-gi>
     </n-grid>
@@ -115,10 +158,11 @@ import { useRouter } from 'vue-router'
 import {
   NSpace, NButton, NGrid, NGi, NCard, NTag, NStatistic,
   NModal, NForm, NFormItem, NInput, NRadioGroup, NRadio,
-  NIcon, NSpin, NEmpty, useMessage
+  NIcon, NSpin, NEmpty, NProgress, useMessage
 } from 'naive-ui'
-import { CashOutline } from '@vicons/ionicons5'
+import { CashOutline, WalletOutline, TrendingUpOutline, TrendingDownOutline } from '@vicons/ionicons5'
 import { useBudgetStore } from '@/stores/budget'
+import { budgetsAPI, type BudgetSummary } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
@@ -135,6 +179,9 @@ const creating = ref(false)
 
 /** Form reference for validation */
 const formRef = ref<any>(null)
+
+/** Budget summaries with stats */
+const summaries = ref<BudgetSummary[]>([])
 
 /** New budget form data */
 const newBudget = ref({
@@ -162,14 +209,23 @@ onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
 
-  // Load budgets
+  // Load budgets and summaries
   try {
     await budgetStore.fetchBudgets()
+    summaries.value = await budgetsAPI.getSummaries()
   } catch (error) {
     console.error('Error loading budgets:', error)
     message.error('Error loading budgets')
   }
 })
+
+/**
+ * Gets summary for a specific budget.
+ * @param budgetId - Budget unique identifier
+ */
+const getSummary = (budgetId: string): BudgetSummary | undefined => {
+  return summaries.value.find(s => s.id === budgetId)
+}
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)

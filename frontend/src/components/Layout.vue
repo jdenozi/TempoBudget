@@ -105,7 +105,7 @@
 
 import {
   NConfigProvider, NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, darkTheme
+  NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, darkTheme, lightTheme
 } from 'naive-ui'
 import { ref, h, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'

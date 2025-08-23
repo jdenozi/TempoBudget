@@ -165,6 +165,7 @@ export const useBudgetStore = defineStore('budget', () => {
     transaction_type: string
     date: string
     comment?: string
+    paid_by_user_id?: string
   }) {
     const transaction = await transactionsAPI.create(data)
     transactions.value.unshift(transaction)

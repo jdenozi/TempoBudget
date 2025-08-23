@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Budget, CreateBudget
+from ..models import Budget, CreateBudget, BudgetSummary
 
 router = APIRouter()
 
@@ -22,11 +22,13 @@ async def get_budgets(
     user_id: Annotated[str, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    """Retrieve all budgets for the authenticated user."""
+    """Retrieve all budgets for the authenticated user (owned + shared)."""
     result = await db.execute(
         text("""
-            SELECT id, user_id, name, budget_type, is_active, created_at, updated_at
-            FROM budgets WHERE user_id = :user_id
+            SELECT DISTINCT b.id, b.user_id, b.name, b.budget_type, b.is_active, b.created_at, b.updated_at
+            FROM budgets b
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            WHERE b.user_id = :user_id OR bm.user_id = :user_id
         """),
         {"user_id": user_id}
     )
@@ -99,6 +101,92 @@ async def create_budget(
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
+
+
+@router.get("/summaries", response_model=list[BudgetSummary])
+async def get_budget_summaries(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Get summary statistics for all user budgets."""
+    # Get all budgets for the user (owned + group member)
+    result = await db.execute(
+        text("""
+            SELECT DISTINCT b.id, b.name, b.budget_type
+            FROM budgets b
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            WHERE b.user_id = :user_id OR bm.user_id = :user_id
+        """),
+        {"user_id": user_id}
+    )
+    budgets = result.fetchall()
+
+    summaries = []
+    for budget in budgets:
+        # Get total budget (sum of parent categories only)
+        result = await db.execute(
+            text("""
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM categories
+                WHERE budget_id = :budget_id AND parent_id IS NULL
+            """),
+            {"budget_id": budget.id}
+        )
+        total_budget = result.fetchone().total
+
+        # Get total spent (expenses)
+        result = await db.execute(
+            text("""
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM transactions
+                WHERE budget_id = :budget_id AND transaction_type = 'expense'
+            """),
+            {"budget_id": budget.id}
+        )
+        total_spent = result.fetchone().total
+
+        # Get total income
+        result = await db.execute(
+            text("""
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM transactions
+                WHERE budget_id = :budget_id AND transaction_type = 'income'
+            """),
+            {"budget_id": budget.id}
+        )
+        total_income = result.fetchone().total
+
+        # Get category count
+        result = await db.execute(
+            text("SELECT COUNT(*) as cnt FROM categories WHERE budget_id = :budget_id"),
+            {"budget_id": budget.id}
+        )
+        category_count = result.fetchone().cnt
+
+        # Get transaction count
+        result = await db.execute(
+            text("SELECT COUNT(*) as cnt FROM transactions WHERE budget_id = :budget_id"),
+            {"budget_id": budget.id}
+        )
+        transaction_count = result.fetchone().cnt
+
+        remaining = total_budget - total_spent
+        percentage = (total_spent / total_budget * 100) if total_budget > 0 else 0
+
+        summaries.append(BudgetSummary(
+            id=budget.id,
+            name=budget.name,
+            budget_type=budget.budget_type,
+            total_budget=round(total_budget, 2),
+            total_spent=round(total_spent, 2),
+            total_income=round(total_income, 2),
+            remaining=round(remaining, 2),
+            percentage=round(percentage, 2),
+            category_count=category_count,
+            transaction_count=transaction_count,
+        ))
+
+    return summaries
 
 
 @router.get("/{budget_id}", response_model=Budget)

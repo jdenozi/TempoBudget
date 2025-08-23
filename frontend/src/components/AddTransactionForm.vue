@@ -43,7 +43,18 @@
         :options="categoryOptions"
         placeholder="Select category"
         filterable
-        tag
+        size="small"
+      />
+    </n-form-item>
+
+    <!-- Subcategory Selection (only shown if parent has subcategories) -->
+    <n-form-item v-if="subcategoryOptions.length > 0" label="Subcategory">
+      <n-select
+        v-model:value="transaction.subcategory"
+        :options="subcategoryOptions"
+        placeholder="Select subcategory (optional)"
+        clearable
+        filterable
         size="small"
       />
     </n-form-item>
@@ -120,6 +131,16 @@
       />
     </n-form-item>
 
+    <!-- Who paid (only for group budgets) -->
+    <n-form-item v-if="isGroupBudget" label="Who paid?">
+      <n-select
+        v-model:value="transaction.paidByUserId"
+        :options="memberOptions"
+        placeholder="Select who paid"
+        size="small"
+      />
+    </n-form-item>
+
     <!-- Submit Button -->
     <n-button
       type="primary"
@@ -154,26 +175,33 @@ import {
 } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
-import { recurringAPI } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
+import { recurringAPI, budgetMembersAPI, type BudgetMemberWithUser } from '@/services/api'
 
 const emit = defineEmits(['success'])
 const message = useMessage()
 const formRef = ref<FormInst | null>(null)
 const budgetStore = useBudgetStore()
+const authStore = useAuthStore()
 const loading = ref(false)
+
+/** Members for group budget */
+const members = ref<BudgetMemberWithUser[]>([])
 
 /** Transaction form data */
 const transaction = ref({
   type: 'expense',
   budgetId: null as string | null,
   category: null as string | null,
+  subcategory: null as string | null,
   amount: null as number | null,
   title: '',
   date: Date.now(),
   comment: '',
   isRecurring: false,
   recurringFrequency: 'monthly',
-  recurringDay: 1
+  recurringDay: 1,
+  paidByUserId: null as string | null
 })
 
 /** Form validation rules */
@@ -206,10 +234,22 @@ const budgetOptions = computed(() =>
   budgetStore.budgets.map(b => ({ label: b.name, value: b.id }))
 )
 
-/** Available category options from API */
-const categoryOptions = computed(() =>
-  budgetStore.categories.map(c => ({ label: c.name, value: c.id }))
-)
+/** Available parent category options, sorted alphabetically */
+const categoryOptions = computed(() => {
+  return budgetStore.categories
+    .filter(c => !c.parent_id)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Available subcategory options based on selected category, sorted alphabetically */
+const subcategoryOptions = computed(() => {
+  if (!transaction.value.category) return []
+  return budgetStore.categories
+    .filter(c => c.parent_id === transaction.value.category)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(c => ({ label: c.name, value: c.id }))
+})
 
 /** Available frequency options for recurring transactions */
 const frequencyOptions = [
@@ -217,6 +257,21 @@ const frequencyOptions = [
   { label: 'Weekly', value: 'weekly' },
   { label: 'Yearly', value: 'yearly' }
 ]
+
+/** Check if selected budget is a group budget */
+const isGroupBudget = computed(() => {
+  if (!transaction.value.budgetId) return false
+  const budget = budgetStore.budgets.find(b => b.id === transaction.value.budgetId)
+  return budget?.budget_type === 'group'
+})
+
+/** Member options for "Who paid?" select */
+const memberOptions = computed(() => {
+  return members.value.map(m => ({
+    label: m.user_name,
+    value: m.user_id
+  }))
+})
 
 // Load budgets on mount
 onMounted(async () => {
@@ -226,12 +281,36 @@ onMounted(async () => {
   }
 })
 
-// Load categories when budget changes
+// Load categories and members when budget changes
 watch(() => transaction.value.budgetId, async (budgetId) => {
   if (budgetId) {
     await budgetStore.fetchCategories(budgetId)
     transaction.value.category = null
+    transaction.value.subcategory = null
+
+    // Load members for group budgets
+    const budget = budgetStore.budgets.find(b => b.id === budgetId)
+    if (budget?.budget_type === 'group') {
+      try {
+        members.value = await budgetMembersAPI.getMembers(budgetId)
+        // Pre-select current user as payer
+        if (authStore.user) {
+          transaction.value.paidByUserId = authStore.user.id
+        }
+      } catch (error) {
+        console.error('Error loading members:', error)
+        members.value = []
+      }
+    } else {
+      members.value = []
+      transaction.value.paidByUserId = null
+    }
   }
+})
+
+// Reset subcategory when category changes
+watch(() => transaction.value.category, () => {
+  transaction.value.subcategory = null
 })
 
 /**
@@ -249,6 +328,9 @@ const handleSubmit = async () => {
     return
   }
 
+  // Use subcategory if selected, otherwise use parent category
+  const categoryId = transaction.value.subcategory || transaction.value.category
+
   loading.value = true
   try {
     const dateString = new Date(transaction.value.date).toISOString().split('T')[0]
@@ -256,7 +338,7 @@ const handleSubmit = async () => {
     if (transaction.value.isRecurring) {
       await recurringAPI.create({
         budget_id: transaction.value.budgetId,
-        category_id: transaction.value.category,
+        category_id: categoryId,
         title: transaction.value.title,
         amount: transaction.value.amount,
         transaction_type: transaction.value.type,
@@ -269,30 +351,35 @@ const handleSubmit = async () => {
     } else {
       await budgetStore.createTransaction({
         budget_id: transaction.value.budgetId,
-        category_id: transaction.value.category,
+        category_id: categoryId,
         title: transaction.value.title,
         amount: transaction.value.amount,
         transaction_type: transaction.value.type,
         date: dateString,
         comment: transaction.value.comment || undefined,
+        paid_by_user_id: transaction.value.paidByUserId || undefined,
       })
       message.success('Transaction saved!')
     }
 
     emit('success')
 
-    // Reset form
+    // Reset form (preserve budget and payer)
+    const currentBudgetId = transaction.value.budgetId
+    const currentPaidBy = transaction.value.paidByUserId
     transaction.value = {
       type: 'expense',
-      budgetId: budgetStore.budgets[0]?.id ?? null,
+      budgetId: currentBudgetId ?? budgetStore.budgets[0]?.id ?? null,
       category: null,
+      subcategory: null,
       amount: null,
       title: '',
       date: Date.now(),
       comment: '',
       isRecurring: false,
       recurringFrequency: 'monthly',
-      recurringDay: 1
+      recurringDay: 1,
+      paidByUserId: currentPaidBy
     }
   } catch (error) {
     console.error('Error creating transaction:', error)

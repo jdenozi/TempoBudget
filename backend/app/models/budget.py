@@ -30,3 +30,17 @@ class UpdateBudget(BaseModel):
     """Request payload for updating an existing budget."""
     name: str | None = Field(None, description="New name for the budget")
     is_active: int | None = Field(None, ge=0, le=1, description="New active status")
+
+
+class BudgetSummary(BaseModel):
+    """Summary statistics for a budget."""
+    id: str = Field(..., description="Budget unique identifier")
+    name: str = Field(..., description="Budget name")
+    budget_type: str = Field(..., description="Type: 'personal' or 'group'")
+    total_budget: float = Field(..., description="Total allocated budget amount")
+    total_spent: float = Field(..., description="Total expenses")
+    total_income: float = Field(..., description="Total income")
+    remaining: float = Field(..., description="Remaining budget (total - spent)")
+    percentage: float = Field(..., description="Percentage of budget spent")
+    category_count: int = Field(..., description="Number of categories")
+    transaction_count: int = Field(..., description="Number of transactions")
