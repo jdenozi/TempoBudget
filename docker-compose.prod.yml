@@ -1,34 +1,47 @@
+version: "3.8"
+
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - db-data:/app/data
     environment:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - ENVIRONMENT=production
-      - DOCS_ENABLED=false
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+      - DOCS_ENABLED=${DOCS_ENABLED:-false}
+      - DB_PATH=/app/data/budget.db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    networks:
+      - tempo-network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "${PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - tempo-network
 
 volumes:
   db-data:
+    driver: local
+
+networks:
+  tempo-network:
+    driver: bridge
