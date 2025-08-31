@@ -1,14 +1,5 @@
 <!--
-  Copyright (c) 2024 Tempo Budget
-  SPDX-License-Identifier: MIT
-
-  Budget Detail View
-
-  Displays detailed budget information including:
-  - Budget summary (total, spent, remaining)
-  - Category breakdown with spending progress
-  - Member management for group budgets
-  - Category and member invitation modals
+  Budget Detail View - Displays detailed budget information
 -->
 
 <template>
@@ -31,13 +22,9 @@
           :style="{ width: isMobile ? '100%' : '200px' }"
         />
 
-        <n-popconfirm
-          @positive-click="handleDeleteBudget"
-        >
+        <n-popconfirm @positive-click="handleDeleteBudget">
           <template #trigger>
-            <n-button type="error" ghost>
-              Delete Budget
-            </n-button>
+            <n-button type="error" ghost>Delete Budget</n-button>
           </template>
           Are you sure you want to delete this budget? This action is irreversible.
         </n-popconfirm>
@@ -51,177 +38,31 @@
 
     <template v-else>
       <!-- Summary -->
-      <n-card>
-        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
-          <n-gi>
-            <n-statistic label="Total Budget" :value="totalBudget.toFixed(2)">
-              <template #suffix>€</template>
-            </n-statistic>
-          </n-gi>
-          <n-gi>
-            <n-statistic label="Spent" :value="totalSpent.toFixed(2)">
-              <template #suffix>€</template>
-            </n-statistic>
-          </n-gi>
-          <n-gi>
-            <n-statistic label="Remaining" :value="remaining.toFixed(2)">
-              <template #suffix>€</template>
-            </n-statistic>
-          </n-gi>
-          <n-gi>
-            <div style="display: flex; justify-content: center;">
-              <n-progress
-                type="circle"
-                :percentage="Math.min(percentage, 100)"
-                :color="percentage > 100 ? '#d03050' : '#18a058'"
-                :style="{ width: isMobile ? '80px' : '100px' }"
-              >
-                {{ percentage.toFixed(2) }}%
-              </n-progress>
-            </div>
-          </n-gi>
-        </n-grid>
+      <BudgetSummaryCard
+        :total-budget="totalBudget"
+        :total-spent="totalSpent"
+        :remaining="remaining"
+        :percentage="percentage"
+        :total-projected="totalProjected"
+        :projected-remaining="projectedRemaining"
+        :projected-percentage="projectedPercentage"
+        :tag-chart-data="tagChartData"
+        :is-mobile="isMobile"
+      />
 
-        <!-- Projected Summary -->
-        <n-divider style="margin: 16px 0;" />
-        <div style="font-size: 12px; color: #888; margin-bottom: 8px;">PROJECTED (including recurring)</div>
-        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
-          <n-gi>
-            <n-statistic label="Projected Spent" :value="totalProjected.toFixed(2)">
-              <template #suffix>€</template>
-            </n-statistic>
-          </n-gi>
-          <n-gi>
-            <n-statistic label="Projected Remaining" :value="projectedRemaining.toFixed(2)">
-              <template #suffix>€</template>
-            </n-statistic>
-          </n-gi>
-          <n-gi>
-            <div style="display: flex; justify-content: center;">
-              <n-progress
-                type="circle"
-                :percentage="Math.min(projectedPercentage, 100)"
-                :color="projectedPercentage > 100 ? '#d03050' : '#f0a020'"
-                :style="{ width: isMobile ? '80px' : '100px' }"
-              >
-                {{ projectedPercentage.toFixed(2) }}%
-              </n-progress>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div style="font-size: 12px; color: #888; margin-bottom: 4px;">By Tag</div>
-              <div :style="{ width: isMobile ? '80px' : '100px', height: isMobile ? '80px' : '100px' }">
-                <Doughnut
-                  v-if="tagStatistics.length > 0"
-                  :data="tagChartData"
-                  :options="tagChartOptions"
-                />
-                <div v-else style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-size: 11px;">
-                  No tags
-                </div>
-              </div>
-            </div>
-          </n-gi>
-        </n-grid>
-      </n-card>
-
-      <!-- Balances (only for group budgets) -->
-      <n-card v-if="budgetStore.currentBudget?.budget_type === 'group' && balances.length > 0" title="Balances">
-        <n-space vertical size="large">
-          <!-- Balance summary per member -->
-          <n-list bordered>
-            <n-list-item v-for="balance in balances" :key="balance.user_id">
-              <n-thing :title="balance.user_name">
-                <template #description>
-                  <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8" style="margin-top: 8px;">
-                    <n-gi>
-                      <div style="font-size: 12px; color: #888;">Share</div>
-                      <div style="font-weight: bold;">{{ balance.share }}%</div>
-                    </n-gi>
-                    <n-gi>
-                      <div style="font-size: 12px; color: #888;">Should pay</div>
-                      <div style="font-weight: bold;">{{ balance.total_due.toFixed(2) }} €</div>
-                    </n-gi>
-                    <n-gi>
-                      <div style="font-size: 12px; color: #888;">Has paid</div>
-                      <div style="font-weight: bold;">{{ balance.total_paid.toFixed(2) }} €</div>
-                    </n-gi>
-                    <n-gi>
-                      <div style="font-size: 12px; color: #888;">Balance</div>
-                      <div :style="{ fontWeight: 'bold', color: balance.balance >= 0 ? '#18a058' : '#d03050' }">
-                        {{ balance.balance >= 0 ? '+' : '' }}{{ balance.balance.toFixed(2) }} €
-                      </div>
-                    </n-gi>
-                  </n-grid>
-                </template>
-              </n-thing>
-            </n-list-item>
-          </n-list>
-
-          <!-- Who owes whom summary -->
-          <n-card size="small" :bordered="false" style="background: rgba(255,255,255,0.05);">
-            <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">Remboursements</div>
-            <div v-if="settlements.length === 0">
-              <n-tag type="success">Tout est équilibré !</n-tag>
-            </div>
-            <n-space v-else vertical size="medium">
-              <div
-                v-for="(settlement, idx) in settlements"
-                :key="idx"
-                style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(0,0,0,0.1); border-radius: 8px;"
-              >
-                <span style="color: #d03050; font-weight: bold;">{{ settlement.from }}</span>
-                <span style="font-size: 20px;">→</span>
-                <span style="color: #18a058; font-weight: bold;">{{ settlement.to }}</span>
-                <n-tag type="warning" size="medium" style="margin-left: auto;">
-                  {{ settlement.amount.toFixed(2) }} €
-                </n-tag>
-              </div>
-            </n-space>
-          </n-card>
-        </n-space>
-      </n-card>
+      <!-- Balances (group budgets only) -->
+      <BalancesCard
+        v-if="budgetStore.currentBudget?.budget_type === 'group'"
+        :balances="balances"
+        :is-mobile="isMobile"
+      />
 
       <!-- Tag Statistics -->
-      <n-card v-if="tagDistribution.length > 0" title="Statistics by Tag">
-        <!-- Stacked bar chart at 100% -->
-        <div style="display: flex; height: 32px; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
-          <div
-            v-for="stat in tagDistribution"
-            :key="stat.tag"
-            :style="{
-              width: stat.distributionPercent + '%',
-              backgroundColor: getTagColor(stat.tag),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: stat.distributionPercent > 5 ? 'auto' : '0',
-            }"
-          >
-            <span v-if="stat.distributionPercent > 8" style="color: white; font-size: 12px; font-weight: bold;">
-              {{ stat.distributionPercent.toFixed(1) }}%
-            </span>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-          <div v-for="stat in tagDistribution" :key="stat.tag" style="display: flex; align-items: center; gap: 8px;">
-            <div :style="{ width: '12px', height: '12px', borderRadius: '2px', backgroundColor: getTagColor(stat.tag) }"></div>
-            <span style="font-size: 13px;">
-              <strong>{{ stat.tag }}</strong>: {{ stat.budget.toFixed(2) }} € ({{ stat.distributionPercent.toFixed(1) }}%)
-            </span>
-          </div>
-        </div>
-      </n-card>
+      <TagStatisticsCard :tag-distribution="tagDistribution" />
 
       <!-- Categories -->
       <n-card title="Categories">
-        <n-empty
-          v-if="budgetStore.categories.length === 0"
-          description="No categories"
-        >
+        <n-empty v-if="budgetStore.categories.length === 0" description="No categories">
           <template #extra>
             <n-button @click="showAddCategory = true" type="primary" size="small">
               Add a Category
@@ -230,122 +71,17 @@
         </n-empty>
 
         <n-space v-else vertical size="large">
-          <n-card v-for="category in parentCategories" :key="category.id" size="small">
-            <!-- Parent Category Header -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-              <div style="flex: 1;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                  <strong style="font-size: 16px;">{{ category.name }}</strong>
-                  <n-space v-if="category.tags && category.tags.length > 0" size="small">
-                    <n-tag v-for="tag in category.tags" :key="tag" size="small" :type="getTagType(tag)">
-                      {{ tag }}
-                    </n-tag>
-                  </n-space>
-                </div>
-                <div style="font-size: 13px; color: #888;">
-                  Budget: <strong>{{ category.amount.toFixed(2) }} €</strong>
-                </div>
-                <!-- Member shares for group budgets -->
-                <div
-                  v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0"
-                  style="display: flex; gap: 16px; margin-top: 4px; font-size: 12px;"
-                >
-                  <span v-for="member in members" :key="member.id" style="color: #888;">
-                    {{ member.user_name }}: <strong>{{ (category.amount * member.share / 100).toFixed(2) }} €</strong>
-                  </span>
-                </div>
-              </div>
-              <n-space size="small">
-                <n-button size="tiny" quaternary @click="openEditModal(category)">Edit</n-button>
-                <n-popconfirm @positive-click="handleDeleteCategory(category.id)">
-                  <template #trigger>
-                    <n-button size="tiny" quaternary type="error">Delete</n-button>
-                  </template>
-                  Delete this category?
-                </n-popconfirm>
-              </n-space>
-            </div>
-
-            <!-- Progress Bars -->
-            <div style="margin-bottom: 8px;">
-              <!-- Spent -->
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                <span>Spent: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
-                <span :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }">
-                  {{ category.remaining.toFixed(2) }} € remaining
-                </span>
-              </div>
-              <n-progress
-                :percentage="Math.min(category.percentage, 100)"
-                :color="category.percentage > 100 ? '#d03050' : '#18a058'"
-                :show-indicator="false"
-              />
-              <!-- Projected -->
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; margin-top: 8px;">
-                <span style="color: #f0a020;">Projected: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
-                <span :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }">
-                  {{ category.projectedRemaining.toFixed(2) }} € remaining
-                </span>
-              </div>
-              <n-progress
-                :percentage="Math.min(category.projectedPercentage, 100)"
-                :color="category.projectedPercentage > 100 ? '#d03050' : '#f0a020'"
-                :show-indicator="false"
-              />
-            </div>
-
-            <!-- Subcategories -->
-            <div v-if="getSubcategories(category.id).length > 0" style="margin-top: 16px;">
-              <div style="font-size: 12px; color: #888; margin-bottom: 8px;">SUBCATEGORIES</div>
-              <n-space vertical size="small">
-                <div
-                  v-for="sub in getSubcategories(category.id)"
-                  :key="sub.id"
-                  style="background: rgba(255,255,255,0.05); border-radius: 6px; padding: 10px 12px;"
-                >
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 14px;">{{ sub.name }}</span>
-                      <n-space v-if="sub.tags && sub.tags.length > 0" size="small">
-                        <n-tag v-for="tag in sub.tags" :key="tag" size="tiny" :type="getTagType(tag)">
-                          {{ tag }}
-                        </n-tag>
-                      </n-space>
-                    </div>
-                    <n-space size="small" align="center">
-                      <n-button size="tiny" quaternary @click="openEditModal(sub)">Edit</n-button>
-                      <n-popconfirm @positive-click="handleDeleteCategory(sub.id)">
-                        <template #trigger>
-                          <n-button size="tiny" quaternary type="error">Del</n-button>
-                        </template>
-                        Delete?
-                      </n-popconfirm>
-                    </n-space>
-                  </div>
-                  <div style="display: flex; gap: 16px; font-size: 12px;">
-                    <span style="color: #18a058;">Spent: {{ sub.spent.toFixed(2) }} €</span>
-                    <span style="color: #f0a020;">Projected: {{ sub.projected.toFixed(2) }} €</span>
-                  </div>
-                  <!-- Member shares for subcategories in group budgets -->
-                  <div
-                    v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0 && sub.amount > 0"
-                    style="display: flex; gap: 12px; margin-top: 4px; font-size: 11px;"
-                  >
-                    <span v-for="member in members" :key="member.id" style="color: #666;">
-                      {{ member.user_name }}: {{ (sub.amount * member.share / 100).toFixed(2) }} €
-                    </span>
-                  </div>
-                </div>
-              </n-space>
-            </div>
-
-            <!-- Add Subcategory Button -->
-            <div style="margin-top: 12px;">
-              <n-button size="small" dashed block @click="openAddSubcategory(category.id)">
-                + Add Subcategory
-              </n-button>
-            </div>
-          </n-card>
+          <CategoryCard
+            v-for="category in parentCategories"
+            :key="category.id"
+            :category="category"
+            :subcategories="getSubcategories(category.id)"
+            :members="members"
+            :is-group-budget="budgetStore.currentBudget?.budget_type === 'group'"
+            @edit="openEditModal"
+            @delete="handleDeleteCategory"
+            @add-subcategory="openAddSubcategory"
+          />
         </n-space>
 
         <template #footer>
@@ -355,280 +91,60 @@
         </template>
       </n-card>
 
-      <!-- Members (only for group budgets) -->
-      <n-card v-if="budgetStore.currentBudget?.budget_type === 'group'" title="Budget Members">
-        <n-space vertical>
-          <!-- Share total warning -->
-          <n-alert
-            v-if="members.length > 0 && Math.abs(totalShares - 100) > 0.01"
-            :type="totalShares < 100 ? 'warning' : 'error'"
-            :title="totalShares < 100 ? 'Shares incomplete' : 'Shares exceed 100%'"
-          >
-            Total shares: {{ totalShares.toFixed(1) }}% (should be 100%)
-          </n-alert>
-
-          <!-- Member list with shares -->
-          <n-list v-if="members.length > 0" bordered>
-            <n-list-item v-for="member in members" :key="member.id">
-              <template #prefix>
-                <n-avatar
-                  :size="40"
-                  round
-                  :src="member.user_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.user_name}`"
-                />
-              </template>
-
-              <n-thing :title="member.user_name">
-                <template #description>
-                  <div>{{ member.user_email }}</div>
-                  <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: #888;">Share:</span>
-                    <n-input-number
-                      v-if="isOwner"
-                      :value="member.share"
-                      :min="0"
-                      :max="100"
-                      :precision="1"
-                      :step="5"
-                      size="small"
-                      :style="{ width: '100px' }"
-                      :loading="updatingShare === member.id"
-                      @update:value="(v) => handleUpdateShare(member.id, v || 0)"
-                    >
-                      <template #suffix>%</template>
-                    </n-input-number>
-                    <span v-else style="font-weight: bold;">{{ member.share }}%</span>
-                  </div>
-                </template>
-              </n-thing>
-
-              <template #suffix>
-                <n-space align="center">
-                  <n-tag :type="member.role === 'owner' ? 'success' : 'default'" size="small">
-                    {{ member.role === 'owner' ? 'Owner' : 'Member' }}
-                  </n-tag>
-
-                  <n-popconfirm
-                    v-if="member.role !== 'owner' && isOwner"
-                    @positive-click="handleRemoveMember(member.id)"
-                  >
-                    <template #trigger>
-                      <n-button size="small" type="error" quaternary circle>
-                        <template #icon>
-                          <n-icon><TrashOutline /></n-icon>
-                        </template>
-                      </n-button>
-                    </template>
-                    Remove this member from the budget?
-                  </n-popconfirm>
-                </n-space>
-              </template>
-            </n-list-item>
-          </n-list>
-
-          <n-empty v-else description="No members" />
-        </n-space>
-
-        <template #footer>
-          <n-button
-            v-if="isOwner"
-            @click="showInviteModal = true"
-            type="primary"
-            size="small"
-          >
-            Invite a Member
-          </n-button>
-        </template>
-      </n-card>
-
-
+      <!-- Members (group budgets only) -->
+      <MembersCard
+        v-if="budgetStore.currentBudget?.budget_type === 'group'"
+        :members="members"
+        :is-owner="isOwner"
+        :updating-share-id="updatingShare"
+        @update-share="handleUpdateShare"
+        @remove-member="handleRemoveMember"
+        @invite="showInviteModal = true"
+      />
     </template>
 
-    <!-- Add category modal -->
-    <n-modal v-model:show="showAddCategory">
-      <n-card
-        title="Add Category"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
-      >
-        <n-form ref="categoryFormRef" :model="newCategory">
-          <n-form-item label="Type">
-            <n-radio-group v-model:value="newCategory.isSubcategory">
-              <n-space>
-                <n-radio :value="false">Category</n-radio>
-                <n-radio :value="true">Subcategory</n-radio>
-              </n-space>
-            </n-radio-group>
-          </n-form-item>
+    <!-- Modals -->
+    <AddCategoryModal
+      v-model:show="showAddCategory"
+      :is-mobile="isMobile"
+      :parent-category-options="parentCategoryOptions"
+      :loading="addingCategory"
+      :initial-parent-id="initialParentId"
+      ref="addCategoryModalRef"
+      @submit="handleAddCategory"
+    />
 
-          <n-form-item v-if="newCategory.isSubcategory" label="Parent Category">
-            <n-select
-              v-model:value="newCategory.parentId"
-              :options="parentCategoryOptions"
-              placeholder="Select parent category"
-            />
-          </n-form-item>
+    <EditCategoryModal
+      v-model:show="showEditCategory"
+      :is-mobile="isMobile"
+      :loading="editingCategory"
+      :category="editCategoryData"
+      @submit="handleEditCategory"
+    />
 
-          <n-form-item label="Name">
-            <n-input v-model:value="newCategory.name" placeholder="Housing" />
-          </n-form-item>
-
-          <n-form-item v-if="!newCategory.isSubcategory" label="Budget Amount">
-            <n-input-number
-              v-model:value="newCategory.amount"
-              :min="0"
-              :precision="2"
-              style="width: 100%;"
-            >
-              <template #suffix>€</template>
-            </n-input-number>
-          </n-form-item>
-
-          <n-form-item label="Tags">
-            <n-checkbox-group v-model:value="newCategory.tags">
-              <n-space>
-                <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="besoin">Obligé</n-checkbox>
-                <n-checkbox value="loisir">Loisir</n-checkbox>
-                <n-checkbox value="épargne">Épargne</n-checkbox>
-              </n-space>
-            </n-checkbox-group>
-          </n-form-item>
-        </n-form>
-
-        <template #footer>
-          <n-space justify="end">
-            <n-button @click="closeAddModal">Cancel</n-button>
-            <n-button type="primary" :loading="addingCategory" @click="handleAddCategory">
-              Add
-            </n-button>
-          </n-space>
-        </template>
-      </n-card>
-    </n-modal>
-
-    <!-- Edit category modal -->
-    <n-modal v-model:show="showEditCategory">
-      <n-card
-        title="Edit Category"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
-      >
-        <n-form :model="editCategory">
-          <n-form-item label="Name">
-            <n-input v-model:value="editCategory.name" placeholder="Category name" />
-          </n-form-item>
-
-          <n-form-item v-if="!editCategory.isSubcategory" label="Budget Amount">
-            <n-input-number
-              v-model:value="editCategory.amount"
-              :min="0"
-              :precision="2"
-              style="width: 100%;"
-            >
-              <template #suffix>€</template>
-            </n-input-number>
-          </n-form-item>
-
-          <n-form-item label="Tags">
-            <n-checkbox-group v-model:value="editCategory.tags">
-              <n-space>
-                <n-checkbox value="crédit">Crédit</n-checkbox>
-                <n-checkbox value="besoin">Obligé</n-checkbox>
-                <n-checkbox value="loisir">Loisir</n-checkbox>
-                <n-checkbox value="épargne">Épargne</n-checkbox>
-              </n-space>
-            </n-checkbox-group>
-          </n-form-item>
-        </n-form>
-
-        <template #footer>
-          <n-space justify="end">
-            <n-button @click="showEditCategory = false">Cancel</n-button>
-            <n-button type="primary" :loading="editingCategory" @click="handleEditCategory">
-              Save
-            </n-button>
-          </n-space>
-        </template>
-      </n-card>
-    </n-modal>
-
-    <!-- Member invitation modal -->
-    <n-modal v-model:show="showInviteModal">
-      <n-card
-        title="Invite a Member"
-        :bordered="false"
-        size="huge"
-        role="dialog"
-        :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
-      >
-        <n-form ref="inviteFormRef" :model="inviteData">
-          <n-form-item label="User Email">
-            <n-input
-              v-model:value="inviteData.email"
-              placeholder="email@example.com"
-              type="email"
-            />
-          </n-form-item>
-
-          <n-form-item label="Role">
-            <n-radio-group v-model:value="inviteData.role">
-              <n-space>
-                <n-radio value="member">Member</n-radio>
-                <n-radio value="owner">Owner</n-radio>
-              </n-space>
-            </n-radio-group>
-          </n-form-item>
-        </n-form>
-
-        <template #footer>
-          <n-space justify="end">
-            <n-button @click="showInviteModal = false">Cancel</n-button>
-            <n-button type="primary" :loading="inviting" @click="handleInviteMember">
-              Invite
-            </n-button>
-          </n-space>
-        </template>
-      </n-card>
-    </n-modal>
+    <InviteMemberModal
+      v-model:show="showInviteModal"
+      :is-mobile="isMobile"
+      :loading="inviting"
+      ref="inviteModalRef"
+      @submit="handleInviteMember"
+    />
   </n-space>
 </template>
 
 <script setup lang="ts">
-/**
- * Budget detail view component.
- *
- * Features:
- * - Display budget summary with total, spent, and remaining amounts
- * - Category breakdown with spending progress bars
- * - Member management for group budgets (invite, remove)
- * - Add new categories
- * - Delete budget functionality
- */
-
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  NSpace, NButton, NDatePicker, NCard, NGrid, NGi,
-  NStatistic, NProgress, NEmpty, NModal, NForm, NFormItem,
-  NInput, NInputNumber, NSpin, NList, NListItem, NThing,
-  NAvatar, NTag, NIcon, NRadioGroup, NRadio, NPopconfirm,
-  NCheckbox, NCheckboxGroup, NSelect, NDivider, NAlert,
-  useMessage
+  NSpace, NButton, NDatePicker, NCard, NEmpty, NSpin, NPopconfirm, useMessage
 } from 'naive-ui'
-import { TrashOutline } from '@vicons/ionicons5'
-import { Doughnut } from 'vue-chartjs'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { useBudgetStore } from '@/stores/budget'
-
-// Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend)
 import { useAuthStore } from '@/stores/auth'
 import { budgetMembersAPI, budgetsAPI, recurringAPI, type BudgetMemberWithUser, type MemberBalance } from '@/services/api'
+
+// Components
+import { BudgetSummaryCard, BalancesCard, TagStatisticsCard, CategoryCard, MembersCard } from '@/components/budget'
+import { AddCategoryModal, EditCategoryModal, InviteMemberModal } from '@/components/modals'
 
 const router = useRouter()
 const route = useRoute()
@@ -636,319 +152,48 @@ const message = useMessage()
 const budgetStore = useBudgetStore()
 const authStore = useAuthStore()
 
-/** Whether the viewport is mobile-sized */
+// Refs
 const isMobile = ref(false)
-
-/** Selected month timestamp for filtering */
 const selectedMonth = ref(Date.now())
-
-/** Add category modal visibility */
 const showAddCategory = ref(false)
-
-/** Loading state for adding category */
 const addingCategory = ref(false)
-
-/** Category form reference */
-const categoryFormRef = ref<any>(null)
-
-/** New category form data */
-const newCategory = ref({
-  name: '',
-  amount: 0,
-  parentId: null as string | null,
-  tags: [] as string[],
-  isSubcategory: false,
-})
-
-/** Edit category modal visibility */
 const showEditCategory = ref(false)
-
-/** Loading state for editing category */
 const editingCategory = ref(false)
-
-/** Edit category form data */
-const editCategory = ref({
-  id: '',
-  name: '',
-  amount: 0,
-  tags: [] as string[],
-  isSubcategory: false,
-})
-
-/** List of budget members */
-const members = ref<BudgetMemberWithUser[]>([])
-
-/** Member balances for group budgets */
-const balances = ref<MemberBalance[]>([])
-
-/** Loading state for updating shares */
-const updatingShare = ref<string | null>(null)
-
-/** Invite member modal visibility */
 const showInviteModal = ref(false)
-
-/** Loading state for invitation */
 const inviting = ref(false)
+const members = ref<BudgetMemberWithUser[]>([])
+const balances = ref<MemberBalance[]>([])
+const updatingShare = ref<string | null>(null)
+const initialParentId = ref<string | null>(null)
+const addCategoryModalRef = ref<any>(null)
+const inviteModalRef = ref<any>(null)
 
-/** Invite form reference */
-const inviteFormRef = ref<any>(null)
+const editCategoryData = ref<{
+  id: string
+  name: string
+  amount: number
+  tags: string[]
+  isSubcategory: boolean
+} | null>(null)
 
-/** Invitation form data */
-const inviteData = ref({
-  email: '',
-  role: 'member' as 'member' | 'owner',
+// Computed
+const isOwner = computed(() => {
+  if (!authStore.user || !budgetStore.currentBudget) return false
+  if (budgetStore.currentBudget.budget_type === 'personal') {
+    return budgetStore.currentBudget.user_id === authStore.user.id
+  }
+  return members.value.some(m => m.user_id === authStore.user!.id && m.role === 'owner')
 })
 
-/**
- * Checks if the viewport is mobile-sized.
- */
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-/**
- * Determines if the current user is an owner of this budget.
- * For personal budgets, the creator is always the owner.
- * For group budgets, checks the member list for owner role.
- */
-const isOwner = computed(() => {
-  if (!authStore.user || !budgetStore.currentBudget) return false
-
-  // For personal budgets, the user is always the owner
-  if (budgetStore.currentBudget.budget_type === 'personal') {
-    return budgetStore.currentBudget.user_id === authStore.user.id
-  }
-
-  // For group budgets, check the members list
-  return members.value.some(m =>
-    m.user_id === authStore.user!.id && m.role === 'owner'
-  )
-})
-
-/**
- * Loads the member list for group budgets.
- */
-const loadMembers = async () => {
-  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') {
-    return
-  }
-
-  try {
-    members.value = await budgetMembersAPI.getMembers(budgetStore.currentBudget.id)
-  } catch (error) {
-    console.error('Error loading members:', error)
-  }
-}
-
-/**
- * Loads the balance calculations for group budgets.
- */
-const loadBalances = async () => {
-  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') {
-    return
-  }
-
-  try {
-    balances.value = await budgetMembersAPI.getBalances(budgetStore.currentBudget.id)
-  } catch (error) {
-    console.error('Error loading balances:', error)
-  }
-}
-
-/**
- * Updates a member's share percentage.
- * @param memberId - The member ID to update
- * @param share - The new share percentage
- */
-const handleUpdateShare = async (memberId: string, share: number) => {
-  if (!budgetStore.currentBudget) return
-
-  updatingShare.value = memberId
-  try {
-    const updated = await budgetMembersAPI.updateShare(
-      budgetStore.currentBudget.id,
-      memberId,
-      share
-    )
-    // Update local member data
-    const index = members.value.findIndex(m => m.id === memberId)
-    if (index !== -1) {
-      members.value[index] = updated
-    }
-    // Reload balances
-    await loadBalances()
-    message.success('Share updated')
-  } catch (error: any) {
-    console.error('Error updating share:', error)
-    if (error.response?.status === 403) {
-      message.error('Only owners can update shares')
-    } else {
-      message.error('Error updating share')
-    }
-  } finally {
-    updatingShare.value = null
-  }
-}
-
-/**
- * Total of all member shares.
- */
-const totalShares = computed(() => {
-  return members.value.reduce((sum, m) => sum + m.share, 0)
-})
-
-/**
- * Settlement transactions to balance the group.
- * Calculates optimal payments from debtors to creditors.
- */
-const settlements = computed(() => {
-  const result: { from: string; to: string; amount: number }[] = []
-
-  // Copy balances to work with
-  const debtors = balances.value
-    .filter(b => b.balance < -0.01)
-    .map(b => ({ name: b.user_name, remaining: Math.abs(b.balance) }))
-    .sort((a, b) => b.remaining - a.remaining)
-
-  const creditors = balances.value
-    .filter(b => b.balance > 0.01)
-    .map(b => ({ name: b.user_name, remaining: b.balance }))
-    .sort((a, b) => b.remaining - a.remaining)
-
-  // Match debtors to creditors
-  for (const debtor of debtors) {
-    while (debtor.remaining > 0.01) {
-      const creditor = creditors.find(c => c.remaining > 0.01)
-      if (!creditor) break
-
-      const amount = Math.min(debtor.remaining, creditor.remaining)
-      result.push({
-        from: debtor.name,
-        to: creditor.name,
-        amount: Math.round(amount * 100) / 100,
-      })
-
-      debtor.remaining -= amount
-      creditor.remaining -= amount
-    }
-  }
-
-  return result
-})
-
-/**
- * Invites a new member to the budget.
- */
-const handleInviteMember = async () => {
-  if (!inviteData.value.email || !budgetStore.currentBudget) {
-    message.error('Email is required')
-    return
-  }
-
-  inviting.value = true
-  try {
-    await budgetMembersAPI.inviteMember(
-      budgetStore.currentBudget.id,
-      inviteData.value.email,
-      inviteData.value.role
-    )
-    message.success('Invitation sent!')
-    showInviteModal.value = false
-    inviteData.value = { email: '', role: 'member' }
-  } catch (error: any) {
-    console.error('Error inviting member:', error)
-    if (error.response?.status === 404) {
-      message.error('User not found')
-    } else if (error.response?.status === 409) {
-      message.error('This user is already a member')
-    } else if (error.response?.status === 403) {
-      message.error('You must be an owner to invite')
-    } else {
-      message.error('Error sending invitation')
-    }
-  } finally {
-    inviting.value = false
-  }
-}
-
-/**
- * Removes a member from the budget.
- * @param memberId - The member ID to remove
- */
-const handleRemoveMember = async (memberId: string) => {
-  if (!budgetStore.currentBudget) return
-
-  try {
-    await budgetMembersAPI.removeMember(budgetStore.currentBudget.id, memberId)
-    message.success('Member removed')
-    await loadMembers()
-  } catch (error) {
-    console.error('Error removing member:', error)
-    message.error('Error removing member')
-  }
-}
-
-/**
- * Deletes the current budget.
- */
-const handleDeleteBudget = async () => {
-  if (!budgetStore.currentBudget) return
-
-  try {
-    await budgetsAPI.delete(budgetStore.currentBudget.id)
-    message.success('Budget deleted')
-    router.push('/dashboard')
-  } catch (error: any) {
-    console.error('Error deleting budget:', error)
-    if (error.response?.status === 403) {
-      message.error('You must be an owner to delete')
-    } else {
-      message.error('Error deleting budget')
-    }
-  }
-}
-
-onMounted(async () => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-
-  const budgetId = route.params.id as string
-
-  try {
-    // First, process recurring transactions to generate any pending ones
-    await recurringAPI.process(budgetId)
-
-    // Then load all budget data
-    await Promise.all([
-      budgetStore.fetchBudget(budgetId),
-      budgetStore.fetchCategories(budgetId),
-      budgetStore.fetchTransactions(budgetId),
-      budgetStore.fetchRecurringTransactions(budgetId),
-    ])
-    await loadMembers()
-    await loadBalances()
-  } catch (error) {
-    console.error('Error loading budget:', error)
-    message.error('Error loading data')
-  }
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-
-/**
- * Get all subcategory IDs for a parent category.
- */
+// Category calculations
 const getSubcategoryIds = (parentId: string): string[] => {
-  return budgetStore.categories
-    .filter(c => c.parent_id === parentId)
-    .map(c => c.id)
+  return budgetStore.categories.filter(c => c.parent_id === parentId).map(c => c.id)
 }
 
-/**
- * Calculate projected recurring expenses for a category until end of month.
- */
 const getProjectedRecurring = (categoryIds: string[]): number => {
   const now = new Date()
   const currentDay = now.getDate()
@@ -959,37 +204,21 @@ const getProjectedRecurring = (categoryIds: string[]): number => {
     .filter(r => categoryIds.includes(r.category_id) && r.active && r.transaction_type === 'expense')
     .reduce((sum, r) => {
       let occurrences = 0
-
       if (r.frequency === 'monthly') {
-        // Check if the recurring day is still coming this month
         const recurringDay = r.day || 1
-        if (recurringDay > currentDay && recurringDay <= lastDayOfMonth) {
-          occurrences = 1
-        }
+        if (recurringDay > currentDay && recurringDay <= lastDayOfMonth) occurrences = 1
       } else if (r.frequency === 'weekly') {
-        // Calculate how many weeks remain
         occurrences = Math.floor(daysRemaining / 7)
-      } else if (r.frequency === 'yearly') {
-        // Yearly transactions are rare within a month, skip for projection
-        occurrences = 0
       }
-
       return sum + (r.amount * occurrences)
     }, 0)
 }
 
-/**
- * Categories with calculated spending amounts.
- * For parent categories: includes spending from all subcategories.
- * For subcategories: only their own spending.
- */
 const categoriesWithSpent = computed(() => {
   return budgetStore.categories.map(cat => {
-    let spent: number
-    let projected: number
+    let spent: number, projected: number
 
     if (!cat.parent_id) {
-      // Parent category: sum spending from self + all subcategories
       const subcategoryIds = getSubcategoryIds(cat.id)
       const allCategoryIds = [cat.id, ...subcategoryIds]
       spent = budgetStore.transactions
@@ -997,125 +226,55 @@ const categoriesWithSpent = computed(() => {
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring(allCategoryIds)
     } else {
-      // Subcategory: only own spending
       spent = budgetStore.transactions
         .filter(t => t.category_id === cat.id && t.transaction_type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring([cat.id])
     }
 
-    // For subcategories, use parent's budget for percentage calc
     const budget = cat.parent_id
       ? budgetStore.categories.find(c => c.id === cat.parent_id)?.amount || 0
       : cat.amount
-
-    const remaining = cat.parent_id ? 0 : cat.amount - spent
-    const projectedRemaining = cat.parent_id ? 0 : cat.amount - projected
-    const percentage = budget > 0 ? (spent / budget) * 100 : 0
-    const projectedPercentage = budget > 0 ? (projected / budget) * 100 : 0
 
     return {
       ...cat,
       spent,
       projected,
-      remaining,
-      projectedRemaining,
-      percentage,
-      projectedPercentage,
+      remaining: cat.parent_id ? 0 : cat.amount - spent,
+      projectedRemaining: cat.parent_id ? 0 : cat.amount - projected,
+      percentage: budget > 0 ? (spent / budget) * 100 : 0,
+      projectedPercentage: budget > 0 ? (projected / budget) * 100 : 0,
     }
   })
 })
 
-/** Total budget amount from parent categories only */
+const parentCategories = computed(() => categoriesWithSpent.value.filter(c => !c.parent_id))
+const getSubcategories = (parentId: string) => categoriesWithSpent.value.filter(c => c.parent_id === parentId)
+
+const parentCategoryOptions = computed(() => {
+  return parentCategories.value.map(c => ({ label: c.name, value: c.id }))
+})
+
+// Budget totals
 const totalBudget = computed(() => {
-  return budgetStore.categories
-    .filter(cat => !cat.parent_id)
-    .reduce((sum, cat) => sum + cat.amount, 0)
+  return budgetStore.categories.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.amount, 0)
 })
 
-/** Total amount spent (only count parent categories to avoid double counting) */
 const totalSpent = computed(() => {
-  return categoriesWithSpent.value
-    .filter(cat => !cat.parent_id)
-    .reduce((sum, cat) => sum + cat.spent, 0)
+  return categoriesWithSpent.value.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.spent, 0)
 })
 
-/** Total projected spending */
 const totalProjected = computed(() => {
-  return categoriesWithSpent.value
-    .filter(cat => !cat.parent_id)
-    .reduce((sum, cat) => sum + cat.projected, 0)
+  return categoriesWithSpent.value.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.projected, 0)
 })
 
-/** Remaining budget amount */
 const remaining = computed(() => totalBudget.value - totalSpent.value)
-
-/** Projected remaining budget amount */
 const projectedRemaining = computed(() => totalBudget.value - totalProjected.value)
+const percentage = computed(() => totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0)
+const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProjected.value / totalBudget.value) * 100 : 0)
 
-/** Spending percentage of total budget */
-const percentage = computed(() => {
-  return totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0
-})
-
-/** Projected spending percentage of total budget */
-const projectedPercentage = computed(() => {
-  return totalBudget.value > 0 ? (totalProjected.value / totalBudget.value) * 100 : 0
-})
-
-/** Available tags */
+// Tag statistics
 const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
-
-/**
- * Statistics per tag.
- * For each tag, calculates the total budget and spent amounts
- * from all categories that have that tag.
- */
-const tagStatistics = computed(() => {
-  return VALID_TAGS.map(tag => {
-    // Get all categories (parent + sub) that have this tag
-    const categoriesWithTag = categoriesWithSpent.value.filter(c =>
-      c.tags && c.tags.includes(tag)
-    )
-
-    // Sum budgets (only from parent categories to avoid counting parent budget twice)
-    const budget = categoriesWithTag
-      .filter(c => !c.parent_id)
-      .reduce((sum, c) => sum + c.amount, 0)
-
-    // Sum spending from all categories with this tag
-    const spent = categoriesWithTag.reduce((sum, c) => sum + c.spent, 0)
-
-    const percentage = budget > 0 ? (spent / budget) * 100 : 0
-
-    return {
-      tag,
-      budget,
-      spent,
-      remaining: budget - spent,
-      percentage,
-    }
-  }).filter(stat => stat.budget > 0 || stat.spent > 0) // Only show tags that have data
-})
-
-/**
- * Tag distribution for 100% stacked bar chart.
- * Calculates what percentage of total budget each tag represents.
- */
-const tagDistribution = computed(() => {
-  const stats = tagStatistics.value
-  const totalBudgetByTags = stats.reduce((sum, s) => sum + s.budget, 0)
-
-  return stats
-    .filter(s => s.budget > 0)
-    .map(s => ({
-      ...s,
-      distributionPercent: totalBudgetByTags > 0 ? (s.budget / totalBudgetByTags) * 100 : 0,
-    }))
-    .sort((a, b) => b.distributionPercent - a.distributionPercent)
-})
-
-/** Tag colors for chart */
 const TAG_COLORS: Record<string, string> = {
   'crédit': '#d03050',
   'besoin': '#f0a020',
@@ -1123,109 +282,120 @@ const TAG_COLORS: Record<string, string> = {
   'épargne': '#18a058',
 }
 
-/**
- * Get color for a tag.
- */
-const getTagColor = (tag: string): string => {
-  return TAG_COLORS[tag] || '#888888'
-}
+const tagStatistics = computed(() => {
+  return VALID_TAGS.map(tag => {
+    const categoriesWithTag = categoriesWithSpent.value.filter(c => c.tags?.includes(tag))
+    const budget = categoriesWithTag.filter(c => !c.parent_id).reduce((sum, c) => sum + c.amount, 0)
+    const spent = categoriesWithTag.reduce((sum, c) => sum + c.spent, 0)
+    return { tag, budget, spent, remaining: budget - spent, percentage: budget > 0 ? (spent / budget) * 100 : 0 }
+  }).filter(stat => stat.budget > 0 || stat.spent > 0)
+})
 
-/**
- * Chart data for tag distribution (doughnut chart).
- */
-const tagChartData = computed(() => {
+const tagDistribution = computed(() => {
   const stats = tagStatistics.value
-  return {
-    labels: stats.map(s => s.tag),
-    datasets: [{
-      data: stats.map(s => s.spent),
-      backgroundColor: stats.map(s => TAG_COLORS[s.tag] || '#888888'),
-      borderWidth: 2,
-      borderColor: '#1a1a1a',
-    }]
-  }
+  const totalBudgetByTags = stats.reduce((sum, s) => sum + s.budget, 0)
+  return stats
+    .filter(s => s.budget > 0)
+    .map(s => ({ ...s, distributionPercent: totalBudgetByTags > 0 ? (s.budget / totalBudgetByTags) * 100 : 0 }))
+    .sort((a, b) => b.distributionPercent - a.distributionPercent)
 })
 
-/** Chart options for tag distribution */
-const tagChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const label = context.label || ''
-          const value = context.parsed || 0
-          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
-          const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : '0.00'
-          return `${label}: ${value.toFixed(2)} € (${percentage}%)`
-        }
-      }
-    }
+const tagChartData = computed(() => ({
+  labels: tagStatistics.value.map(s => s.tag),
+  datasets: [{
+    data: tagStatistics.value.map(s => s.spent),
+    backgroundColor: tagStatistics.value.map(s => TAG_COLORS[s.tag] || '#888888'),
+    borderWidth: 2,
+    borderColor: '#1a1a1a',
+  }]
+}))
+
+// Handlers
+const loadMembers = async () => {
+  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') return
+  try {
+    members.value = await budgetMembersAPI.getMembers(budgetStore.currentBudget.id)
+  } catch (error) {
+    console.error('Error loading members:', error)
   }
 }
 
-/**
- * Parent categories (categories without parent_id).
- */
-const parentCategories = computed(() => {
-  return categoriesWithSpent.value.filter(c => !c.parent_id)
-})
-
-/**
- * Options for parent category select in add modal.
- */
-const parentCategoryOptions = computed(() => {
-  return parentCategories.value.map(c => ({
-    label: c.name,
-    value: c.id,
-  }))
-})
-
-/**
- * Get subcategories for a parent category.
- */
-const getSubcategories = (parentId: string) => {
-  return categoriesWithSpent.value.filter(c => c.parent_id === parentId)
-}
-
-/**
- * Get tag color type.
- */
-const getTagType = (tag: string) => {
-  const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
-    'crédit': 'error',
-    'besoin': 'warning',
-    'loisir': 'info',
-    'épargne': 'success',
+const loadBalances = async () => {
+  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') return
+  try {
+    balances.value = await budgetMembersAPI.getBalances(budgetStore.currentBudget.id)
+  } catch (error) {
+    console.error('Error loading balances:', error)
   }
-  return types[tag] || 'default'
 }
 
-/**
- * Open add subcategory modal.
- */
+const handleUpdateShare = async (memberId: string, share: number) => {
+  if (!budgetStore.currentBudget) return
+  updatingShare.value = memberId
+  try {
+    const updated = await budgetMembersAPI.updateShare(budgetStore.currentBudget.id, memberId, share)
+    const index = members.value.findIndex(m => m.id === memberId)
+    if (index !== -1) members.value[index] = updated
+    await loadBalances()
+    message.success('Share updated')
+  } catch (error: any) {
+    message.error(error.response?.status === 403 ? 'Only owners can update shares' : 'Error updating share')
+  } finally {
+    updatingShare.value = null
+  }
+}
+
+const handleInviteMember = async (data: { email: string; role: 'member' | 'owner' }) => {
+  if (!data.email || !budgetStore.currentBudget) {
+    message.error('Email is required')
+    return
+  }
+  inviting.value = true
+  try {
+    await budgetMembersAPI.inviteMember(budgetStore.currentBudget.id, data.email, data.role)
+    message.success('Invitation sent!')
+    showInviteModal.value = false
+    inviteModalRef.value?.resetForm()
+  } catch (error: any) {
+    const status = error.response?.status
+    if (status === 404) message.error('User not found')
+    else if (status === 409) message.error('This user is already a member')
+    else if (status === 403) message.error('You must be an owner to invite')
+    else message.error('Error sending invitation')
+  } finally {
+    inviting.value = false
+  }
+}
+
+const handleRemoveMember = async (memberId: string) => {
+  if (!budgetStore.currentBudget) return
+  try {
+    await budgetMembersAPI.removeMember(budgetStore.currentBudget.id, memberId)
+    message.success('Member removed')
+    await loadMembers()
+  } catch (error) {
+    message.error('Error removing member')
+  }
+}
+
+const handleDeleteBudget = async () => {
+  if (!budgetStore.currentBudget) return
+  try {
+    await budgetsAPI.delete(budgetStore.currentBudget.id)
+    message.success('Budget deleted')
+    router.push('/dashboard')
+  } catch (error: any) {
+    message.error(error.response?.status === 403 ? 'You must be an owner to delete' : 'Error deleting budget')
+  }
+}
+
 const openAddSubcategory = (parentId: string) => {
-  newCategory.value = { name: '', amount: 0, parentId, tags: [], isSubcategory: true }
+  initialParentId.value = parentId
   showAddCategory.value = true
 }
 
-/**
- * Close add modal and reset form.
- */
-const closeAddModal = () => {
-  showAddCategory.value = false
-  newCategory.value = { name: '', amount: 0, parentId: null, tags: [], isSubcategory: false }
-}
-
-/**
- * Open edit modal for a category.
- */
 const openEditModal = (category: any) => {
-  editCategory.value = {
+  editCategoryData.value = {
     id: category.id,
     name: category.name,
     amount: category.amount,
@@ -1235,84 +405,55 @@ const openEditModal = (category: any) => {
   showEditCategory.value = true
 }
 
-/**
- * Adds a new category to the budget.
- */
-const handleAddCategory = async () => {
-  if (!newCategory.value.name) {
+const handleAddCategory = async (data: { name: string; amount: number; parentId: string | null; tags: string[]; isSubcategory: boolean }) => {
+  if (!data.name) {
     message.error('Please enter a name')
     return
   }
-
-  if (newCategory.value.isSubcategory && !newCategory.value.parentId) {
+  if (data.isSubcategory && !data.parentId) {
     message.error('Please select a parent category')
     return
   }
-
   addingCategory.value = true
   try {
     const budgetId = route.params.id as string
-    const amount = newCategory.value.isSubcategory ? 0 : newCategory.value.amount
-    const parentId = newCategory.value.isSubcategory ? newCategory.value.parentId : undefined
-
-    await budgetStore.createCategory(
-      budgetId,
-      newCategory.value.name,
-      amount,
-      parentId || undefined,
-      newCategory.value.tags
-    )
-    message.success(newCategory.value.isSubcategory ? 'Subcategory added!' : 'Category added!')
-    closeAddModal()
+    const amount = data.isSubcategory ? 0 : data.amount
+    await budgetStore.createCategory(budgetId, data.name, amount, data.parentId || undefined, data.tags)
+    message.success(data.isSubcategory ? 'Subcategory added!' : 'Category added!')
+    showAddCategory.value = false
+    initialParentId.value = null
+    addCategoryModalRef.value?.resetForm()
   } catch (error) {
-    console.error('Error adding category:', error)
     message.error('Error adding category')
   } finally {
     addingCategory.value = false
   }
 }
 
-/**
- * Edit an existing category.
- */
-const handleEditCategory = async () => {
-  if (!editCategory.value.name) {
+const handleEditCategory = async (data: { id: string; name: string; amount: number; tags: string[]; isSubcategory: boolean }) => {
+  if (!data.name) {
     message.error('Please enter a name')
     return
   }
-
   editingCategory.value = true
   try {
-    const updateData: { name?: string; amount?: number; tags?: string[] } = {
-      name: editCategory.value.name,
-      tags: editCategory.value.tags || [],
-    }
-
-    // Only send amount for parent categories (not subcategories)
-    if (!editCategory.value.isSubcategory) {
-      updateData.amount = editCategory.value.amount
-    }
-
-    await budgetStore.updateCategory(editCategory.value.id, updateData)
+    const updateData: { name?: string; amount?: number; tags?: string[] } = { name: data.name, tags: data.tags || [] }
+    if (!data.isSubcategory) updateData.amount = data.amount
+    await budgetStore.updateCategory(data.id, updateData)
     message.success('Category updated!')
     showEditCategory.value = false
   } catch (error) {
-    console.error('Error updating category:', error)
     message.error('Error updating category')
   } finally {
     editingCategory.value = false
   }
 }
 
-/**
- * Delete a category.
- */
 const handleDeleteCategory = async (categoryId: string) => {
   try {
     await budgetStore.deleteCategory(categoryId)
     message.success('Category deleted!')
   } catch (error: any) {
-    console.error('Error deleting category:', error)
     if (error.response?.data?.detail?.includes('subcategories')) {
       message.error('Delete subcategories first')
     } else {
@@ -1320,4 +461,29 @@ const handleDeleteCategory = async (categoryId: string) => {
     }
   }
 }
+
+// Lifecycle
+onMounted(async () => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+
+  const budgetId = route.params.id as string
+  try {
+    await recurringAPI.process(budgetId)
+    await Promise.all([
+      budgetStore.fetchBudget(budgetId),
+      budgetStore.fetchCategories(budgetId),
+      budgetStore.fetchTransactions(budgetId),
+      budgetStore.fetchRecurringTransactions(budgetId),
+    ])
+    await loadMembers()
+    await loadBalances()
+  } catch (error) {
+    message.error('Error loading data')
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 </script>
