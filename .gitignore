@@ -46,6 +46,7 @@ yarn-error.log*
 # Database
 *.db
 *.sqlite
+data/
 
 # Test coverage
 coverage/
