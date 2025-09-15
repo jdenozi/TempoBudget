@@ -8,7 +8,7 @@ services:
     expose:
       - "8000"
     volumes:
-      - db-data:/app/data
+      - ${DATA_PATH:?DATA_PATH is required}:/app/data
     environment:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - ENVIRONMENT=production
@@ -30,17 +30,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-80}:80"
+      - "${PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - tempo-network
-
-volumes:
-  db-data:
-    driver: local
 
 networks:
   tempo-network:
