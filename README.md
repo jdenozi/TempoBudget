@@ -1,22 +1,22 @@
 # Tempo Budget
 
-Application de gestion de budget personnel et partagé.
+An accessible personal and shared budget management application
 
-## Fonctionnalités
+## Features
 
-- **Budgets personnels** : Suivi des dépenses par catégories
-- **Budgets de groupe** : Partage avec répartition des parts entre membres
-- **Transactions récurrentes** : Génération automatique des dépenses mensuelles
-- **Projections** : Estimation des dépenses à venir
-- **Statistiques** : Répartition par tags (crédit, besoin, loisir, épargne)
+* **Personal budgets**: Expense tracking by category
+* **Group budgets**: Sharing with split allocation between members
+* **Recurring transactions**: Automatic generation of monthly expenses
+* **Projections**: Estimation of upcoming expenses
+* **Statistics**: Breakdown by tags (credit, needs, leisure, savings)
 
-## Stack
+## Tech Stack
 
-- **Frontend** : Vue 3 + TypeScript + Naive UI
-- **Backend** : FastAPI + SQLite
-- **Déploiement** : Docker + Nginx
+* **Frontend**: Vue 3 + TypeScript + Naive UI
+* **Backend**: FastAPI + SQLite
+* **Deployment**: Docker + Nginx
 
-## Lancement local
+## Local Setup
 
 ```bash
 # Backend
@@ -30,17 +30,17 @@ npm install
 npm run dev
 ```
 
-## Déploiement Docker
+## Docker Deployment
 
 ```bash
 cp .env.example .env
-# Éditer .env avec JWT_SECRET généré via: openssl rand -hex 32
+# Edit .env with a JWT_SECRET generated via: openssl rand -hex 32
 
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-L'application est accessible sur le port 80.
+The application is accessible on port 80.
 
-## Licence
+## License
 
 MIT
