@@ -110,6 +110,7 @@
       :parent-category-options="parentCategoryOptions"
       :loading="addingCategory"
       :initial-parent-id="initialParentId"
+      :max-amount="addCategoryMaxAmount"
       ref="addCategoryModalRef"
       @submit="handleAddCategory"
     />
@@ -119,6 +120,7 @@
       :is-mobile="isMobile"
       :loading="editingCategory"
       :category="editCategoryData"
+      :max-amount="editCategoryMaxAmount"
       @submit="handleEditCategory"
     />
 
@@ -174,7 +176,18 @@ const editCategoryData = ref<{
   amount: number
   tags: string[]
   isSubcategory: boolean
+  parentId?: string | null
 } | null>(null)
+
+// Computed for max amount in modals
+const addCategoryMaxAmount = computed(() => {
+  return getAvailableBudget(initialParentId.value)
+})
+
+const editCategoryMaxAmount = computed(() => {
+  if (!editCategoryData.value?.parentId) return undefined
+  return getAvailableBudget(editCategoryData.value.parentId, editCategoryData.value.id)
+})
 
 // Computed
 const isOwner = computed(() => {
@@ -192,6 +205,17 @@ const checkMobile = () => {
 // Category calculations
 const getSubcategoryIds = (parentId: string): string[] => {
   return budgetStore.categories.filter(c => c.parent_id === parentId).map(c => c.id)
+}
+
+const getAvailableBudget = (parentId: string | null, excludeCategoryId?: string): number | undefined => {
+  if (!parentId) return undefined
+  const parent = budgetStore.categories.find(c => c.id === parentId)
+  if (!parent) return 0
+  const subcategories = budgetStore.categories.filter(c =>
+    c.parent_id === parentId && c.id !== excludeCategoryId
+  )
+  const usedBudget = subcategories.reduce((sum, c) => sum + c.amount, 0)
+  return parent.amount - usedBudget
 }
 
 const getProjectedRecurring = (categoryIds: string[]): number => {
@@ -401,6 +425,7 @@ const openEditModal = (category: any) => {
     amount: category.amount,
     tags: category.tags || [],
     isSubcategory: !!category.parent_id,
+    parentId: category.parent_id,
   }
   showEditCategory.value = true
 }
@@ -417,8 +442,7 @@ const handleAddCategory = async (data: { name: string; amount: number; parentId:
   addingCategory.value = true
   try {
     const budgetId = route.params.id as string
-    const amount = data.isSubcategory ? 0 : data.amount
-    await budgetStore.createCategory(budgetId, data.name, amount, data.parentId || undefined, data.tags)
+    await budgetStore.createCategory(budgetId, data.name, data.amount, data.parentId || undefined, data.tags)
     message.success(data.isSubcategory ? 'Subcategory added!' : 'Category added!')
     showAddCategory.value = false
     initialParentId.value = null
@@ -437,8 +461,11 @@ const handleEditCategory = async (data: { id: string; name: string; amount: numb
   }
   editingCategory.value = true
   try {
-    const updateData: { name?: string; amount?: number; tags?: string[] } = { name: data.name, tags: data.tags || [] }
-    if (!data.isSubcategory) updateData.amount = data.amount
+    const updateData: { name?: string; amount?: number; tags?: string[] } = {
+      name: data.name,
+      amount: data.amount,
+      tags: data.tags || []
+    }
     await budgetStore.updateCategory(data.id, updateData)
     message.success('Category updated!')
     showEditCategory.value = false

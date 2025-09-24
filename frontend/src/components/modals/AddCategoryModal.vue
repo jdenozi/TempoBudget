@@ -29,15 +29,19 @@
           <n-input v-model:value="formData.name" placeholder="Housing" />
         </n-form-item>
 
-        <n-form-item v-if="!formData.isSubcategory" label="Budget Amount">
+        <n-form-item label="Budget Amount">
           <n-input-number
             v-model:value="formData.amount"
             :min="0"
+            :max="formData.isSubcategory ? maxAmount : undefined"
             :precision="2"
             style="width: 100%;"
           >
             <template #suffix>€</template>
           </n-input-number>
+          <template v-if="formData.isSubcategory && maxAmount !== undefined" #feedback>
+            Budget disponible: {{ maxAmount.toFixed(2) }} €
+          </template>
         </n-form-item>
 
         <n-form-item label="Tags">
@@ -78,6 +82,7 @@ interface Props {
   parentCategoryOptions: { label: string; value: string }[]
   loading: boolean
   initialParentId?: string | null
+  maxAmount?: number
 }
 
 const props = defineProps<Props>()
