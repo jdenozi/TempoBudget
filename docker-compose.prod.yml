@@ -8,9 +8,9 @@ services:
     expose:
       - "8000"
     volumes:
-      - ${DATA_PATH:?DATA_PATH is required}:/app/data
+      - ${DATA_PATH:-./data}:/app/data
     environment:
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_SECRET=${JWT_SECRET:-secret}
       - ENVIRONMENT=production
       - DOCS_ENABLED=${DOCS_ENABLED:-false}
       - DB_PATH=/app/data/budget.db
