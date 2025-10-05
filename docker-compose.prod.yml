@@ -40,4 +40,5 @@ services:
 
 networks:
   tempo-network:
-    driver: bridge
+    external: true
+    name: ${NETWORK_NAME:-ngix-proxy-manager_default}
