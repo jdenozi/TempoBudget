@@ -2,6 +2,7 @@
 FROM node:22-alpine AS builder
 
 ARG APP_VERSION=dev
+ARG BUILD_DATE
 
 WORKDIR /app
 
@@ -15,6 +16,7 @@ COPY . .
 # Build with API URL pointing to nginx reverse proxy
 ENV VITE_API_URL=/api
 ENV VITE_APP_VERSION=$APP_VERSION
+ENV VITE_BUILD_DATE=$BUILD_DATE
 RUN npm run build-only
 
 # Production stage

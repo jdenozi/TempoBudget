@@ -25,6 +25,7 @@
         show-trigger
         @collapse="collapsed = true"
         @expand="collapsed = false"
+        content-style="display: flex; flex-direction: column; height: 100%;"
       >
         <n-menu
           :collapsed="collapsed"
@@ -33,7 +34,12 @@
           :options="menuOptions"
           v-model:value="activeKey"
           @update:value="handleMenuClick"
+          style="flex: 1;"
         />
+        <div class="version-info" :class="{ collapsed }">
+          <span class="version">{{ appVersion }}</span>
+          <span v-if="!collapsed" class="date">{{ buildDate }}</span>
+        </div>
       </n-layout-sider>
 
       <n-layout>
@@ -68,12 +74,17 @@
 
       <!-- Mobile Menu Drawer -->
       <n-drawer v-model:show="showDrawer" :width="280" placement="left">
-        <n-drawer-content title="Menu" closable>
+        <n-drawer-content title="Menu" closable body-content-style="display: flex; flex-direction: column; height: 100%;">
           <n-menu
             :options="menuOptions"
             v-model:value="activeKey"
             @update:value="handleMenuClickMobile"
+            style="flex: 1;"
           />
+          <div class="version-info">
+            <span class="version">{{ appVersion }}</span>
+            <span class="date">{{ buildDate }}</span>
+          </div>
         </n-drawer-content>
       </n-drawer>
 
@@ -88,7 +99,6 @@
         </n-drawer-content>
       </n-drawer>
     </n-layout>
-    <div class="version-tag">{{ appVersion }}</div>
   </n-config-provider>
     </n-message-provider>
 </template>
@@ -208,18 +218,34 @@ const handleTransactionSuccess = () => {
 }
 
 declare const __APP_VERSION__: string
+declare const __BUILD_DATE__: string
 const appVersion = __APP_VERSION__
+const buildDate = __BUILD_DATE__
 </script>
 
 <style scoped>
-.version-tag {
-  position: fixed;
-  bottom: 8px;
-  right: 8px;
+.version-info {
+  padding: 12px 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: monospace;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.version-info.collapsed {
+  padding: 12px 8px;
+  align-items: center;
+}
+
+.version-info .version {
+  font-weight: 500;
+}
+
+.version-info .date {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.3);
-  font-family: monospace;
-  pointer-events: none;
-  z-index: 9999;
 }
 </style>

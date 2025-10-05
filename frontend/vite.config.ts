@@ -26,6 +26,13 @@ const getVersion = () => {
   }
 }
 
+const getBuildDate = () => {
+  if (process.env.VITE_BUILD_DATE) {
+    return process.env.VITE_BUILD_DATE
+  }
+  return new Date().toISOString().split('T')[0]
+}
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -38,5 +45,6 @@ export default defineConfig({
   },
   define: {
     __APP_VERSION__: JSON.stringify(getVersion()),
+    __BUILD_DATE__: JSON.stringify(getBuildDate()),
   },
 })
