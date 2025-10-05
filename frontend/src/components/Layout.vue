@@ -88,6 +88,7 @@
         </n-drawer-content>
       </n-drawer>
     </n-layout>
+    <div class="version-tag">{{ appVersion }}</div>
   </n-config-provider>
     </n-message-provider>
 </template>
@@ -205,4 +206,20 @@ const handleMenuClickMobile = (key: string) => {
 const handleTransactionSuccess = () => {
   showTransactionDrawer.value = false
 }
+
+declare const __APP_VERSION__: string
+const appVersion = __APP_VERSION__
 </script>
+
+<style scoped>
+.version-tag {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: monospace;
+  pointer-events: none;
+  z-index: 9999;
+}
+</style>

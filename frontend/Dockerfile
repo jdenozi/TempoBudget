@@ -1,6 +1,8 @@
 # Build stage
 FROM node:22-alpine AS builder
 
+ARG APP_VERSION=dev
+
 WORKDIR /app
 
 # Copy package files
@@ -12,6 +14,7 @@ COPY . .
 
 # Build with API URL pointing to nginx reverse proxy
 ENV VITE_API_URL=/api
+ENV VITE_APP_VERSION=$APP_VERSION
 RUN npm run build-only
 
 # Production stage

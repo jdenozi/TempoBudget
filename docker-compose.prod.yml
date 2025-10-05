@@ -29,6 +29,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
     ports:
       - "${PORT:-3000}:80"
     depends_on:
