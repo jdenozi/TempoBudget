@@ -16,6 +16,24 @@ from ..models import Category, CreateCategory, UpdateCategory
 router = APIRouter()
 
 
+async def update_parent_amount(db: AsyncSession, parent_id: str | None):
+    """Recalculate parent category amount from subcategories."""
+    if not parent_id:
+        return
+    await db.execute(
+        text("""
+            UPDATE categories
+            SET amount = (
+                SELECT COALESCE(SUM(sub.amount), 0)
+                FROM categories sub
+                WHERE sub.parent_id = :parent_id
+            )
+            WHERE id = :parent_id
+        """),
+        {"parent_id": parent_id}
+    )
+
+
 def parse_tags(tags_json: str | None) -> list[str]:
     """Parse tags from JSON string."""
     if not tags_json:
@@ -71,6 +89,11 @@ async def create_category(
             "created_at": now,
         }
     )
+
+    # Update parent amount if this is a subcategory
+    if payload.parent_id:
+        await update_parent_amount(db, payload.parent_id)
+
     await db.commit()
 
     result = await db.execute(
@@ -96,6 +119,16 @@ async def update_category(
     db: AsyncSession = Depends(get_db)
 ):
     """Update an existing category."""
+    # Get current category to find parent_id
+    current = await db.execute(
+        text("SELECT parent_id FROM categories WHERE id = :id"),
+        {"id": category_id}
+    )
+    current_row = current.fetchone()
+    if not current_row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    parent_id = current_row.parent_id
+
     updates = []
     params = {"id": category_id}
 
@@ -116,6 +149,11 @@ async def update_category(
 
     query = f"UPDATE categories SET {', '.join(updates)} WHERE id = :id"
     await db.execute(text(query), params)
+
+    # Update parent amount if this is a subcategory and amount changed
+    if parent_id and payload.amount is not None:
+        await update_parent_amount(db, parent_id)
+
     await db.commit()
 
     result = await db.execute(
@@ -123,9 +161,6 @@ async def update_category(
         {"id": category_id}
     )
     row = result.fetchone()
-
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
     return Category(
         id=row.id,
@@ -141,6 +176,16 @@ async def update_category(
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(category_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a category."""
+    # Get parent_id before deleting
+    result = await db.execute(
+        text("SELECT parent_id FROM categories WHERE id = :id"),
+        {"id": category_id}
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    parent_id = row.parent_id
+
     # Check for subcategories
     result = await db.execute(
         text("SELECT COUNT(*) as count FROM categories WHERE parent_id = :id"),
@@ -153,4 +198,9 @@ async def delete_category(category_id: str, db: AsyncSession = Depends(get_db)):
         )
 
     await db.execute(text("DELETE FROM categories WHERE id = :id"), {"id": category_id})
+
+    # Update parent amount if this was a subcategory
+    if parent_id:
+        await update_parent_amount(db, parent_id)
+
     await db.commit()

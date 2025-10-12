@@ -107,7 +107,8 @@ export const useBudgetStore = defineStore('budget', () => {
    */
   async function createCategory(budgetId: string, name: string, amount: number, parentId?: string, tags?: string[]) {
     const category = await categoriesAPI.create(budgetId, name, amount, parentId, tags)
-    categories.value.push(category)
+    // Refetch all categories to get updated parent amounts
+    await fetchCategories(budgetId)
     return category
   }
 
@@ -118,12 +119,14 @@ export const useBudgetStore = defineStore('budget', () => {
    * @returns The updated category
    */
   async function updateCategory(id: string, data: { name?: string; amount?: number; tags?: string[] }) {
-    const updated = await categoriesAPI.update(id, data)
-    const index = categories.value.findIndex(c => c.id === id)
-    if (index !== -1) {
-      categories.value[index] = updated
+    const category = categories.value.find(c => c.id === id)
+    const budgetId = category?.budget_id
+    await categoriesAPI.update(id, data)
+    // Refetch all categories to get updated parent amounts
+    if (budgetId) {
+      await fetchCategories(budgetId)
     }
-    return updated
+    return categories.value.find(c => c.id === id)
   }
 
   /**
@@ -131,8 +134,13 @@ export const useBudgetStore = defineStore('budget', () => {
    * @param id - Category unique identifier
    */
   async function deleteCategory(id: string) {
+    const category = categories.value.find(c => c.id === id)
+    const budgetId = category?.budget_id
     await categoriesAPI.delete(id)
-    categories.value = categories.value.filter(c => c.id !== id)
+    // Refetch all categories to get updated parent amounts
+    if (budgetId) {
+      await fetchCategories(budgetId)
+    }
   }
 
   // ============================================================================
