@@ -39,10 +39,12 @@
     <template v-else>
       <!-- Summary -->
       <BudgetSummaryCard
+        :total-income="totalIncome"
         :total-budget="totalBudget"
         :total-spent="totalSpent"
         :remaining="remaining"
         :percentage="percentage"
+        :balance="balance"
         :total-projected="totalProjected"
         :projected-remaining="projectedRemaining"
         :projected-percentage="projectedPercentage"
@@ -60,19 +62,36 @@
       <!-- Tag Statistics -->
       <TagStatisticsCard :tag-distribution="tagDistribution" />
 
-      <!-- Categories -->
-      <n-card title="Categories">
-        <n-empty v-if="budgetStore.categories.length === 0" description="No categories">
+      <!-- Income Categories -->
+      <n-card v-if="incomeCategories.length > 0" title="Revenus">
+        <n-space vertical size="large">
+          <CategoryCard
+            v-for="category in incomeCategories"
+            :key="category.id"
+            :category="category"
+            :subcategories="getSubcategories(category.id)"
+            :members="members"
+            :is-group-budget="budgetStore.currentBudget?.budget_type === 'group'"
+            @edit="openEditModal"
+            @delete="handleDeleteCategory"
+            @add-subcategory="openAddSubcategory"
+          />
+        </n-space>
+      </n-card>
+
+      <!-- Expense Categories -->
+      <n-card title="Dépenses">
+        <n-empty v-if="expenseCategories.length === 0" description="Aucune catégorie">
           <template #extra>
             <n-button @click="showAddCategory = true" type="primary" size="small">
-              Add a Category
+              Ajouter une catégorie
             </n-button>
           </template>
         </n-empty>
 
         <n-space v-else vertical size="large">
           <CategoryCard
-            v-for="category in parentCategories"
+            v-for="category in expenseCategories"
             :key="category.id"
             :category="category"
             :subcategories="getSubcategories(category.id)"
@@ -86,7 +105,7 @@
 
         <template #footer>
           <n-button @click="showAddCategory = true" type="primary" size="small">
-            Add a Category
+            Ajouter une catégorie
           </n-button>
         </template>
       </n-card>
@@ -275,27 +294,40 @@ const categoriesWithSpent = computed(() => {
 const parentCategories = computed(() => categoriesWithSpent.value.filter(c => !c.parent_id))
 const getSubcategories = (parentId: string) => categoriesWithSpent.value.filter(c => c.parent_id === parentId)
 
+// Separate income (crédit) from expenses
+const isIncomeCategory = (cat: { tags?: string[] }) => cat.tags?.includes('crédit')
+const incomeCategories = computed(() => parentCategories.value.filter(c => isIncomeCategory(c)))
+const expenseCategories = computed(() => parentCategories.value.filter(c => !isIncomeCategory(c)))
+
 const parentCategoryOptions = computed(() => {
   return parentCategories.value.map(c => ({ label: c.name, value: c.id }))
 })
 
-// Budget totals
+// Income totals
+const totalIncome = computed(() => {
+  return incomeCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
+})
+
+// Budget totals (expenses only)
 const totalBudget = computed(() => {
-  return budgetStore.categories.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.amount, 0)
+  return expenseCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
 })
 
 const totalSpent = computed(() => {
-  return categoriesWithSpent.value.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.spent, 0)
+  return expenseCategories.value.reduce((sum, cat) => sum + cat.spent, 0)
 })
 
 const totalProjected = computed(() => {
-  return categoriesWithSpent.value.filter(cat => !cat.parent_id).reduce((sum, cat) => sum + cat.projected, 0)
+  return expenseCategories.value.reduce((sum, cat) => sum + cat.projected, 0)
 })
 
 const remaining = computed(() => totalBudget.value - totalSpent.value)
 const projectedRemaining = computed(() => totalBudget.value - totalProjected.value)
 const percentage = computed(() => totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0)
 const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProjected.value / totalBudget.value) * 100 : 0)
+
+// Balance (income - expenses)
+const balance = computed(() => totalIncome.value - totalBudget.value)
 
 // Tag statistics
 const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']

@@ -1,18 +1,22 @@
 <template>
   <n-card>
+    <!-- Income vs Expenses Summary -->
     <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
       <n-gi>
-        <n-statistic label="Total Budget" :value="totalBudget.toFixed(2)">
+        <n-statistic label="Revenus" :value="totalIncome.toFixed(2)">
+          <template #prefix><span style="color: #18a058;">+</span></template>
           <template #suffix>€</template>
         </n-statistic>
       </n-gi>
       <n-gi>
-        <n-statistic label="Spent" :value="totalSpent.toFixed(2)">
+        <n-statistic label="Budget Dépenses" :value="totalBudget.toFixed(2)">
+          <template #prefix><span style="color: #d03050;">-</span></template>
           <template #suffix>€</template>
         </n-statistic>
       </n-gi>
       <n-gi>
-        <n-statistic label="Remaining" :value="remaining.toFixed(2)">
+        <n-statistic label="Solde" :value="balance.toFixed(2)">
+          <template #prefix><span :style="{ color: balance >= 0 ? '#18a058' : '#d03050' }">{{ balance >= 0 ? '+' : '' }}</span></template>
           <template #suffix>€</template>
         </n-statistic>
       </n-gi>
@@ -28,6 +32,23 @@
           </n-progress>
         </div>
       </n-gi>
+    </n-grid>
+
+    <!-- Expenses Details -->
+    <n-divider style="margin: 16px 0;" />
+    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">DÉPENSES</div>
+    <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+      <n-gi>
+        <n-statistic label="Dépensé" :value="totalSpent.toFixed(2)">
+          <template #suffix>€</template>
+        </n-statistic>
+      </n-gi>
+      <n-gi>
+        <n-statistic label="Restant" :value="remaining.toFixed(2)">
+          <template #suffix>€</template>
+        </n-statistic>
+      </n-gi>
+      <n-gi :span="2"></n-gi>
     </n-grid>
 
     <!-- Projected Summary -->
@@ -93,10 +114,12 @@ interface TagChartData {
 }
 
 interface Props {
+  totalIncome: number
   totalBudget: number
   totalSpent: number
   remaining: number
   percentage: number
+  balance: number
   totalProjected: number
   projectedRemaining: number
   projectedPercentage: number
