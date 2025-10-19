@@ -18,10 +18,10 @@
     <n-form-item label="Type" path="type">
       <n-radio-group v-model:value="transaction.type" size="small">
         <n-radio-button value="expense">
-          <span style="color: #d03050;">Expense</span>
+          <span style="color: #d03050;">Débit</span>
         </n-radio-button>
         <n-radio-button value="income">
-          <span style="color: #18a058;">Income</span>
+          <span style="color: #18a058;">Crédit</span>
         </n-radio-button>
       </n-radio-group>
     </n-form-item>
