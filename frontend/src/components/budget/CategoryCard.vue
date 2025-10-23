@@ -75,6 +75,9 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 14px;">{{ sub.name }}</span>
+              <span v-if="sub.amount > 0" style="font-size: 12px; color: #888;">
+                ({{ sub.amount.toFixed(2) }} €)
+              </span>
               <n-space v-if="sub.tags && sub.tags.length > 0" size="small">
                 <n-tag v-for="tag in sub.tags" :key="tag" size="tiny" :type="getTagType(tag)">
                   {{ tag }}
@@ -92,7 +95,11 @@
             </n-space>
           </div>
           <div style="display: flex; gap: 16px; font-size: 12px;">
+            <span v-if="sub.amount > 0" style="color: #888;">Budget: {{ sub.amount.toFixed(2) }} €</span>
             <span style="color: #18a058;">Spent: {{ sub.spent.toFixed(2) }} €</span>
+            <span v-if="sub.amount > 0" :style="{ color: (sub.amount - sub.spent) >= 0 ? '#18a058' : '#d03050' }">
+              Remaining: {{ (sub.amount - sub.spent).toFixed(2) }} €
+            </span>
             <span style="color: #f0a020;">Projected: {{ sub.projected.toFixed(2) }} €</span>
           </div>
           <!-- Member shares for subcategories -->
@@ -151,11 +158,12 @@ defineEmits<{
 }>()
 
 const getTagType = (tag: string) => {
-  const types: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
+  const types: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
     'crédit': 'error',
     'besoin': 'warning',
     'loisir': 'info',
     'épargne': 'success',
+    'revenu': 'success',
   }
   return types[tag] || 'default'
 }

@@ -294,8 +294,8 @@ const categoriesWithSpent = computed(() => {
 const parentCategories = computed(() => categoriesWithSpent.value.filter(c => !c.parent_id))
 const getSubcategories = (parentId: string) => categoriesWithSpent.value.filter(c => c.parent_id === parentId)
 
-// Separate income (crédit) from expenses
-const isIncomeCategory = (cat: { tags?: string[] }) => cat.tags?.includes('crédit')
+// Separate income (revenu) from expenses
+const isIncomeCategory = (cat: { tags?: string[] }) => cat.tags?.includes('revenu')
 const incomeCategories = computed(() => parentCategories.value.filter(c => isIncomeCategory(c)))
 const expenseCategories = computed(() => parentCategories.value.filter(c => !isIncomeCategory(c)))
 
@@ -330,12 +330,13 @@ const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProject
 const balance = computed(() => totalIncome.value - totalBudget.value)
 
 // Tag statistics
-const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
+const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne', 'revenu']
 const TAG_COLORS: Record<string, string> = {
   'crédit': '#d03050',
   'besoin': '#f0a020',
   'loisir': '#2080f0',
   'épargne': '#18a058',
+  'revenu': '#36cfc9',
 }
 
 const tagStatistics = computed(() => {

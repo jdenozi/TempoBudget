@@ -4,7 +4,7 @@
 
 from pydantic import BaseModel, Field
 
-VALID_TAGS = ["crédit", "besoin", "loisir", "épargne"]
+VALID_TAGS = ["crédit", "besoin", "loisir", "épargne", "revenu"]
 
 
 class Category(BaseModel):

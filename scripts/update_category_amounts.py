@@ -122,10 +122,10 @@ def update_categories(db_path: str, budget_name: str, data: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Find the budget by name (case-insensitive partial match)
+    # Find the budget by ID or name
     cursor.execute(
-        "SELECT id, name FROM budgets WHERE LOWER(name) LIKE ?",
-        (f"%{budget_name.lower()}%",)
+        "SELECT id, name FROM budgets WHERE id = ? OR LOWER(name) = LOWER(?)",
+        (budget_name, budget_name)
     )
     budgets = cursor.fetchall()
 
@@ -213,13 +213,13 @@ def main():
     print("\n" + "="*50)
     print("JULIE'S BUDGET")
     print("="*50)
-    update_categories(db_path, "julie", JULIE_DATA)
+    update_categories(db_path, "budget-julie-001", JULIE_DATA)
 
     # Update Julien's budget
     print("\n" + "="*50)
     print("JULIEN'S BUDGET")
     print("="*50)
-    update_categories(db_path, "julien", JULIEN_DATA)
+    update_categories(db_path, "budget-julien-001", JULIEN_DATA)
 
 
 if __name__ == "__main__":
