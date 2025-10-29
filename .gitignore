@@ -66,3 +66,7 @@ frontend/docs/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local data files
+budget-perso-*
+output

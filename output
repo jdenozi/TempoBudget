@@ -1,4 +1,0 @@
-debian@ns3115325:~/tempo-budget/tempo-budget$   docker exec tempo-budget_backend_1 sqlite3 /app/data/budget.db "
-  SELECT SUM(amount) as total FROM categories WHERE budget_id = 'budget-julie-001' AND parent_id IS NOT NULL;
-  "
-OCI runtime exec failed: exec failed: container_linux.go:377: starting container process caused: exec: "sqlite3": executable file not found in $PATH: unknown
