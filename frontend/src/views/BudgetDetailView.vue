@@ -40,13 +40,16 @@
       <!-- Summary -->
       <BudgetSummaryCard
         :total-income="totalIncome"
+        :total-income-received="totalIncomeReceived"
         :total-budget="totalBudget"
         :total-spent="totalSpent"
         :remaining="remaining"
+        :remaining-from-income="remainingFromIncome"
         :percentage="percentage"
         :balance="balance"
         :total-projected="totalProjected"
         :projected-remaining="projectedRemaining"
+        :projected-remaining-from-income="projectedRemainingFromIncome"
         :projected-percentage="projectedPercentage"
         :tag-chart-data="tagChartData"
         :is-mobile="isMobile"
@@ -237,14 +240,15 @@ const getAvailableBudget = (parentId: string | null, excludeCategoryId?: string)
   return parent.amount - usedBudget
 }
 
-const getProjectedRecurring = (categoryIds: string[]): number => {
+const getProjectedRecurring = (categoryIds: string[], isIncome: boolean = false): number => {
   const now = new Date()
   const currentDay = now.getDate()
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const daysRemaining = lastDayOfMonth - currentDay
+  const transactionType = isIncome ? 'income' : 'expense'
 
   return budgetStore.recurringTransactions
-    .filter(r => categoryIds.includes(r.category_id) && r.active && r.transaction_type === 'expense')
+    .filter(r => categoryIds.includes(r.category_id) && r.active && r.transaction_type === transactionType)
     .reduce((sum, r) => {
       let occurrences = 0
       if (r.frequency === 'monthly') {
@@ -259,20 +263,29 @@ const getProjectedRecurring = (categoryIds: string[]): number => {
 
 const categoriesWithSpent = computed(() => {
   return budgetStore.categories.map(cat => {
+    // Check if this is an income category (has "revenu" tag)
+    const isIncome = cat.tags?.includes('revenu')
+    // For income categories, count income transactions; for expense categories, count expense transactions
+    const transactionType = isIncome ? 'income' : 'expense'
+
     let spent: number, projected: number
 
     if (!cat.parent_id) {
       const subcategoryIds = getSubcategoryIds(cat.id)
       const allCategoryIds = [cat.id, ...subcategoryIds]
       spent = budgetStore.transactions
-        .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === 'expense')
+        .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === transactionType)
         .reduce((sum, t) => sum + t.amount, 0)
-      projected = spent + getProjectedRecurring(allCategoryIds)
+      projected = spent + getProjectedRecurring(allCategoryIds, isIncome)
     } else {
+      // For subcategories, inherit income status from parent
+      const parent = budgetStore.categories.find(c => c.id === cat.parent_id)
+      const parentIsIncome = parent?.tags?.includes('revenu')
+      const subTransactionType = parentIsIncome ? 'income' : 'expense'
       spent = budgetStore.transactions
-        .filter(t => t.category_id === cat.id && t.transaction_type === 'expense')
+        .filter(t => t.category_id === cat.id && t.transaction_type === subTransactionType)
         .reduce((sum, t) => sum + t.amount, 0)
-      projected = spent + getProjectedRecurring([cat.id])
+      projected = spent + getProjectedRecurring([cat.id], parentIsIncome)
     }
 
     const budget = cat.parent_id
@@ -287,6 +300,7 @@ const categoriesWithSpent = computed(() => {
       projectedRemaining: cat.parent_id ? 0 : cat.amount - projected,
       percentage: budget > 0 ? (spent / budget) * 100 : 0,
       projectedPercentage: budget > 0 ? (projected / budget) * 100 : 0,
+      isIncome: isIncome || false,
     }
   })
 })
@@ -303,9 +317,14 @@ const parentCategoryOptions = computed(() => {
   return parentCategories.value.map(c => ({ label: c.name, value: c.id }))
 })
 
-// Income totals
+// Income totals (expected/budgeted)
 const totalIncome = computed(() => {
   return incomeCategories.value.reduce((sum, cat) => sum + cat.amount, 0)
+})
+
+// Income actually received (from income transactions)
+const totalIncomeReceived = computed(() => {
+  return incomeCategories.value.reduce((sum, cat) => sum + cat.spent, 0)
 })
 
 // Budget totals (expenses only)
@@ -321,12 +340,18 @@ const totalProjected = computed(() => {
   return expenseCategories.value.reduce((sum, cat) => sum + cat.projected, 0)
 })
 
+// Remaining compared to expense budget
 const remaining = computed(() => totalBudget.value - totalSpent.value)
+// Remaining compared to actual income received
+const remainingFromIncome = computed(() => totalIncomeReceived.value - totalSpent.value)
+
 const projectedRemaining = computed(() => totalBudget.value - totalProjected.value)
+const projectedRemainingFromIncome = computed(() => totalIncomeReceived.value - totalProjected.value)
+
 const percentage = computed(() => totalBudget.value > 0 ? (totalSpent.value / totalBudget.value) * 100 : 0)
 const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProjected.value / totalBudget.value) * 100 : 0)
 
-// Balance (income - expenses)
+// Balance (expected income - expected expenses)
 const balance = computed(() => totalIncome.value - totalBudget.value)
 
 // Tag statistics

@@ -37,23 +37,23 @@
 
     <!-- Progress Bars -->
     <div style="margin-bottom: 8px;">
-      <!-- Spent -->
+      <!-- Spent/Received -->
       <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-        <span>Spent: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
+        <span>{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
         <span :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }">
-          {{ category.remaining.toFixed(2) }} € remaining
+          {{ category.remaining.toFixed(2) }} € {{ category.isIncome ? 'à recevoir' : 'restant' }}
         </span>
       </div>
       <n-progress
         :percentage="Math.min(category.percentage, 100)"
-        :color="category.percentage > 100 ? '#d03050' : '#18a058'"
+        :color="category.isIncome ? '#18a058' : (category.percentage > 100 ? '#d03050' : '#18a058')"
         :show-indicator="false"
       />
       <!-- Projected -->
       <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; margin-top: 8px;">
-        <span style="color: #f0a020;">Projected: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
+        <span style="color: #f0a020;">Projeté: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
         <span :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }">
-          {{ category.projectedRemaining.toFixed(2) }} € remaining
+          {{ category.projectedRemaining.toFixed(2) }} € {{ category.isIncome ? 'à recevoir' : 'restant' }}
         </span>
       </div>
       <n-progress
@@ -96,11 +96,11 @@
           </div>
           <div style="display: flex; gap: 16px; font-size: 12px;">
             <span v-if="sub.amount > 0" style="color: #888;">Budget: {{ sub.amount.toFixed(2) }} €</span>
-            <span style="color: #18a058;">Spent: {{ sub.spent.toFixed(2) }} €</span>
+            <span style="color: #18a058;">{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ sub.spent.toFixed(2) }} €</span>
             <span v-if="sub.amount > 0" :style="{ color: (sub.amount - sub.spent) >= 0 ? '#18a058' : '#d03050' }">
-              Remaining: {{ (sub.amount - sub.spent).toFixed(2) }} €
+              {{ category.isIncome ? 'À recevoir' : 'Restant' }}: {{ (sub.amount - sub.spent).toFixed(2) }} €
             </span>
-            <span style="color: #f0a020;">Projected: {{ sub.projected.toFixed(2) }} €</span>
+            <span style="color: #f0a020;">Projeté: {{ sub.projected.toFixed(2) }} €</span>
           </div>
           <!-- Member shares for subcategories -->
           <div
@@ -140,6 +140,7 @@ interface CategoryWithSpent {
   projectedRemaining: number
   percentage: number
   projectedPercentage: number
+  isIncome?: boolean
 }
 
 interface Props {

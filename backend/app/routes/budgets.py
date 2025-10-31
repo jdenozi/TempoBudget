@@ -123,16 +123,31 @@ async def get_budget_summaries(
 
     summaries = []
     for budget in budgets:
-        # Get total budget (sum of parent categories only)
+        # Get expense budget (sum of parent categories WITHOUT "revenu" tag)
         result = await db.execute(
             text("""
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM categories
-                WHERE budget_id = :budget_id AND parent_id IS NULL
+                WHERE budget_id = :budget_id
+                AND parent_id IS NULL
+                AND (tags IS NULL OR tags NOT LIKE '%"revenu"%')
             """),
             {"budget_id": budget.id}
         )
         total_budget = result.fetchone().total
+
+        # Get income budget (sum of parent categories WITH "revenu" tag)
+        result = await db.execute(
+            text("""
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM categories
+                WHERE budget_id = :budget_id
+                AND parent_id IS NULL
+                AND tags LIKE '%"revenu"%'
+            """),
+            {"budget_id": budget.id}
+        )
+        income_budget = result.fetchone().total
 
         # Get total spent (expenses)
         result = await db.execute(
@@ -172,18 +187,21 @@ async def get_budget_summaries(
 
         remaining = total_budget - total_spent
         percentage = (total_spent / total_budget * 100) if total_budget > 0 else 0
+        balance = income_budget - total_budget
 
         summaries.append(BudgetSummary(
             id=budget.id,
             name=budget.name,
             budget_type=budget.budget_type,
             total_budget=round(total_budget, 2),
+            income_budget=round(income_budget, 2),
             total_spent=round(total_spent, 2),
             total_income=round(total_income, 2),
             remaining=round(remaining, 2),
             percentage=round(percentage, 2),
             category_count=category_count,
             transaction_count=transaction_count,
+            balance=round(balance, 2),
         ))
 
     return summaries

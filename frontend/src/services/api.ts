@@ -147,12 +147,14 @@ export interface BudgetSummary {
   name: string
   budget_type: string
   total_budget: number
+  income_budget: number
   total_spent: number
   total_income: number
   remaining: number
   percentage: number
   category_count: number
   transaction_count: number
+  balance: number
 }
 
 /** Budget invitation with full context details */

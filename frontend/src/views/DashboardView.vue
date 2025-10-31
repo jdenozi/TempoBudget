@@ -42,7 +42,15 @@
           <!-- Stats Grid -->
           <n-grid :cols="2" :x-gap="12" :y-gap="12">
             <n-gi>
-              <n-statistic label="Budget" :value="(getSummary(budget.id)?.total_budget || 0).toFixed(2)">
+              <n-statistic label="Revenus" :value="(getSummary(budget.id)?.income_budget || 0).toFixed(2)">
+                <template #prefix>
+                  <n-icon color="#18a058"><TrendingUpOutline /></n-icon>
+                </template>
+                <template #suffix>€</template>
+              </n-statistic>
+            </n-gi>
+            <n-gi>
+              <n-statistic label="Budget Dépenses" :value="(getSummary(budget.id)?.total_budget || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon color="#2080f0"><WalletOutline /></n-icon>
                 </template>
@@ -50,7 +58,7 @@
               </n-statistic>
             </n-gi>
             <n-gi>
-              <n-statistic label="Spent" :value="(getSummary(budget.id)?.total_spent || 0).toFixed(2)">
+              <n-statistic label="Dépensé" :value="(getSummary(budget.id)?.total_spent || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon color="#d03050"><TrendingDownOutline /></n-icon>
                 </template>
@@ -58,17 +66,9 @@
               </n-statistic>
             </n-gi>
             <n-gi>
-              <n-statistic label="Remaining" :value="(getSummary(budget.id)?.remaining || 0).toFixed(2)">
+              <n-statistic label="Solde" :value="(getSummary(budget.id)?.balance || 0).toFixed(2)">
                 <template #prefix>
-                  <n-icon :color="(getSummary(budget.id)?.remaining || 0) >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
-                </template>
-                <template #suffix>€</template>
-              </n-statistic>
-            </n-gi>
-            <n-gi>
-              <n-statistic label="Income" :value="(getSummary(budget.id)?.total_income || 0).toFixed(2)">
-                <template #prefix>
-                  <n-icon color="#18a058"><TrendingUpOutline /></n-icon>
+                  <n-icon :color="(getSummary(budget.id)?.balance || 0) >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
                 </template>
                 <template #suffix>€</template>
               </n-statistic>
@@ -78,7 +78,7 @@
           <!-- Progress Bar -->
           <div style="margin-top: 16px;">
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% used</span>
+              <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% utilisé</span>
               <span style="color: #888;">{{ getSummary(budget.id)?.transaction_count || 0 }} transactions</span>
             </div>
             <n-progress
