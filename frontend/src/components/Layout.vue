@@ -44,7 +44,7 @@
 
       <n-layout>
         <!-- Header with add transaction button -->
-        <n-layout-header bordered style="height: 64px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;">
+        <n-layout-header bordered style="height: 64px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 99; background: #18181c;">
           <div style="display: flex; align-items: center; gap: 16px;">
             <n-button
               v-if="isMobile"
