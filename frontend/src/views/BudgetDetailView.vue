@@ -355,13 +355,12 @@ const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProject
 const balance = computed(() => totalIncome.value - totalBudget.value)
 
 // Tag statistics
-const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne', 'revenu']
+const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']
 const TAG_COLORS: Record<string, string> = {
   'crédit': '#d03050',
   'besoin': '#f0a020',
   'loisir': '#2080f0',
   'épargne': '#18a058',
-  'revenu': '#36cfc9',
 }
 
 const tagStatistics = computed(() => {
