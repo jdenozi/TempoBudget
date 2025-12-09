@@ -30,10 +30,11 @@
         <n-form-item label="Tags">
           <n-checkbox-group v-model:value="formData.tags">
             <n-space>
-              <n-checkbox value="crédit">Crédit</n-checkbox>
               <n-checkbox value="besoin">Besoin</n-checkbox>
               <n-checkbox value="loisir">Loisir</n-checkbox>
               <n-checkbox value="épargne">Épargne</n-checkbox>
+              <n-checkbox value="crédit">Crédit</n-checkbox>
+              <n-checkbox value="revenu">Revenu</n-checkbox>
             </n-space>
           </n-checkbox-group>
         </n-form-item>
