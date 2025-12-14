@@ -70,17 +70,6 @@
         <n-layout-content content-style="padding: 16px;">
           <router-view />
         </n-layout-content>
-
-        <!-- Floating Action Button -->
-        <n-button
-          class="floating-fab"
-          type="primary"
-          circle
-          @click="showTransactionDrawer = true"
-          size="large"
-        >
-          +
-        </n-button>
       </n-layout>
 
       <!-- Mobile Menu Drawer -->
@@ -260,14 +249,4 @@ const buildDate = __BUILD_DATE__
   color: rgba(255, 255, 255, 0.3);
 }
 
-.floating-fab {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-  width: 56px !important;
-  height: 56px !important;
-  font-size: 24px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
 </style>
