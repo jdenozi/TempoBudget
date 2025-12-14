@@ -51,7 +51,6 @@
         :projected-remaining="projectedRemaining"
         :projected-remaining-from-income="projectedRemainingFromIncome"
         :projected-percentage="projectedPercentage"
-        :tag-chart-data="tagChartData"
         :is-mobile="isMobile"
       />
 
@@ -380,16 +379,6 @@ const tagDistribution = computed(() => {
     .map(s => ({ ...s, distributionPercent: totalBudgetByTags > 0 ? (s.budget / totalBudgetByTags) * 100 : 0 }))
     .sort((a, b) => b.distributionPercent - a.distributionPercent)
 })
-
-const tagChartData = computed(() => ({
-  labels: tagStatistics.value.map(s => s.tag),
-  datasets: [{
-    data: tagStatistics.value.map(s => s.spent),
-    backgroundColor: tagStatistics.value.map(s => TAG_COLORS[s.tag] || '#888888'),
-    borderWidth: 2,
-    borderColor: '#1a1a1a',
-  }]
-}))
 
 // Handlers
 const loadMembers = async () => {
