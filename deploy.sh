@@ -69,10 +69,9 @@ docker-compose -f docker-compose.prod.yml build --no-cache --pull
 echo "Starting containers..."
 docker-compose -f docker-compose.prod.yml up -d
 
-# Cleanup
-echo "Cleaning up..."
+# Cleanup only dangling images (safe)
+echo "Cleaning up dangling images..."
 docker image prune -f
-docker system prune -f --volumes 2>/dev/null || true
 
 echo ""
 echo "=== Deployment complete ==="
