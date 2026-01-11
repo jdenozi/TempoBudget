@@ -52,6 +52,17 @@ class RecurringTransaction(BaseModel):
         from_attributes = True
 
 
+class UpdateTransaction(BaseModel):
+    """Request payload for updating a transaction."""
+    category_id: str | None = Field(None, description="ID of the category")
+    title: str | None = Field(None, min_length=1, description="Transaction title")
+    amount: float | None = Field(None, gt=0, description="Transaction amount")
+    transaction_type: Literal["income", "expense"] | None = Field(None, description="Type")
+    date: str | None = Field(None, description="Date (ISO 8601 format)")
+    comment: str | None = Field(None, description="Optional comment")
+    paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
+
+
 class CreateRecurringTransaction(BaseModel):
     """Request payload for creating a recurring transaction."""
     category_id: str = Field(..., description="ID of the category")

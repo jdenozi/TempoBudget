@@ -181,6 +181,29 @@ export const useBudgetStore = defineStore('budget', () => {
   }
 
   /**
+   * Updates an existing transaction and updates the local state.
+   * @param id - Transaction unique identifier
+   * @param data - Fields to update
+   * @returns The updated transaction
+   */
+  async function updateTransaction(id: string, data: {
+    category_id?: string
+    title?: string
+    amount?: number
+    transaction_type?: string
+    date?: string
+    comment?: string
+    paid_by_user_id?: string
+  }) {
+    const updated = await transactionsAPI.update(id, data)
+    const index = transactions.value.findIndex(t => t.id === id)
+    if (index !== -1) {
+      transactions.value[index] = updated
+    }
+    return updated
+  }
+
+  /**
    * Deletes a transaction and removes it from the local state.
    * @param id - Transaction unique identifier
    */
@@ -264,6 +287,7 @@ export const useBudgetStore = defineStore('budget', () => {
     deleteCategory,
     fetchTransactions,
     createTransaction,
+    updateTransaction,
     deleteTransaction,
     fetchRecurringTransactions,
     createRecurringTransaction,

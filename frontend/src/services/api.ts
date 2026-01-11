@@ -306,6 +306,25 @@ export const transactionsAPI = {
   },
 
   /**
+   * Updates an existing transaction.
+   * @param id - Transaction unique identifier
+   * @param data - Fields to update
+   * @returns The updated transaction
+   */
+  update: async (id: string, data: {
+    category_id?: string
+    title?: string
+    amount?: number
+    transaction_type?: string
+    date?: string
+    comment?: string
+    paid_by_user_id?: string
+  }) => {
+    const response = await api.put<Transaction>(`/transactions/${id}`, data)
+    return response.data
+  },
+
+  /**
    * Deletes a transaction.
    * @param id - Transaction unique identifier
    */

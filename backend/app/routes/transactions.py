@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..models import (
-    Transaction, CreateTransaction,
+    Transaction, CreateTransaction, UpdateTransaction,
     RecurringTransaction, CreateRecurringTransaction
 )
 
@@ -106,6 +106,77 @@ async def delete_transaction(transaction_id: str, db: AsyncSession = Depends(get
     """Delete a transaction."""
     await db.execute(text("DELETE FROM transactions WHERE id = :id"), {"id": transaction_id})
     await db.commit()
+
+
+@router.put("/transactions/{transaction_id}", response_model=Transaction)
+async def update_transaction(
+    transaction_id: str,
+    payload: UpdateTransaction,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an existing transaction."""
+    # Check if transaction exists
+    result = await db.execute(
+        text("SELECT id FROM transactions WHERE id = :id"),
+        {"id": transaction_id}
+    )
+    if not result.fetchone():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+    # Build dynamic update query based on provided fields
+    updates = []
+    params = {"id": transaction_id}
+
+    if payload.category_id is not None:
+        updates.append("category_id = :category_id")
+        params["category_id"] = payload.category_id
+    if payload.title is not None:
+        updates.append("title = :title")
+        params["title"] = payload.title
+    if payload.amount is not None:
+        updates.append("amount = :amount")
+        params["amount"] = payload.amount
+    if payload.transaction_type is not None:
+        updates.append("transaction_type = :transaction_type")
+        params["transaction_type"] = payload.transaction_type
+    if payload.date is not None:
+        updates.append("date = :date")
+        params["date"] = payload.date
+    if payload.comment is not None:
+        updates.append("comment = :comment")
+        params["comment"] = payload.comment
+    if payload.paid_by_user_id is not None:
+        updates.append("paid_by_user_id = :paid_by_user_id")
+        params["paid_by_user_id"] = payload.paid_by_user_id
+
+    if updates:
+        query = f"UPDATE transactions SET {', '.join(updates)} WHERE id = :id"
+        await db.execute(text(query), params)
+        await db.commit()
+
+    # Fetch and return the updated transaction
+    result = await db.execute(
+        text("""
+            SELECT id, budget_id, category_id, title, amount, transaction_type,
+                   date, comment, is_recurring, paid_by_user_id, created_at
+            FROM transactions WHERE id = :id
+        """),
+        {"id": transaction_id}
+    )
+    row = result.fetchone()
+    return Transaction(
+        id=row.id,
+        budget_id=row.budget_id,
+        category_id=row.category_id,
+        title=row.title,
+        amount=row.amount,
+        transaction_type=row.transaction_type,
+        date=row.date,
+        comment=row.comment,
+        is_recurring=row.is_recurring,
+        paid_by_user_id=row.paid_by_user_id,
+        created_at=row.created_at,
+    )
 
 
 @router.get("/budgets/{budget_id}/recurring", response_model=list[RecurringTransaction])
