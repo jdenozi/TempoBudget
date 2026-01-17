@@ -12,25 +12,36 @@ TARGET=${1:-master}
 
 echo "Target: $TARGET"
 
-# Fetch all remote changes
-echo "Fetching remote changes..."
-git fetch --all --tags
+# Reset any local changes
+echo "Resetting local changes..."
+git reset --hard HEAD
+git clean -fd
 
-# Checkout target (branch or tag)
+# Fetch all remote changes (force update tags)
+echo "Fetching remote changes..."
+git fetch --all --tags --force
+
+# Checkout target
 echo "Checking out $TARGET..."
 if git rev-parse "refs/tags/$TARGET" >/dev/null 2>&1; then
     # It's a tag
-    git checkout "tags/$TARGET"
+    echo "Deploying tag $TARGET"
+    git checkout "tags/$TARGET" --force
 elif git rev-parse "refs/remotes/origin/$TARGET" >/dev/null 2>&1; then
     # It's a branch
-    git checkout "$TARGET"
-    git pull origin "$TARGET"
+    echo "Deploying branch $TARGET"
+    git checkout "$TARGET" --force
+    git reset --hard "origin/$TARGET"
 else
     echo "Error: $TARGET is not a valid branch or tag"
     exit 1
 fi
 
-# Get version from latest tag or commit
+# Show current commit
+echo "Current commit:"
+git log --oneline -1
+
+# Get version
 VERSION=$(git describe --tags --always)
 BUILD_DATE=$(date +%Y-%m-%d)
 
@@ -41,21 +52,29 @@ echo "Build date: $BUILD_DATE"
 export APP_VERSION=$VERSION
 export BUILD_DATE=$BUILD_DATE
 
-# Stop containers
+# Stop and remove containers
 echo "Stopping containers..."
-docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml down --remove-orphans
+
+# Remove old images to force rebuild
+echo "Removing old images..."
+docker-compose -f docker-compose.prod.yml rm -f
+docker image rm -f $(docker images -q 'tempo*' 2>/dev/null) 2>/dev/null || true
 
 # Rebuild images without cache
 echo "Rebuilding images..."
-docker-compose -f docker-compose.prod.yml build --no-cache
+docker-compose -f docker-compose.prod.yml build --no-cache --pull
 
 # Start containers
 echo "Starting containers..."
 docker-compose -f docker-compose.prod.yml up -d
 
-# Cleanup old images
-echo "Cleaning up old images..."
+# Cleanup
+echo "Cleaning up..."
 docker image prune -f
+docker system prune -f --volumes 2>/dev/null || true
 
+echo ""
 echo "=== Deployment complete ==="
 echo "Version $VERSION deployed successfully"
+echo "Commit: $(git log --oneline -1)"
