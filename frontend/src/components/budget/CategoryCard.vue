@@ -1,9 +1,16 @@
 <template>
   <n-card size="small">
-    <!-- Parent Category Header -->
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+    <!-- Parent Category Header (clickable to expand/collapse) -->
+    <div
+      style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;"
+      @click="expanded = !expanded"
+    >
       <div style="flex: 1;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span
+            class="expand-icon"
+            :class="{ expanded }"
+          >▶</span>
           <strong style="font-size: 16px;">{{ category.name }}</strong>
           <n-space v-if="category.tags && category.tags.length > 0" size="small">
             <n-tag v-for="tag in category.tags" :key="tag" size="small" :type="getTagType(tag)">
@@ -11,20 +18,20 @@
             </n-tag>
           </n-space>
         </div>
-        <div style="font-size: 13px; color: #888;">
+        <div style="font-size: 13px; color: #888; margin-left: 20px;">
           Budget: <strong>{{ category.amount.toFixed(2) }} €</strong>
-        </div>
-        <!-- Member shares for group budgets -->
-        <div
-          v-if="isGroupBudget && members.length > 0"
-          style="display: flex; gap: 16px; margin-top: 4px; font-size: 12px;"
-        >
-          <span v-for="member in members" :key="member.id" style="color: #888;">
-            {{ member.user_name }}: <strong>{{ (category.amount * member.share / 100).toFixed(2) }} €</strong>
+          <span style="margin-left: 16px;">
+            {{ category.isIncome ? 'Reçu' : 'Dépensé' }}: <strong>{{ category.spent.toFixed(2) }} €</strong>
+          </span>
+          <span
+            style="margin-left: 16px;"
+            :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }"
+          >
+            Restant: <strong>{{ category.remaining.toFixed(2) }} €</strong>
           </span>
         </div>
       </div>
-      <n-space size="small">
+      <n-space size="small" @click.stop>
         <n-button size="tiny" quaternary @click="$emit('edit', category)">Edit</n-button>
         <n-popconfirm @positive-click="$emit('delete', category.id)">
           <template #trigger>
@@ -35,8 +42,20 @@
       </n-space>
     </div>
 
-    <!-- Progress Bars -->
-    <div style="margin-bottom: 8px;">
+    <!-- Collapsible Content -->
+    <n-collapse-transition :show="expanded">
+      <!-- Member shares for group budgets -->
+      <div
+        v-if="isGroupBudget && members.length > 0"
+        style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; margin-left: 20px;"
+      >
+        <span v-for="member in members" :key="member.id" style="color: #888;">
+          {{ member.user_name }}: <strong>{{ (category.amount * member.share / 100).toFixed(2) }} €</strong>
+        </span>
+      </div>
+
+      <!-- Progress Bars -->
+      <div style="margin-top: 12px; margin-bottom: 8px;">
       <!-- Spent/Received -->
       <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
         <span>{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
@@ -115,18 +134,22 @@
       </n-space>
     </div>
 
-    <!-- Add Subcategory Button -->
-    <div style="margin-top: 12px;">
-      <n-button size="small" dashed block @click="$emit('addSubcategory', category.id)">
-        + Add Subcategory
-      </n-button>
-    </div>
+      <!-- Add Subcategory Button -->
+      <div style="margin-top: 12px;">
+        <n-button size="small" dashed block @click="$emit('addSubcategory', category.id)">
+          + Add Subcategory
+        </n-button>
+      </div>
+    </n-collapse-transition>
   </n-card>
 </template>
 
 <script setup lang="ts">
-import { NCard, NSpace, NTag, NButton, NPopconfirm, NProgress } from 'naive-ui'
+import { ref } from 'vue'
+import { NCard, NSpace, NTag, NButton, NPopconfirm, NProgress, NCollapseTransition } from 'naive-ui'
 import type { BudgetMemberWithUser } from '@/services/api'
+
+const expanded = ref(false)
 
 interface CategoryWithSpent {
   id: string
@@ -169,3 +192,16 @@ const getTagType = (tag: string) => {
   return types[tag] || 'default'
 }
 </script>
+
+<style scoped>
+.expand-icon {
+  display: inline-block;
+  font-size: 10px;
+  color: #888;
+  transition: transform 0.2s ease;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+</style>
