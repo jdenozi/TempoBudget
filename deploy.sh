@@ -7,11 +7,30 @@ echo "=== Tempo Budget Deployment ==="
 # Go to project directory
 cd "$(dirname "$0")"
 
-# Pull latest changes
-echo "Pulling latest changes..."
-git pull
+# Get target (branch or tag), default to master
+TARGET=${1:-master}
 
-# Get version from latest tag
+echo "Target: $TARGET"
+
+# Fetch all remote changes
+echo "Fetching remote changes..."
+git fetch --all --tags
+
+# Checkout target (branch or tag)
+echo "Checking out $TARGET..."
+if git rev-parse "refs/tags/$TARGET" >/dev/null 2>&1; then
+    # It's a tag
+    git checkout "tags/$TARGET"
+elif git rev-parse "refs/remotes/origin/$TARGET" >/dev/null 2>&1; then
+    # It's a branch
+    git checkout "$TARGET"
+    git pull origin "$TARGET"
+else
+    echo "Error: $TARGET is not a valid branch or tag"
+    exit 1
+fi
+
+# Get version from latest tag or commit
 VERSION=$(git describe --tags --always)
 BUILD_DATE=$(date +%Y-%m-%d)
 
