@@ -67,22 +67,20 @@
           </n-button>
         </n-layout-header>
 
-        <n-layout-content content-style="padding: 16px; padding-bottom: 80px;">
+        <n-layout-content content-style="padding: 16px;">
           <router-view />
         </n-layout-content>
 
-        <!-- Floating Action Bar -->
-        <div class="floating-bar">
-          <span class="floating-title">Tempo Budget</span>
-          <n-button
-            type="primary"
-            circle
-            @click="showTransactionDrawer = true"
-            size="large"
-          >
-            +
-          </n-button>
-        </div>
+        <!-- Floating Action Button -->
+        <n-button
+          class="floating-fab"
+          type="primary"
+          circle
+          @click="showTransactionDrawer = true"
+          size="large"
+        >
+          +
+        </n-button>
       </n-layout>
 
       <!-- Mobile Menu Drawer -->
@@ -262,25 +260,14 @@ const buildDate = __BUILD_DATE__
   color: rgba(255, 255, 255, 0.3);
 }
 
-.floating-bar {
+.floating-fab {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: rgba(24, 24, 28, 0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
+  bottom: 20px;
+  right: 20px;
   z-index: 100;
-}
-
-.floating-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  width: 56px !important;
+  height: 56px !important;
+  font-size: 24px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 </style>
