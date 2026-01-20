@@ -11,6 +11,18 @@
 <template>
   <div class="login-container">
     <n-card title="Login to Tempo Budget" style="max-width: 400px; width: 100%;">
+      <!-- Session expired/inactivity alert -->
+      <n-alert
+        v-if="logoutReason"
+        :type="logoutReason === 'inactivity' ? 'warning' : 'info'"
+        style="margin-bottom: 16px;"
+        closable
+        @close="logoutReason = null"
+      >
+        {{ logoutReason === 'inactivity'
+          ? 'You have been logged out due to inactivity.'
+          : 'Your session has expired. Please log in again.' }}
+      </n-alert>
       <n-form ref="formRef" :model="formData" :rules="rules">
         <n-form-item label="Email" path="email">
           <n-input v-model:value="formData.email" placeholder="email@example.com" />
@@ -94,17 +106,32 @@
  * - Automatic redirect to dashboard on success
  */
 
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import {
   NCard, NForm, NFormItem, NInput, NButton,
-  NSpace, NDivider, NModal, useMessage
+  NSpace, NDivider, NModal, NAlert, useMessage
 } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const message = useMessage()
 const authStore = useAuthStore()
+
+/** Reason for being on login page (from query param) */
+const logoutReason = ref<string | null>(null)
+
+onMounted(() => {
+  const reason = route.query.reason as string | undefined
+  if (reason === 'inactivity') {
+    logoutReason.value = 'inactivity'
+    message.warning('You have been logged out due to inactivity')
+  } else if (reason === 'expired') {
+    logoutReason.value = 'expired'
+    message.warning('Your session has expired. Please log in again.')
+  }
+})
 
 /** Loading state for async operations */
 const loading = ref(false)
