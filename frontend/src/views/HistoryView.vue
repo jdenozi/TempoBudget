@@ -195,6 +195,7 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import type { Transaction } from '@/services/api'
+import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
 
 const message = useMessage()
 const budgetStore = useBudgetStore()
@@ -316,7 +317,7 @@ const openEditModal = (transaction: Transaction) => {
     title: transaction.title,
     amount: transaction.amount,
     transaction_type: transaction.transaction_type as 'expense' | 'income',
-    date: new Date(transaction.date).getTime(),
+    date: parseDateToTimestamp(transaction.date),
     comment: transaction.comment || ''
   }
   showEditModal.value = true
@@ -329,7 +330,7 @@ const handleSaveEdit = async () => {
   if (!editingTransaction.value || !editForm.value.date) return
 
   try {
-    const dateStr = new Date(editForm.value.date).toISOString().split('T')[0]
+    const dateStr = formatDateLocal(editForm.value.date)
     await budgetStore.updateTransaction(editingTransaction.value.id, {
       title: editForm.value.title,
       amount: editForm.value.amount,

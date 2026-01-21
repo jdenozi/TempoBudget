@@ -103,6 +103,7 @@ import {
 } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import { recurringAPI } from '@/services/api'
+import { formatDateLocal } from '@/utils/date'
 
 type TransactionType = 'expense' | 'income'
 type RecurringFrequency = 'monthly' | 'weekly' | 'yearly'
@@ -200,7 +201,7 @@ async function handleSubmit() {
 
   loading.value = true
   try {
-    const dateString = new Date(transaction.value.date).toISOString().split('T')[0]
+    const dateString = formatDateLocal(transaction.value.date)
 
     if (transaction.value.isRecurring) {
       await recurringAPI.create({

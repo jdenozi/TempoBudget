@@ -177,6 +177,7 @@ import type { FormInst, FormRules } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import { useAuthStore } from '@/stores/auth'
 import { recurringAPI, budgetMembersAPI, type BudgetMemberWithUser } from '@/services/api'
+import { formatDateLocal } from '@/utils/date'
 
 const emit = defineEmits(['success'])
 const message = useMessage()
@@ -333,7 +334,7 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const dateString = new Date(transaction.value.date).toISOString().split('T')[0]
+    const dateString = formatDateLocal(transaction.value.date)
 
     if (transaction.value.isRecurring) {
       await recurringAPI.create({
