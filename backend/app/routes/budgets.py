@@ -108,7 +108,16 @@ async def get_budget_summaries(
     user_id: Annotated[str, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    """Get summary statistics for all user budgets."""
+    """Get summary statistics for all user budgets (current month only)."""
+    # Calculate current month date range
+    now = datetime.now(timezone.utc)
+    month_start = f"{now.year}-{now.month:02d}-01"
+    # Calculate next month for end range
+    if now.month == 12:
+        month_end = f"{now.year + 1}-01-01"
+    else:
+        month_end = f"{now.year}-{now.month + 1:02d}-01"
+
     # Get all budgets for the user (owned + group member)
     result = await db.execute(
         text("""
@@ -149,25 +158,31 @@ async def get_budget_summaries(
         )
         income_budget = result.fetchone().total
 
-        # Get total spent (expenses)
+        # Get total spent (expenses) for CURRENT MONTH ONLY
         result = await db.execute(
             text("""
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM transactions
-                WHERE budget_id = :budget_id AND transaction_type = 'expense'
+                WHERE budget_id = :budget_id
+                AND transaction_type = 'expense'
+                AND date >= :month_start
+                AND date < :month_end
             """),
-            {"budget_id": budget.id}
+            {"budget_id": budget.id, "month_start": month_start, "month_end": month_end}
         )
         total_spent = result.fetchone().total
 
-        # Get total income
+        # Get total income for CURRENT MONTH ONLY
         result = await db.execute(
             text("""
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM transactions
-                WHERE budget_id = :budget_id AND transaction_type = 'income'
+                WHERE budget_id = :budget_id
+                AND transaction_type = 'income'
+                AND date >= :month_start
+                AND date < :month_end
             """),
-            {"budget_id": budget.id}
+            {"budget_id": budget.id, "month_start": month_start, "month_end": month_end}
         )
         total_income = result.fetchone().total
 
@@ -178,10 +193,15 @@ async def get_budget_summaries(
         )
         category_count = result.fetchone().cnt
 
-        # Get transaction count
+        # Get transaction count for CURRENT MONTH ONLY
         result = await db.execute(
-            text("SELECT COUNT(*) as cnt FROM transactions WHERE budget_id = :budget_id"),
-            {"budget_id": budget.id}
+            text("""
+                SELECT COUNT(*) as cnt FROM transactions
+                WHERE budget_id = :budget_id
+                AND date >= :month_start
+                AND date < :month_end
+            """),
+            {"budget_id": budget.id, "month_start": month_start, "month_end": month_end}
         )
         transaction_count = result.fetchone().cnt
 
