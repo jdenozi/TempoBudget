@@ -78,6 +78,9 @@
 
           <template #footer>
             <n-space>
+              <n-button size="small" type="info" @click="openEditModal(transaction)">
+                Edit
+              </n-button>
               <n-popconfirm @positive-click="handleDelete(transaction.id)">
                 <template #trigger>
                   <n-button size="small" type="error">
@@ -112,6 +115,62 @@
       v-else-if="!budgetStore.loading"
       description="Select a budget"
     />
+
+    <!-- Edit Transaction Modal -->
+    <n-modal
+      v-model:show="showEditModal"
+      preset="card"
+      title="Edit Transaction"
+      :style="{ width: isMobile ? '90%' : '500px' }"
+    >
+      <n-form>
+        <n-form-item label="Title">
+          <n-input v-model:value="editForm.title" placeholder="Transaction title" />
+        </n-form-item>
+
+        <n-form-item label="Type">
+          <n-radio-group v-model:value="editForm.transaction_type">
+            <n-radio-button value="expense">Expense</n-radio-button>
+            <n-radio-button value="income">Income</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+
+        <n-form-item label="Amount">
+          <n-input-number
+            v-model:value="editForm.amount"
+            :min="0.01"
+            :precision="2"
+            placeholder="0.00"
+            style="width: 100%"
+          >
+            <template #suffix>€</template>
+          </n-input-number>
+        </n-form-item>
+
+        <n-form-item label="Date">
+          <n-date-picker
+            v-model:value="editForm.date"
+            type="date"
+            style="width: 100%"
+          />
+        </n-form-item>
+
+        <n-form-item label="Comment">
+          <n-input
+            v-model:value="editForm.comment"
+            type="textarea"
+            placeholder="Optional comment"
+          />
+        </n-form-item>
+      </n-form>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showEditModal = false">Cancel</n-button>
+          <n-button type="primary" @click="handleSaveEdit">Save</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </n-space>
 </template>
 
@@ -129,7 +188,9 @@
 import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import {
   NSpace, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
-  NSelect, NGrid, NGi, NStatistic, NSpin, NEmpty, useMessage
+  NSelect, NGrid, NGi, NStatistic, NSpin, NEmpty, NModal, NForm,
+  NFormItem, NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
+  useMessage
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
@@ -143,6 +204,17 @@ const isMobile = ref(false)
 
 /** Currently selected budget ID */
 const selectedBudgetId = ref<string | null>(null)
+
+/** Edit modal state */
+const showEditModal = ref(false)
+const editingTransaction = ref<Transaction | null>(null)
+const editForm = ref({
+  title: '',
+  amount: 0,
+  transaction_type: 'expense' as 'expense' | 'income',
+  date: null as number | null,
+  comment: ''
+})
 
 /**
  * Checks if the viewport is mobile-sized.
@@ -234,6 +306,46 @@ const handleDelete = async (id: string) => {
   }
 }
 
+/**
+ * Opens the edit modal for a transaction.
+ * @param transaction - Transaction to edit
+ */
+const openEditModal = (transaction: Transaction) => {
+  editingTransaction.value = transaction
+  editForm.value = {
+    title: transaction.title,
+    amount: transaction.amount,
+    transaction_type: transaction.transaction_type as 'expense' | 'income',
+    date: new Date(transaction.date).getTime(),
+    comment: transaction.comment || ''
+  }
+  showEditModal.value = true
+}
+
+/**
+ * Saves the edited transaction.
+ */
+const handleSaveEdit = async () => {
+  if (!editingTransaction.value || !editForm.value.date) return
+
+  try {
+    const dateStr = new Date(editForm.value.date).toISOString().split('T')[0]
+    await budgetStore.updateTransaction(editingTransaction.value.id, {
+      title: editForm.value.title,
+      amount: editForm.value.amount,
+      transaction_type: editForm.value.transaction_type,
+      date: dateStr,
+      comment: editForm.value.comment || undefined
+    })
+    message.success('Transaction updated')
+    showEditModal.value = false
+    editingTransaction.value = null
+  } catch (error) {
+    console.error('Error updating transaction:', error)
+    message.error('Error updating')
+  }
+}
+
 /** Table pagination configuration */
 const pagination = {
   pageSize: 20,
@@ -274,14 +386,23 @@ const columns: DataTableColumns<Transaction> = [
     title: 'Actions',
     key: 'actions',
     render: (row) => {
-      return h(NPopconfirm, {
-        onPositiveClick: () => handleDelete(row.id),
-      }, {
-        default: () => 'Delete this transaction?',
-        trigger: () => h(NButton, {
-          size: 'small',
-          type: 'error',
-        }, { default: () => 'Delete' }),
+      return h(NSpace, {}, {
+        default: () => [
+          h(NButton, {
+            size: 'small',
+            type: 'info',
+            onClick: () => openEditModal(row),
+          }, { default: () => 'Edit' }),
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDelete(row.id),
+          }, {
+            default: () => 'Delete this transaction?',
+            trigger: () => h(NButton, {
+              size: 'small',
+              type: 'error',
+            }, { default: () => 'Delete' }),
+          }),
+        ],
       })
     },
   },
