@@ -46,6 +46,33 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+/**
+ * Sets up API response interceptors for handling auth errors.
+ * Called from main.ts after stores are initialized.
+ * @param authStore - The auth store instance
+ * @param router - The router instance
+ */
+export function setupApiInterceptors(
+  authStore: { logout: () => void; isAuthenticated: boolean },
+  router: { push: (path: string) => void }
+) {
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      // Handle 401 Unauthorized errors (expired/invalid token)
+      if (error.response?.status === 401 && authStore.isAuthenticated) {
+        // Don't logout for login/register endpoints
+        const url = error.config?.url || ''
+        if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
+          authStore.logout()
+          router.push('/login?reason=expired')
+        }
+      }
+      return Promise.reject(error)
+    }
+  )
+}
+
 // ============================================================================
 // Type Definitions
 // ============================================================================

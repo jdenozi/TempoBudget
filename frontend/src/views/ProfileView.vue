@@ -112,6 +112,21 @@
       <n-space vertical>
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
           <div>
+            <div style="font-weight: 500;">Auto Logout</div>
+            <n-text depth="3">Automatically log out after inactivity</n-text>
+          </div>
+          <n-select
+            :value="settingsStore.inactivityTimeout"
+            :options="inactivityOptions"
+            style="width: 150px;"
+            @update:value="settingsStore.setInactivityTimeout"
+          />
+        </div>
+
+        <n-divider />
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
             <div style="font-weight: 500;">Password</div>
             <n-text depth="3">Manage your password</n-text>
           </div>
@@ -231,17 +246,25 @@ import { useRouter } from 'vue-router'
 import {
   NSpace, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
   NGrid, NGi, NStatistic, NText, NDivider, NAlert, NPopconfirm,
-  NTag, NModal, NForm, NFormItem, NInput, useMessage,
+  NTag, NModal, NForm, NFormItem, NInput, NSelect, useMessage,
   type FormInst, type FormRules
 } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
+import { useSettingsStore, INACTIVITY_OPTIONS } from '@/stores/settings'
 import { authAPI, invitationsAPI, type BudgetInvitationWithDetails } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
 const authStore = useAuthStore()
 const budgetStore = useBudgetStore()
+const settingsStore = useSettingsStore()
+
+/** Options for inactivity timeout selector */
+const inactivityOptions = INACTIVITY_OPTIONS.map(opt => ({
+  label: opt.label,
+  value: opt.value,
+}))
 
 /** Whether the viewport is mobile-sized */
 const isMobile = ref(false)

@@ -13,6 +13,8 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
+import { useSettingsStore } from './stores/settings'
+import { setupApiInterceptors } from './services/api'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -20,8 +22,13 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Initialize authentication state from localStorage
+// Initialize stores from localStorage
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 authStore.init()
+settingsStore.init()
+
+// Setup API interceptors (for auto-logout on 401)
+setupApiInterceptors(authStore, router)
 
 app.mount('#app')
