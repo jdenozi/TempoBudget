@@ -56,7 +56,7 @@
 
       <!-- Member Budget Summary (group budgets only) -->
       <MemberBudgetSummaryCard
-        v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0"
+        v-if="budgetStore.currentBudget?.budget_type === 'group'"
         :members="members"
         :transactions="filteredTransactions"
         :total-budget="totalBudget"

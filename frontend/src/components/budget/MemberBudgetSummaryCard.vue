@@ -12,9 +12,12 @@
 <template>
   <n-card title="Budget par membre">
     <n-space vertical size="large">
+      <!-- No members message -->
+      <n-empty v-if="members.length === 0" description="Aucun membre dans ce budget partagé" />
+
       <!-- Summary table -->
       <n-data-table
-        v-if="!isMobile"
+        v-else-if="!isMobile"
         :columns="columns"
         :data="memberBudgets"
         :bordered="false"
@@ -22,7 +25,7 @@
       />
 
       <!-- Mobile view: cards -->
-      <n-space v-else vertical>
+      <n-space v-else-if="isMobile && members.length > 0" vertical>
         <n-card
           v-for="mb in memberBudgets"
           :key="mb.userId"
@@ -72,8 +75,9 @@
       </n-space>
 
       <!-- Total row summary -->
-      <n-divider style="margin: 8px 0;" />
-      <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8">
+      <template v-if="members.length > 0">
+        <n-divider style="margin: 8px 0;" />
+        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8">
         <n-gi>
           <div style="font-size: 12px; color: #888;">Budget total</div>
           <div style="font-weight: bold; font-size: 16px;">{{ totalBudget.toFixed(2) }} €</div>
@@ -100,6 +104,7 @@
           </n-progress>
         </n-gi>
       </n-grid>
+      </template>
     </n-space>
   </n-card>
 </template>
@@ -108,7 +113,7 @@
 import { computed, h } from 'vue'
 import {
   NCard, NSpace, NDataTable, NAvatar, NTag, NGrid, NGi,
-  NProgress, NDivider
+  NProgress, NDivider, NEmpty
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { BudgetMemberWithUser, Transaction } from '@/services/api'
