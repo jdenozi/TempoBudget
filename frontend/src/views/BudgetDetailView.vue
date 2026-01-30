@@ -56,7 +56,7 @@
 
       <!-- Member Budget Summary (group budgets only) -->
       <MemberBudgetSummaryCard
-        v-if="budgetStore.currentBudget?.budget_type === 'group'"
+        v-if="budgetStore.currentBudget?.budget_type === 'shared'"
         :members="members"
         :transactions="filteredTransactions"
         :total-budget="totalBudget"
@@ -65,7 +65,7 @@
 
       <!-- Balances (group budgets only) -->
       <BalancesCard
-        v-if="budgetStore.currentBudget?.budget_type === 'group'"
+        v-if="budgetStore.currentBudget?.budget_type === 'shared'"
         :balances="balances"
         :is-mobile="isMobile"
       />
@@ -82,7 +82,7 @@
             :category="category"
             :subcategories="getSubcategories(category.id)"
             :members="members"
-            :is-group-budget="budgetStore.currentBudget?.budget_type === 'group'"
+            :is-group-budget="budgetStore.currentBudget?.budget_type === 'shared'"
             @edit="openEditModal"
             @delete="handleDeleteCategory"
             @add-subcategory="openAddSubcategory"
@@ -107,7 +107,7 @@
             :category="category"
             :subcategories="getSubcategories(category.id)"
             :members="members"
-            :is-group-budget="budgetStore.currentBudget?.budget_type === 'group'"
+            :is-group-budget="budgetStore.currentBudget?.budget_type === 'shared'"
             @edit="openEditModal"
             @delete="handleDeleteCategory"
             @add-subcategory="openAddSubcategory"
@@ -123,7 +123,7 @@
 
       <!-- Members (group budgets only) -->
       <MembersCard
-        v-if="budgetStore.currentBudget?.budget_type === 'group'"
+        v-if="budgetStore.currentBudget?.budget_type === 'shared'"
         :members="members"
         :is-owner="isOwner"
         :updating-share-id="updatingShare"
@@ -415,7 +415,7 @@ const tagDistribution = computed(() => {
 
 // Handlers
 const loadMembers = async () => {
-  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') return
+  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'shared') return
   try {
     members.value = await budgetMembersAPI.getMembers(budgetStore.currentBudget.id)
   } catch (error) {
@@ -424,7 +424,7 @@ const loadMembers = async () => {
 }
 
 const loadBalances = async () => {
-  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'group') return
+  if (!budgetStore.currentBudget || budgetStore.currentBudget.budget_type !== 'shared') return
   try {
     balances.value = await budgetMembersAPI.getBalances(budgetStore.currentBudget.id)
   } catch (error) {

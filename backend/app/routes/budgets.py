@@ -69,8 +69,8 @@ async def create_budget(
         }
     )
 
-    # For group budgets, add creator as owner
-    if payload.budget_type == "group":
+    # For shared budgets, add creator as owner
+    if payload.budget_type == "shared":
         member_id = str(uuid4())
         await db.execute(
             text("""
@@ -118,7 +118,7 @@ async def get_budget_summaries(
     else:
         month_end = f"{now.year}-{now.month + 1:02d}-01"
 
-    # Get all budgets for the user (owned + group member)
+    # Get all budgets for the user (owned + shared member)
     result = await db.execute(
         text("""
             SELECT DISTINCT b.id, b.name, b.budget_type
@@ -257,7 +257,7 @@ async def delete_budget(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a budget."""
-    # Check if user is owner (for group budgets)
+    # Check if user is owner (for shared budgets)
     result = await db.execute(
         text("SELECT COUNT(*) as cnt FROM budget_members WHERE budget_id = :budget_id AND user_id = :user_id AND role = 'owner'"),
         {"budget_id": budget_id, "user_id": user_id}

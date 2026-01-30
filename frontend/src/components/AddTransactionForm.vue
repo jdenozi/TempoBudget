@@ -263,7 +263,7 @@ const frequencyOptions = [
 const isGroupBudget = computed(() => {
   if (!transaction.value.budgetId) return false
   const budget = budgetStore.budgets.find(b => b.id === transaction.value.budgetId)
-  return budget?.budget_type === 'group'
+  return budget?.budget_type === 'shared'
 })
 
 /** Member options for "Who paid?" select */
@@ -291,7 +291,7 @@ watch(() => transaction.value.budgetId, async (budgetId) => {
 
     // Load members for group budgets
     const budget = budgetStore.budgets.find(b => b.id === budgetId)
-    if (budget?.budget_type === 'group') {
+    if (budget?.budget_type === 'shared') {
       try {
         members.value = await budgetMembersAPI.getMembers(budgetId)
         // Pre-select current user as payer

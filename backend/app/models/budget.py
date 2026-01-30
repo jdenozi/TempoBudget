@@ -11,7 +11,7 @@ class Budget(BaseModel):
     id: str = Field(..., description="Unique identifier (UUID)")
     user_id: str = Field(..., description="ID of the user who created the budget")
     name: str = Field(..., description="Budget name/title")
-    budget_type: str = Field(..., description="Type: 'personal' or 'group'")
+    budget_type: str = Field(..., description="Type: 'personal' or 'shared'")
     is_active: int = Field(..., description="Whether budget is active (0/1)")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
@@ -36,7 +36,7 @@ class BudgetSummary(BaseModel):
     """Summary statistics for a budget."""
     id: str = Field(..., description="Budget unique identifier")
     name: str = Field(..., description="Budget name")
-    budget_type: str = Field(..., description="Type: 'personal' or 'group'")
+    budget_type: str = Field(..., description="Type: 'personal' or 'shared'")
     total_budget: float = Field(..., description="Total allocated expense budget (excludes income categories)")
     income_budget: float = Field(..., description="Total expected income from income categories")
     total_spent: float = Field(..., description="Total expenses")
