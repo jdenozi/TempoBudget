@@ -10,7 +10,9 @@
 
 <template>
   <div class="login-container">
-    <n-card title="Login to Tempo Budget" style="max-width: 400px; width: 100%;">
+    <div class="login-box">
+      <img src="@/assets/logo.png" alt="Tempo Finance" class="login-logo" />
+    <n-card title="Welcome" style="max-width: 400px; width: 100%;">
       <!-- Session expired/inactivity alert -->
       <n-alert
         v-if="logoutReason"
@@ -61,6 +63,7 @@
         </n-space>
       </n-form>
     </n-card>
+    </div>
 
     <!-- Registration Modal -->
     <n-modal v-model:show="showRegister" preset="card" title="Create Account" style="max-width: 400px;">
@@ -250,5 +253,19 @@ const handleRegister = () => {
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
+}
+
+.login-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.login-logo {
+  width: 120px;
+  height: 120px;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 </style>

@@ -1,6 +1,12 @@
-# Tempo Budget
+<p align="center">
+  <img src="docs/logo.png" alt="Tempo Finance Logo" width="150">
+</p>
 
-An accessible personal and shared budget management application
+<h1 align="center">Tempo Finance</h1>
+
+<p align="center">
+  An accessible personal and shared budget management application
+</p>
 
 ## Features
 

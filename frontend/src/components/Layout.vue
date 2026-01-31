@@ -54,7 +54,10 @@
             >
               ☰
             </n-button>
-            <h2 style="margin: 0;">Tempo Budget</h2>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <img src="@/assets/logo.png" alt="Tempo Finance" style="width: 36px; height: 36px; border-radius: 8px;" />
+              <h2 style="margin: 0;">Tempo Finance</h2>
+            </div>
           </div>
 
           <n-button
