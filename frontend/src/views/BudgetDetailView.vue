@@ -239,7 +239,29 @@ const getAvailableBudget = (parentId: string | null, excludeCategoryId?: string)
   return parent.amount - usedBudget
 }
 
+// Filter transactions by selected month
+const filteredTransactions = computed(() => {
+  const selectedDate = new Date(selectedMonth.value)
+  const month = selectedDate.getMonth()
+  const year = selectedDate.getFullYear()
+
+  return budgetStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date.getMonth() === month && date.getFullYear() === year
+  })
+})
+
+// Check if selected month is current month (for projections)
+const isCurrentMonth = computed(() => {
+  const selected = new Date(selectedMonth.value)
+  const now = new Date()
+  return selected.getMonth() === now.getMonth() && selected.getFullYear() === now.getFullYear()
+})
+
 const getProjectedRecurring = (categoryIds: string[], isIncome: boolean = false): number => {
+  // Only calculate projections for current month
+  if (!isCurrentMonth.value) return 0
+
   const now = new Date()
   const currentDay = now.getDate()
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
@@ -272,7 +294,8 @@ const categoriesWithSpent = computed(() => {
     if (!cat.parent_id) {
       const subcategoryIds = getSubcategoryIds(cat.id)
       const allCategoryIds = [cat.id, ...subcategoryIds]
-      spent = budgetStore.transactions
+      // Use filteredTransactions (filtered by selected month)
+      spent = filteredTransactions.value
         .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === transactionType)
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring(allCategoryIds, isIncome)
@@ -281,7 +304,8 @@ const categoriesWithSpent = computed(() => {
       const parent = budgetStore.categories.find(c => c.id === cat.parent_id)
       const parentIsIncome = parent?.tags?.includes('revenu')
       const subTransactionType = parentIsIncome ? 'income' : 'expense'
-      spent = budgetStore.transactions
+      // Use filteredTransactions (filtered by selected month)
+      spent = filteredTransactions.value
         .filter(t => t.category_id === cat.id && t.transaction_type === subTransactionType)
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring([cat.id], parentIsIncome)
