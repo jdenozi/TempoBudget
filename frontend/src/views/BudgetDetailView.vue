@@ -54,6 +54,15 @@
         :is-mobile="isMobile"
       />
 
+      <!-- Member Budget Summary (group budgets only) -->
+      <MemberBudgetSummaryCard
+        v-if="budgetStore.currentBudget?.budget_type === 'group' && members.length > 0"
+        :members="members"
+        :transactions="filteredTransactions"
+        :total-budget="totalBudget"
+        :is-mobile="isMobile"
+      />
+
       <!-- Balances (group budgets only) -->
       <BalancesCard
         v-if="budgetStore.currentBudget?.budget_type === 'group'"
@@ -166,7 +175,7 @@ import { useAuthStore } from '@/stores/auth'
 import { budgetMembersAPI, budgetsAPI, recurringAPI, type BudgetMemberWithUser, type MemberBalance } from '@/services/api'
 
 // Components
-import { BudgetSummaryCard, BalancesCard, TagStatisticsCard, CategoryCard, MembersCard } from '@/components/budget'
+import { BudgetSummaryCard, BalancesCard, TagStatisticsCard, CategoryCard, MembersCard, MemberBudgetSummaryCard } from '@/components/budget'
 import { AddCategoryModal, EditCategoryModal, InviteMemberModal } from '@/components/modals'
 
 const router = useRouter()
