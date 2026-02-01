@@ -69,6 +69,9 @@
 
           <n-space vertical size="small">
             <div>
+              <n-text depth="3">Category:</n-text> {{ getCategoryName(transaction.category_id) }}
+            </div>
+            <div>
               <n-text depth="3">Date:</n-text> {{ formatDate(transaction.date) }}
             </div>
             <div v-if="transaction.comment">
@@ -133,6 +136,24 @@
             <n-radio-button value="expense">Expense</n-radio-button>
             <n-radio-button value="income">Income</n-radio-button>
           </n-radio-group>
+        </n-form-item>
+
+        <n-form-item label="Category">
+          <n-select
+            v-model:value="editForm.category_id"
+            :options="parentCategoryOptions"
+            placeholder="Select category"
+            @update:value="handleCategoryChange"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="subcategoryOptions.length > 0" label="Subcategory">
+          <n-select
+            v-model:value="editForm.subcategory_id"
+            :options="subcategoryOptions"
+            placeholder="Select subcategory (optional)"
+            clearable
+          />
         </n-form-item>
 
         <n-form-item label="Amount">
@@ -214,7 +235,9 @@ const editForm = ref({
   amount: 0,
   transaction_type: 'expense' as 'expense' | 'income',
   date: null as number | null,
-  comment: ''
+  comment: '',
+  category_id: null as string | null,
+  subcategory_id: null as string | null
 })
 
 /**
@@ -253,17 +276,47 @@ const budgetOptions = computed(() => {
 })
 
 /**
- * Loads transactions for the selected budget.
+ * Loads transactions and categories for the selected budget.
  */
 const loadTransactions = async () => {
   if (!selectedBudgetId.value) return
 
   try {
-    await budgetStore.fetchTransactions(selectedBudgetId.value)
+    await Promise.all([
+      budgetStore.fetchTransactions(selectedBudgetId.value),
+      budgetStore.fetchCategories(selectedBudgetId.value)
+    ])
   } catch (error) {
     console.error('Error loading transactions:', error)
     message.error('Error loading data')
   }
+}
+
+/** Parent category options (categories without parent) */
+const parentCategoryOptions = computed(() => {
+  return budgetStore.categories
+    .filter(c => !c.parent_id)
+    .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Subcategory options based on selected parent category */
+const subcategoryOptions = computed(() => {
+  if (!editForm.value.category_id) return []
+  return budgetStore.categories
+    .filter(c => c.parent_id === editForm.value.category_id)
+    .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Get category name by ID */
+const getCategoryName = (categoryId: string): string => {
+  const category = budgetStore.categories.find(c => c.id === categoryId)
+  if (!category) return ''
+
+  if (category.parent_id) {
+    const parent = budgetStore.categories.find(c => c.id === category.parent_id)
+    return parent ? `${parent.name} > ${category.name}` : category.name
+  }
+  return category.name
 }
 
 /** Total income amount */
@@ -313,12 +366,26 @@ const handleDelete = async (id: string) => {
  */
 const openEditModal = (transaction: Transaction) => {
   editingTransaction.value = transaction
+
+  // Find if the category is a subcategory
+  const category = budgetStore.categories.find(c => c.id === transaction.category_id)
+  let parentCategoryId = transaction.category_id
+  let subcategoryId: string | null = null
+
+  if (category?.parent_id) {
+    // It's a subcategory
+    parentCategoryId = category.parent_id
+    subcategoryId = transaction.category_id
+  }
+
   editForm.value = {
     title: transaction.title,
     amount: transaction.amount,
     transaction_type: transaction.transaction_type as 'expense' | 'income',
     date: parseDateToTimestamp(transaction.date),
-    comment: transaction.comment || ''
+    comment: transaction.comment || '',
+    category_id: parentCategoryId,
+    subcategory_id: subcategoryId
   }
   showEditModal.value = true
 }
@@ -327,16 +394,20 @@ const openEditModal = (transaction: Transaction) => {
  * Saves the edited transaction.
  */
 const handleSaveEdit = async () => {
-  if (!editingTransaction.value || !editForm.value.date) return
+  if (!editingTransaction.value || !editForm.value.date || !editForm.value.category_id) return
 
   try {
     const dateStr = formatDateLocal(editForm.value.date)
+    // Use subcategory if selected, otherwise use parent category
+    const categoryId = editForm.value.subcategory_id || editForm.value.category_id
+
     await budgetStore.updateTransaction(editingTransaction.value.id, {
       title: editForm.value.title,
       amount: editForm.value.amount,
       transaction_type: editForm.value.transaction_type,
       date: dateStr,
-      comment: editForm.value.comment || undefined
+      comment: editForm.value.comment || undefined,
+      category_id: categoryId
     })
     message.success('Transaction updated')
     showEditModal.value = false
@@ -347,13 +418,18 @@ const handleSaveEdit = async () => {
   }
 }
 
+/** Reset subcategory when parent category changes */
+const handleCategoryChange = () => {
+  editForm.value.subcategory_id = null
+}
+
 /** Table pagination configuration */
 const pagination = {
   pageSize: 20,
 }
 
 /** Table columns definition */
-const columns: DataTableColumns<Transaction> = [
+const columns = computed<DataTableColumns<Transaction>>(() => [
   {
     title: 'Date',
     key: 'date',
@@ -363,6 +439,14 @@ const columns: DataTableColumns<Transaction> = [
   {
     title: 'Title',
     key: 'title',
+  },
+  {
+    title: 'Category',
+    key: 'category_id',
+    render: (row) => getCategoryName(row.category_id),
+    ellipsis: {
+      tooltip: true,
+    },
   },
   {
     title: 'Amount',
@@ -407,5 +491,5 @@ const columns: DataTableColumns<Transaction> = [
       })
     },
   },
-]
+])
 </script>
