@@ -123,7 +123,7 @@
             <n-radio-group v-model:value="newBudget.type">
               <n-space>
                 <n-radio value="personal">Personal</n-radio>
-                <n-radio value="group">Group</n-radio>
+                <n-radio value="shared">Shared</n-radio>
               </n-space>
             </n-radio-group>
           </n-form-item>
@@ -186,7 +186,7 @@ const summaries = ref<BudgetSummary[]>([])
 /** New budget form data */
 const newBudget = ref({
   name: '',
-  type: 'personal' as 'personal' | 'group',
+  type: 'personal' as 'personal' | 'shared',
 })
 
 /** Form validation rules */
