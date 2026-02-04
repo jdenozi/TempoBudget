@@ -69,6 +69,28 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
     FOREIGN KEY (category_id) REFERENCES categories(id)
     );
 
+-- Recurring Transaction Versions (historique des modifications avec dates d'effet)
+CREATE TABLE IF NOT EXISTS recurring_transaction_versions (
+    id TEXT PRIMARY KEY,
+    recurring_transaction_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category_id TEXT NOT NULL,
+    frequency TEXT NOT NULL,
+    day INTEGER,
+    effective_from TEXT NOT NULL,
+    effective_until TEXT,
+    created_at TEXT NOT NULL,
+    change_reason TEXT,
+    FOREIGN KEY (recurring_transaction_id) REFERENCES recurring_transactions(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_versions_lookup
+    ON recurring_transaction_versions(recurring_transaction_id, effective_from);
+CREATE INDEX IF NOT EXISTS idx_recurring_versions_active
+    ON recurring_transaction_versions(recurring_transaction_id, effective_until);
+
 
 -- Budget Profiles
 CREATE TABLE IF NOT EXISTS budget_profiles (

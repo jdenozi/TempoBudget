@@ -19,7 +19,7 @@
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { budgetsAPI, categoriesAPI, transactionsAPI, recurringAPI, type Budget, type Category, type Transaction, type RecurringTransaction } from '@/services/api'
+import { budgetsAPI, categoriesAPI, transactionsAPI, recurringAPI, type Budget, type Category, type Transaction, type RecurringTransactionWithCategory, type RecurringTransactionVersion, type UpdateRecurringTransactionPayload } from '@/services/api'
 
 export const useBudgetStore = defineStore('budget', () => {
   /** List of all user budgets */
@@ -35,7 +35,10 @@ export const useBudgetStore = defineStore('budget', () => {
   const transactions = ref<Transaction[]>([])
 
   /** Recurring transactions for the current budget */
-  const recurringTransactions = ref<RecurringTransaction[]>([])
+  const recurringTransactions = ref<RecurringTransactionWithCategory[]>([])
+
+  /** Version history cache for recurring transactions */
+  const recurringVersions = ref<Map<string, RecurringTransactionVersion[]>>(new Map())
 
   /** Loading state indicator */
   const loading = ref(false)
@@ -269,6 +272,51 @@ export const useBudgetStore = defineStore('budget', () => {
   async function deleteRecurringTransaction(id: string) {
     await recurringAPI.delete(id)
     recurringTransactions.value = recurringTransactions.value.filter(r => r.id !== id)
+    recurringVersions.value.delete(id)
+  }
+
+  /**
+   * Updates a recurring transaction with optional effective date.
+   * @param id - Recurring transaction unique identifier
+   * @param data - Fields to update
+   * @returns The updated recurring transaction
+   */
+  async function updateRecurringTransaction(id: string, data: UpdateRecurringTransactionPayload) {
+    const updated = await recurringAPI.update(id, data)
+    const index = recurringTransactions.value.findIndex(r => r.id === id)
+    if (index !== -1) {
+      recurringTransactions.value[index] = updated
+    }
+    // Clear cached versions since they changed
+    recurringVersions.value.delete(id)
+    return updated
+  }
+
+  /**
+   * Fetches version history for a recurring transaction.
+   * @param recurringId - Recurring transaction unique identifier
+   * @returns Array of version records
+   */
+  async function fetchRecurringVersions(recurringId: string) {
+    const versions = await recurringAPI.getVersions(recurringId)
+    recurringVersions.value.set(recurringId, versions)
+    return versions
+  }
+
+  /**
+   * Cancels a scheduled (future) version.
+   * @param versionId - Version ID to cancel
+   * @param recurringId - Parent recurring transaction ID
+   */
+  async function cancelRecurringVersion(versionId: string, recurringId: string) {
+    await recurringAPI.cancelVersion(versionId)
+    // Refresh the recurring transaction to update pending_version
+    const budgetId = recurringTransactions.value.find(r => r.id === recurringId)?.budget_id
+    if (budgetId) {
+      await fetchRecurringTransactions(budgetId)
+    }
+    // Clear cached versions
+    recurringVersions.value.delete(recurringId)
   }
 
   return {
@@ -277,6 +325,7 @@ export const useBudgetStore = defineStore('budget', () => {
     categories,
     transactions,
     recurringTransactions,
+    recurringVersions,
     loading,
     fetchBudgets,
     fetchBudget,
@@ -293,5 +342,8 @@ export const useBudgetStore = defineStore('budget', () => {
     createRecurringTransaction,
     toggleRecurringTransaction,
     deleteRecurringTransaction,
+    updateRecurringTransaction,
+    fetchRecurringVersions,
+    cancelRecurringVersion,
   }
 })

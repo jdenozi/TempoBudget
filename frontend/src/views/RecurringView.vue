@@ -5,7 +5,7 @@
   Recurring Transactions View
 
   Displays and manages recurring transaction templates for a selected budget.
-  Supports toggling active status and deletion of recurring transactions.
+  Supports toggling active status, editing, viewing version history, and deletion.
 -->
 
 <template>
@@ -35,7 +35,17 @@
       >
         <template #header>
           <n-space justify="space-between" align="center">
-            <strong>{{ recurring.title }}</strong>
+            <div>
+              <strong>{{ recurring.title }}</strong>
+              <n-tag
+                v-if="recurring.pending_version"
+                type="warning"
+                size="tiny"
+                style="margin-left: 8px;"
+              >
+                Pending
+              </n-tag>
+            </div>
             <n-tag
               :type="recurring.transaction_type === 'expense' ? 'error' : 'success'"
               size="small"
@@ -46,6 +56,10 @@
         </template>
 
         <n-space vertical size="small">
+          <div>
+            <n-text depth="3">Category:</n-text>
+            {{ getCategoryDisplay(recurring) }}
+          </div>
           <div><n-text depth="3">Frequency:</n-text> {{ getFrequencyLabel(recurring.frequency) }}</div>
           <div v-if="recurring.day"><n-text depth="3">Day:</n-text> {{ recurring.day }}</div>
           <div>
@@ -54,10 +68,19 @@
               {{ recurring.active ? 'Active' : 'Inactive' }}
             </n-tag>
           </div>
+          <div v-if="recurring.pending_version" style="font-size: 12px; color: #f0a020;">
+            Change scheduled for {{ recurring.pending_version.effective_from }}
+          </div>
         </n-space>
 
         <template #footer>
           <n-space>
+            <n-button size="small" @click="openEditModal(recurring)">
+              Edit
+            </n-button>
+            <n-button size="small" @click="openHistoryModal(recurring.id)">
+              History
+            </n-button>
             <n-button
               size="small"
               :type="recurring.active ? 'default' : 'success'"
@@ -97,6 +120,25 @@
       v-else-if="!budgetStore.loading && !selectedBudgetId"
       description="Select a budget"
     />
+
+    <!-- Edit Modal -->
+    <EditRecurringModal
+      v-model:show="showEditModal"
+      :is-mobile="isMobile"
+      :loading="isEditing"
+      :recurring="editingRecurring"
+      :categories="budgetStore.categories"
+      @submit="handleEditSubmit"
+    />
+
+    <!-- History Modal -->
+    <RecurringVersionHistory
+      v-model:show="showHistoryModal"
+      :is-mobile="isMobile"
+      :recurring-id="historyRecurringId"
+      :categories="budgetStore.categories"
+      @cancel-version="handleCancelVersion"
+    />
   </n-space>
 </template>
 
@@ -108,6 +150,8 @@
  * - Budget selection dropdown
  * - Responsive card (mobile) / table (desktop) layout
  * - Toggle active status for recurring transactions
+ * - Edit recurring transactions with effective dates
+ * - View version history
  * - Delete recurring transactions with confirmation
  */
 
@@ -118,7 +162,9 @@ import {
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
-import type { RecurringTransaction } from '@/services/api'
+import type { RecurringTransactionWithCategory, UpdateRecurringTransactionPayload } from '@/services/api'
+import EditRecurringModal from '@/components/modals/EditRecurringModal.vue'
+import RecurringVersionHistory from '@/components/modals/RecurringVersionHistory.vue'
 
 const message = useMessage()
 const budgetStore = useBudgetStore()
@@ -128,6 +174,15 @@ const isMobile = ref(false)
 
 /** Currently selected budget ID */
 const selectedBudgetId = ref<string | null>(null)
+
+/** Edit modal state */
+const showEditModal = ref(false)
+const editingRecurring = ref<RecurringTransactionWithCategory | null>(null)
+const isEditing = ref(false)
+
+/** History modal state */
+const showHistoryModal = ref(false)
+const historyRecurringId = ref<string | null>(null)
 
 /**
  * Checks if the viewport is mobile-sized.
@@ -165,13 +220,16 @@ const budgetOptions = computed(() => {
 })
 
 /**
- * Loads recurring transactions for the selected budget.
+ * Loads recurring transactions and categories for the selected budget.
  */
 const loadRecurring = async () => {
   if (!selectedBudgetId.value) return
 
   try {
-    await budgetStore.fetchRecurringTransactions(selectedBudgetId.value)
+    await Promise.all([
+      budgetStore.fetchRecurringTransactions(selectedBudgetId.value),
+      budgetStore.fetchCategories(selectedBudgetId.value),
+    ])
   } catch (error) {
     console.error('Error loading recurring:', error)
     message.error('Error loading data')
@@ -189,6 +247,71 @@ const getFrequencyLabel = (frequency: string) => {
     yearly: 'Yearly',
   }
   return labels[frequency] || frequency
+}
+
+/**
+ * Returns the category display string.
+ * @param recurring - The recurring transaction
+ */
+const getCategoryDisplay = (recurring: RecurringTransactionWithCategory) => {
+  if (recurring.parent_category_name) {
+    return `${recurring.parent_category_name} > ${recurring.category_name}`
+  }
+  return recurring.category_name
+}
+
+/**
+ * Opens the edit modal for a recurring transaction.
+ * @param recurring - The recurring transaction to edit
+ */
+const openEditModal = (recurring: RecurringTransactionWithCategory) => {
+  editingRecurring.value = recurring
+  showEditModal.value = true
+}
+
+/**
+ * Opens the history modal for a recurring transaction.
+ * @param id - The recurring transaction ID
+ */
+const openHistoryModal = (id: string) => {
+  historyRecurringId.value = id
+  showHistoryModal.value = true
+}
+
+/**
+ * Handles the edit form submission.
+ * @param data - The update payload
+ */
+const handleEditSubmit = async (data: UpdateRecurringTransactionPayload) => {
+  if (!editingRecurring.value) return
+
+  isEditing.value = true
+  try {
+    await budgetStore.updateRecurringTransaction(editingRecurring.value.id, data)
+    message.success('Recurring transaction updated')
+    showEditModal.value = false
+    editingRecurring.value = null
+  } catch (error) {
+    console.error('Error updating recurring:', error)
+    message.error('Error updating')
+  } finally {
+    isEditing.value = false
+  }
+}
+
+/**
+ * Handles canceling a scheduled version.
+ * @param versionId - The version ID to cancel
+ * @param recurringId - The parent recurring transaction ID
+ */
+const handleCancelVersion = async (versionId: string, recurringId: string) => {
+  try {
+    await budgetStore.cancelRecurringVersion(versionId, recurringId)
+    message.success('Scheduled change cancelled')
+  } catch (error) {
+    console.error('Error cancelling version:', error)
+    message.error('Error cancelling')
+  }
 }
 
 /**
@@ -225,10 +348,24 @@ const pagination = {
 }
 
 /** Table columns definition */
-const columns: DataTableColumns<RecurringTransaction> = [
+const columns: DataTableColumns<RecurringTransactionWithCategory> = [
   {
     title: 'Title',
     key: 'title',
+    render: (row) => {
+      if (row.pending_version) {
+        return h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+          h('span', row.title),
+          h(NTag, { type: 'warning', size: 'tiny' }, { default: () => 'Pending' }),
+        ])
+      }
+      return row.title
+    },
+  },
+  {
+    title: 'Category',
+    key: 'category',
+    render: (row) => getCategoryDisplay(row),
   },
   {
     title: 'Amount',
@@ -264,8 +401,17 @@ const columns: DataTableColumns<RecurringTransaction> = [
   {
     title: 'Actions',
     key: 'actions',
+    width: 280,
     render: (row) => {
-      return h('div', { style: { display: 'flex', gap: '8px' } }, [
+      return h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
+        h(NButton, {
+          size: 'small',
+          onClick: () => openEditModal(row),
+        }, { default: () => 'Edit' }),
+        h(NButton, {
+          size: 'small',
+          onClick: () => openHistoryModal(row.id),
+        }, { default: () => 'History' }),
         h(NButton, {
           size: 'small',
           type: row.active ? 'default' : 'success',

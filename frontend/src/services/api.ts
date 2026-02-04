@@ -145,6 +145,40 @@ export interface RecurringTransaction {
   created_at: string
 }
 
+/** Version history entry for recurring transactions */
+export interface RecurringTransactionVersion {
+  id: string
+  recurring_transaction_id: string
+  title: string
+  amount: number
+  category_id: string
+  frequency: string
+  day?: number
+  effective_from: string
+  effective_until?: string
+  created_at: string
+  change_reason?: string
+}
+
+/** Recurring transaction with category info */
+export interface RecurringTransactionWithCategory extends RecurringTransaction {
+  category_name: string
+  parent_category_id?: string
+  parent_category_name?: string
+  pending_version?: RecurringTransactionVersion
+}
+
+/** Update payload for recurring transactions */
+export interface UpdateRecurringTransactionPayload {
+  title?: string
+  amount?: number
+  category_id?: string
+  frequency?: string
+  day?: number
+  effective_date?: string
+  change_reason?: string
+}
+
 /** Budget member with associated user information */
 export interface BudgetMemberWithUser {
   id: string
@@ -365,12 +399,12 @@ export const transactionsAPI = {
  */
 export const recurringAPI = {
   /**
-   * Retrieves all recurring transactions for a budget.
+   * Retrieves all recurring transactions for a budget with category info.
    * @param budgetId - The budget's unique identifier
-   * @returns Array of recurring transactions
+   * @returns Array of recurring transactions with category info
    */
   getByBudget: async (budgetId: string) => {
-    const response = await api.get<RecurringTransaction[]>(`/budgets/${budgetId}/recurring`)
+    const response = await api.get<RecurringTransactionWithCategory[]>(`/budgets/${budgetId}/recurring`)
     return response.data
   },
 
@@ -388,7 +422,7 @@ export const recurringAPI = {
     frequency: string
     day?: number
   }) => {
-    const response = await api.post<RecurringTransaction>(`/budgets/${data.budget_id}/recurring`, data)
+    const response = await api.post<RecurringTransactionWithCategory>(`/budgets/${data.budget_id}/recurring`, data)
     return response.data
   },
 
@@ -398,8 +432,37 @@ export const recurringAPI = {
    * @returns The updated recurring transaction
    */
   toggle: async (id: string) => {
-    const response = await api.put<RecurringTransaction>(`/recurring/${id}/toggle`, {})
+    const response = await api.put<RecurringTransactionWithCategory>(`/recurring/${id}/toggle`, {})
     return response.data
+  },
+
+  /**
+   * Updates a recurring transaction with optional effective date.
+   * @param id - Recurring transaction ID
+   * @param data - Fields to update
+   * @returns The updated recurring transaction
+   */
+  update: async (id: string, data: UpdateRecurringTransactionPayload) => {
+    const response = await api.put<RecurringTransactionWithCategory>(`/recurring/${id}`, data)
+    return response.data
+  },
+
+  /**
+   * Retrieves version history for a recurring transaction.
+   * @param id - Recurring transaction ID
+   * @returns Array of version records
+   */
+  getVersions: async (id: string) => {
+    const response = await api.get<RecurringTransactionVersion[]>(`/recurring/${id}/versions`)
+    return response.data
+  },
+
+  /**
+   * Cancels a scheduled (future) version.
+   * @param versionId - Version ID to cancel
+   */
+  cancelVersion: async (versionId: string) => {
+    await api.delete(`/recurring/versions/${versionId}`)
   },
 
   /**

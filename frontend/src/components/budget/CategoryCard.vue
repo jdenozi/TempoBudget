@@ -29,6 +29,13 @@
           >
             Restant: <strong>{{ category.remaining.toFixed(2) }} €</strong>
           </span>
+          <span
+            v-if="category.projected !== category.spent"
+            style="margin-left: 16px;"
+            :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }"
+          >
+            (Projeté: <strong>{{ category.projectedRemaining.toFixed(2) }} €</strong>)
+          </span>
         </div>
       </div>
       <n-space size="small" @click.stop>

@@ -71,3 +71,53 @@ class CreateRecurringTransaction(BaseModel):
     transaction_type: Literal["income", "expense"] = Field(..., description="Type")
     frequency: Literal["daily", "weekly", "monthly", "yearly"] = Field(..., description="Frequency")
     day: int | None = Field(None, description="Day of the period")
+
+
+class UpdateRecurringTransaction(BaseModel):
+    """Request payload for updating a recurring transaction."""
+    title: str | None = Field(None, min_length=1, description="Transaction title")
+    amount: float | None = Field(None, gt=0, description="Transaction amount")
+    category_id: str | None = Field(None, description="ID of the category")
+    frequency: Literal["daily", "weekly", "monthly", "yearly"] | None = Field(None, description="Frequency")
+    day: int | None = Field(None, description="Day of the period")
+    effective_date: str | None = Field(None, description="When change takes effect (YYYY-MM-DD)")
+    change_reason: str | None = Field(None, description="Reason for the change")
+
+
+class RecurringTransactionVersion(BaseModel):
+    """Represents a version of a recurring transaction."""
+    id: str = Field(..., description="Version unique identifier")
+    recurring_transaction_id: str = Field(..., description="Parent recurring transaction ID")
+    title: str = Field(..., description="Transaction title")
+    amount: float = Field(..., description="Transaction amount")
+    category_id: str = Field(..., description="Category ID")
+    frequency: str = Field(..., description="Frequency: daily/weekly/monthly/yearly")
+    day: int | None = Field(None, description="Day of the period")
+    effective_from: str = Field(..., description="Start date (YYYY-MM-DD)")
+    effective_until: str | None = Field(None, description="End date (YYYY-MM-DD), null if active")
+    created_at: str = Field(..., description="Creation timestamp")
+    change_reason: str | None = Field(None, description="Reason for the change")
+
+    class Config:
+        from_attributes = True
+
+
+class RecurringTransactionWithCategory(BaseModel):
+    """Recurring transaction with resolved category information."""
+    id: str = Field(..., description="Unique identifier (UUID)")
+    budget_id: str = Field(..., description="ID of the budget")
+    category_id: str = Field(..., description="ID of the category")
+    category_name: str = Field(..., description="Category name")
+    parent_category_id: str | None = Field(None, description="Parent category ID if subcategory")
+    parent_category_name: str | None = Field(None, description="Parent category name")
+    title: str = Field(..., description="Transaction title")
+    amount: float = Field(..., description="Transaction amount")
+    transaction_type: str = Field(..., description="Type: 'income' or 'expense'")
+    frequency: str = Field(..., description="Frequency: daily/weekly/monthly/yearly")
+    day: int | None = Field(None, description="Day of the period")
+    active: int = Field(..., description="Whether active (0/1)")
+    created_at: str = Field(..., description="Creation timestamp")
+    pending_version: RecurringTransactionVersion | None = Field(None, description="Pending future version")
+
+    class Config:
+        from_attributes = True
