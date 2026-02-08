@@ -11,9 +11,9 @@
 <template>
   <n-space vertical size="large">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">My Budgets</h1>
+      <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('budget.budgets') }}</h1>
       <n-button type="primary" @click="showModal = true">
-        Create Budget
+        {{ t('budget.createBudget') }}
       </n-button>
     </div>
 
@@ -34,7 +34,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <strong>{{ budget.name }}</strong>
               <n-tag :type="budget.budget_type === 'personal' ? 'info' : 'success'" size="small">
-                {{ budget.budget_type === 'personal' ? 'Personal' : 'Group' }}
+                {{ budget.budget_type === 'personal' ? t('budget.personal') : t('budget.shared') }}
               </n-tag>
             </div>
           </template>
@@ -42,7 +42,7 @@
           <!-- Stats Grid -->
           <n-grid :cols="2" :x-gap="12" :y-gap="12">
             <n-gi>
-              <n-statistic label="Revenus" :value="(getSummary(budget.id)?.income_budget || 0).toFixed(2)">
+              <n-statistic :label="t('budget.income')" :value="(getSummary(budget.id)?.income_budget || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon color="#18a058"><TrendingUpOutline /></n-icon>
                 </template>
@@ -50,7 +50,7 @@
               </n-statistic>
             </n-gi>
             <n-gi>
-              <n-statistic label="Budget Dépenses" :value="(getSummary(budget.id)?.total_budget || 0).toFixed(2)">
+              <n-statistic :label="t('budget.totalBudget')" :value="(getSummary(budget.id)?.total_budget || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon color="#2080f0"><WalletOutline /></n-icon>
                 </template>
@@ -58,7 +58,7 @@
               </n-statistic>
             </n-gi>
             <n-gi>
-              <n-statistic label="Dépensé" :value="(getSummary(budget.id)?.total_spent || 0).toFixed(2)">
+              <n-statistic :label="t('budget.spent')" :value="(getSummary(budget.id)?.total_spent || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon color="#d03050"><TrendingDownOutline /></n-icon>
                 </template>
@@ -66,7 +66,7 @@
               </n-statistic>
             </n-gi>
             <n-gi>
-              <n-statistic label="Solde" :value="(getSummary(budget.id)?.balance || 0).toFixed(2)">
+              <n-statistic :label="t('budget.balance')" :value="(getSummary(budget.id)?.balance || 0).toFixed(2)">
                 <template #prefix>
                   <n-icon :color="(getSummary(budget.id)?.balance || 0) >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
                 </template>
@@ -78,8 +78,8 @@
           <!-- Progress Bar -->
           <div style="margin-top: 16px;">
             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% utilisé</span>
-              <span style="color: #888;">{{ getSummary(budget.id)?.transaction_count || 0 }} transactions</span>
+              <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% {{ t('budget.spent').toLowerCase() }}</span>
+              <span style="color: #888;">{{ getSummary(budget.id)?.transaction_count || 0 }} {{ t('transaction.transactions').toLowerCase() }}</span>
             </div>
             <n-progress
               :percentage="Math.min(getSummary(budget.id)?.percentage || 0, 100)"
@@ -94,12 +94,12 @@
     <!-- Empty State -->
     <n-empty
       v-if="!budgetStore.loading && budgetStore.budgets.length === 0"
-      description="No budgets created"
+      :description="t('budget.noBudgets')"
       style="margin-top: 40px;"
     >
       <template #extra>
         <n-button @click="showModal = true" type="primary">
-          Create my first budget
+          {{ t('budget.createBudget') }}
         </n-button>
       </template>
     </n-empty>
@@ -107,7 +107,7 @@
     <!-- Create Budget Modal -->
     <n-modal v-model:show="showModal">
       <n-card
-        title="Create Budget"
+        :title="t('budget.createBudget')"
         :bordered="false"
         size="huge"
         role="dialog"
@@ -115,15 +115,15 @@
         :style="{ maxWidth: isMobile ? '95vw' : '500px' }"
       >
         <n-form ref="formRef" :model="newBudget" :rules="rules">
-          <n-form-item label="Budget Name" path="name">
-            <n-input v-model:value="newBudget.name" placeholder="Personal Budget" />
+          <n-form-item :label="t('budget.budgetName')" path="name">
+            <n-input v-model:value="newBudget.name" :placeholder="t('budget.personal')" />
           </n-form-item>
 
-          <n-form-item label="Type" path="type">
+          <n-form-item :label="t('budget.budgetType')" path="type">
             <n-radio-group v-model:value="newBudget.type">
               <n-space>
-                <n-radio value="personal">Personal</n-radio>
-                <n-radio value="shared">Shared</n-radio>
+                <n-radio value="personal">{{ t('budget.personal') }}</n-radio>
+                <n-radio value="shared">{{ t('budget.shared') }}</n-radio>
               </n-space>
             </n-radio-group>
           </n-form-item>
@@ -131,9 +131,9 @@
 
         <template #footer>
           <n-space justify="end">
-            <n-button @click="showModal = false">Cancel</n-button>
+            <n-button @click="showModal = false">{{ t('common.cancel') }}</n-button>
             <n-button type="primary" :loading="creating" @click="handleCreate">
-              Create
+              {{ t('common.add') }}
             </n-button>
           </n-space>
         </template>
@@ -160,12 +160,14 @@ import {
   NModal, NForm, NFormItem, NInput, NRadioGroup, NRadio,
   NIcon, NSpin, NEmpty, NProgress, useMessage
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { CashOutline, WalletOutline, TrendingUpOutline, TrendingDownOutline } from '@vicons/ionicons5'
 import { useBudgetStore } from '@/stores/budget'
 import { budgetsAPI, type BudgetSummary } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
+const { t } = useI18n()
 const budgetStore = useBudgetStore()
 
 /** Whether the viewport is mobile-sized */

@@ -19,32 +19,32 @@
           </n-space>
         </div>
         <div style="font-size: 13px; color: #888; margin-left: 20px;">
-          Budget: <strong>{{ category.amount.toFixed(2) }} €</strong>
+          {{ t('budget.amount') }}: <strong>{{ category.amount.toFixed(2) }} €</strong>
           <span style="margin-left: 16px;">
-            {{ category.isIncome ? 'Reçu' : 'Dépensé' }}: <strong>{{ category.spent.toFixed(2) }} €</strong>
+            {{ category.isIncome ? t('budget.received') : t('budget.spent') }}: <strong>{{ category.spent.toFixed(2) }} €</strong>
           </span>
           <span
             style="margin-left: 16px;"
             :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }"
           >
-            Restant: <strong>{{ category.remaining.toFixed(2) }} €</strong>
+            {{ t('budget.remaining') }}: <strong>{{ category.remaining.toFixed(2) }} €</strong>
           </span>
           <span
             v-if="category.projected !== category.spent"
             style="margin-left: 16px;"
             :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }"
           >
-            (Projeté: <strong>{{ category.projectedRemaining.toFixed(2) }} €</strong>)
+            ({{ t('budget.projected') }}: <strong>{{ category.projectedRemaining.toFixed(2) }} €</strong>)
           </span>
         </div>
       </div>
       <n-space size="small" @click.stop>
-        <n-button size="tiny" quaternary @click="$emit('edit', category)">Edit</n-button>
+        <n-button size="tiny" quaternary @click="$emit('edit', category)">{{ t('common.edit') }}</n-button>
         <n-popconfirm @positive-click="$emit('delete', category.id)">
           <template #trigger>
-            <n-button size="tiny" quaternary type="error">Delete</n-button>
+            <n-button size="tiny" quaternary type="error">{{ t('common.delete') }}</n-button>
           </template>
-          Delete this category?
+          {{ t('category.deleteCategoryConfirm') }}
         </n-popconfirm>
       </n-space>
     </div>
@@ -65,9 +65,9 @@
       <div style="margin-top: 12px; margin-bottom: 8px;">
       <!-- Spent/Received -->
       <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-        <span>{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
+        <span>{{ category.isIncome ? t('budget.received') : t('budget.spent') }}: {{ category.spent.toFixed(2) }} € ({{ category.percentage.toFixed(2) }}%)</span>
         <span :style="{ color: category.remaining >= 0 ? '#18a058' : '#d03050' }">
-          {{ category.remaining.toFixed(2) }} € {{ category.isIncome ? 'à recevoir' : 'restant' }}
+          {{ category.remaining.toFixed(2) }} € {{ category.isIncome ? t('budget.toReceive') : t('budget.remaining') }}
         </span>
       </div>
       <n-progress
@@ -77,9 +77,9 @@
       />
       <!-- Projected -->
       <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; margin-top: 8px;">
-        <span style="color: #f0a020;">Projeté: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
+        <span style="color: #f0a020;">{{ t('budget.projected') }}: {{ category.projected.toFixed(2) }} € ({{ category.projectedPercentage.toFixed(2) }}%)</span>
         <span :style="{ color: category.projectedRemaining >= 0 ? '#18a058' : '#d03050' }">
-          {{ category.projectedRemaining.toFixed(2) }} € {{ category.isIncome ? 'à recevoir' : 'restant' }}
+          {{ category.projectedRemaining.toFixed(2) }} € {{ category.isIncome ? t('budget.toReceive') : t('budget.remaining') }}
         </span>
       </div>
       <n-progress
@@ -91,7 +91,7 @@
 
     <!-- Subcategories -->
     <div v-if="subcategories.length > 0" style="margin-top: 16px;">
-      <div style="font-size: 12px; color: #888; margin-bottom: 8px;">SUBCATEGORIES</div>
+      <div style="font-size: 12px; color: #888; margin-bottom: 8px;">{{ t('category.subcategories').toUpperCase() }}</div>
       <n-space vertical size="small">
         <div
           v-for="sub in subcategories"
@@ -111,27 +111,27 @@
               </n-space>
             </div>
             <n-space size="small" align="center">
-              <n-button size="tiny" quaternary @click="$emit('edit', sub)">Edit</n-button>
+              <n-button size="tiny" quaternary @click="$emit('edit', sub)">{{ t('common.edit') }}</n-button>
               <n-popconfirm @positive-click="$emit('delete', sub.id)">
                 <template #trigger>
-                  <n-button size="tiny" quaternary type="error">Del</n-button>
+                  <n-button size="tiny" quaternary type="error">{{ t('common.delete') }}</n-button>
                 </template>
-                Delete?
+                {{ t('category.deleteCategoryConfirm') }}
               </n-popconfirm>
             </n-space>
           </div>
           <div style="display: flex; gap: 16px; font-size: 12px; flex-wrap: wrap;">
-            <span v-if="sub.amount > 0" style="color: #888;">Budget: {{ sub.amount.toFixed(2) }} €</span>
-            <span style="color: #18a058;">{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ sub.spent.toFixed(2) }} €</span>
+            <span v-if="sub.amount > 0" style="color: #888;">{{ t('budget.amount') }}: {{ sub.amount.toFixed(2) }} €</span>
+            <span style="color: #18a058;">{{ category.isIncome ? t('budget.received') : t('budget.spent') }}: {{ sub.spent.toFixed(2) }} €</span>
             <span v-if="sub.amount > 0" :style="{ color: (sub.amount - sub.spent) >= 0 ? '#18a058' : '#d03050' }">
-              {{ category.isIncome ? 'À recevoir' : 'Restant' }}: {{ (sub.amount - sub.spent).toFixed(2) }} €
+              {{ category.isIncome ? t('budget.toReceive') : t('budget.remaining') }}: {{ (sub.amount - sub.spent).toFixed(2) }} €
             </span>
-            <span style="color: #f0a020;">Projeté: {{ sub.projected.toFixed(2) }} €</span>
+            <span style="color: #f0a020;">{{ t('budget.projected') }}: {{ sub.projected.toFixed(2) }} €</span>
             <span
               v-if="sub.amount > 0 && sub.projected !== sub.spent"
               :style="{ color: (sub.amount - sub.projected) >= 0 ? '#18a058' : '#d03050' }"
             >
-              (Restant projeté: {{ (sub.amount - sub.projected).toFixed(2) }} €)
+              ({{ t('budget.projectedRemaining') }}: {{ (sub.amount - sub.projected).toFixed(2) }} €)
             </span>
           </div>
           <!-- Member shares for subcategories -->
@@ -150,7 +150,7 @@
       <!-- Add Subcategory Button -->
       <div style="margin-top: 12px;">
         <n-button size="small" dashed block @click="$emit('addSubcategory', category.id)">
-          + Add Subcategory
+          + {{ t('category.addSubcategory') }}
         </n-button>
       </div>
     </n-collapse-transition>
@@ -160,8 +160,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NCard, NSpace, NTag, NButton, NPopconfirm, NProgress, NCollapseTransition } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { BudgetMemberWithUser } from '@/services/api'
 
+const { t } = useI18n()
 const expanded = ref(false)
 
 interface CategoryWithSpent {

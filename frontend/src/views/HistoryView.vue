@@ -10,7 +10,7 @@
 
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">Transaction History</h1>
+    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('history.title') }}</h1>
 
     <!-- Budget Selector -->
     <n-select
@@ -23,20 +23,20 @@
 
     <!-- Date Range Filter -->
     <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
-      <span>Période :</span>
+      <span>{{ t('common.period') }} :</span>
       <n-date-picker
         v-model:value="startDate"
         type="date"
         :style="{ width: isMobile ? '100%' : '160px' }"
-        placeholder="Date début"
+        :placeholder="t('common.startDate')"
         clearable
       />
-      <span>à</span>
+      <span>{{ t('common.to').toLowerCase() }}</span>
       <n-date-picker
         v-model:value="endDate"
         type="date"
         :style="{ width: isMobile ? '100%' : '160px' }"
-        placeholder="Date fin"
+        :placeholder="t('common.endDate')"
         clearable
       />
     </n-space>
@@ -51,20 +51,20 @@
       <n-card size="small">
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
           <n-gi>
-            <n-statistic label="Transactions" :value="filteredTransactions.length" />
+            <n-statistic :label="t('transaction.transactions')" :value="filteredTransactions.length" />
           </n-gi>
           <n-gi>
-            <n-statistic label="Total Income" :value="totalIncome.toFixed(2)">
+            <n-statistic :label="t('budget.totalIncome')" :value="totalIncome.toFixed(2)">
               <template #suffix>€</template>
             </n-statistic>
           </n-gi>
           <n-gi>
-            <n-statistic label="Total Expenses" :value="totalExpenses.toFixed(2)">
+            <n-statistic :label="t('budget.totalExpenses')" :value="totalExpenses.toFixed(2)">
               <template #suffix>€</template>
             </n-statistic>
           </n-gi>
           <n-gi>
-            <n-statistic label="Balance" :value="(totalIncome - totalExpenses).toFixed(2)">
+            <n-statistic :label="t('budget.balance')" :value="(totalIncome - totalExpenses).toFixed(2)">
               <template #suffix>€</template>
             </n-statistic>
           </n-gi>
@@ -233,12 +233,14 @@ import {
   NFormItem, NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
   useMessage
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import type { Transaction } from '@/services/api'
 import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
 
 const message = useMessage()
+const { t } = useI18n()
 const budgetStore = useBudgetStore()
 
 /** Whether the viewport is mobile-sized */
