@@ -70,3 +70,4 @@ frontend/docs/
 # Local data files
 budget-perso-*
 output
+import_transactions.py
