@@ -8,7 +8,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
       <div>
         <n-button text @click="router.back()" style="margin-bottom: 8px;">
-          ← Back
+          ← {{ t('common.back') }}
         </n-button>
         <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">
           {{ budgetStore.currentBudget?.name || 'Budget' }}
@@ -24,9 +24,9 @@
 
         <n-popconfirm @positive-click="handleDeleteBudget">
           <template #trigger>
-            <n-button type="error" ghost>Delete Budget</n-button>
+            <n-button type="error" ghost>{{ t('budget.deleteBudget') }}</n-button>
           </template>
-          Are you sure you want to delete this budget? This action is irreversible.
+          {{ t('budget.deleteBudgetConfirm') }}
         </n-popconfirm>
       </n-space>
     </div>
@@ -74,7 +74,7 @@
       <TagStatisticsCard :tag-distribution="tagDistribution" />
 
       <!-- Income Categories -->
-      <n-card v-if="incomeCategories.length > 0" title="Revenus">
+      <n-card v-if="incomeCategories.length > 0" :title="t('budget.income')">
         <n-space vertical size="large">
           <CategoryCard
             v-for="category in incomeCategories"
@@ -91,11 +91,11 @@
       </n-card>
 
       <!-- Expense Categories -->
-      <n-card title="Dépenses">
-        <n-empty v-if="expenseCategories.length === 0" description="Aucune catégorie">
+      <n-card :title="t('budget.expenses')">
+        <n-empty v-if="expenseCategories.length === 0" :description="t('category.noCategories')">
           <template #extra>
             <n-button @click="showAddCategory = true" type="primary" size="small">
-              Ajouter une catégorie
+              {{ t('category.addCategory') }}
             </n-button>
           </template>
         </n-empty>
@@ -116,7 +116,7 @@
 
         <template #footer>
           <n-button @click="showAddCategory = true" type="primary" size="small">
-            Ajouter une catégorie
+            {{ t('category.addCategory') }}
           </n-button>
         </template>
       </n-card>
@@ -170,6 +170,7 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   NSpace, NButton, NDatePicker, NCard, NEmpty, NSpin, NPopconfirm, useMessage
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
 import { useAuthStore } from '@/stores/auth'
 import { budgetMembersAPI, budgetsAPI, recurringAPI, type BudgetMemberWithUser, type MemberBalance } from '@/services/api'
@@ -181,6 +182,7 @@ import { AddCategoryModal, EditCategoryModal, InviteMemberModal } from '@/compon
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { t } = useI18n()
 const budgetStore = useBudgetStore()
 const authStore = useAuthStore()
 

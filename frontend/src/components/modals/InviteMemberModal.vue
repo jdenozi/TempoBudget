@@ -1,26 +1,26 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Invite a Member"
+      :title="t('member.addMember')"
       :bordered="false"
       size="huge"
       role="dialog"
       :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
     >
       <n-form ref="formRef" :model="formData">
-        <n-form-item label="User Email">
+        <n-form-item :label="t('auth.email')">
           <n-input
             v-model:value="formData.email"
-            placeholder="email@example.com"
+            :placeholder="t('placeholders.enterEmail')"
             type="email"
           />
         </n-form-item>
 
-        <n-form-item label="Role">
+        <n-form-item :label="t('member.role')">
           <n-radio-group v-model:value="formData.role">
             <n-space>
-              <n-radio value="member">Member</n-radio>
-              <n-radio value="owner">Owner</n-radio>
+              <n-radio value="member">{{ t('member.memberRole') }}</n-radio>
+              <n-radio value="owner">{{ t('member.owner') }}</n-radio>
             </n-space>
           </n-radio-group>
         </n-form-item>
@@ -28,9 +28,9 @@
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Cancel</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.cancel') }}</n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            Invite
+            {{ t('member.addMember') }}
           </n-button>
         </n-space>
       </template>
@@ -44,6 +44,9 @@ import {
   NModal, NCard, NForm, NFormItem, NInput,
   NRadioGroup, NRadio, NSpace, NButton
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   show: boolean

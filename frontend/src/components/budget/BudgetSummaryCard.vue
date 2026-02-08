@@ -4,46 +4,46 @@
     <div class="summary-grid" :class="{ mobile: isMobile }">
       <!-- Revenus -->
       <div class="summary-box income">
-        <div class="summary-label">Revenus</div>
+        <div class="summary-label">{{ t('budget.income') }}</div>
         <div class="summary-row">
-          <span class="summary-sub">Prévu</span>
+          <span class="summary-sub">{{ t('budget.projected') }}</span>
           <span class="summary-value">{{ totalIncome.toFixed(2) }} €</span>
         </div>
         <div class="summary-row">
-          <span class="summary-sub">Reçu</span>
+          <span class="summary-sub">{{ t('budget.received') }}</span>
           <span class="summary-value highlight">{{ totalIncomeReceived.toFixed(2) }} €</span>
         </div>
       </div>
 
       <!-- Budget Dépenses -->
       <div class="summary-box expenses">
-        <div class="summary-label">Dépenses</div>
+        <div class="summary-label">{{ t('budget.expenses') }}</div>
         <div class="summary-row">
-          <span class="summary-sub">Budget</span>
+          <span class="summary-sub">{{ t('budget.title') }}</span>
           <span class="summary-value">{{ totalBudget.toFixed(2) }} €</span>
         </div>
         <div class="summary-row">
-          <span class="summary-sub">Dépensé</span>
+          <span class="summary-sub">{{ t('budget.spent') }}</span>
           <span class="summary-value highlight">{{ totalSpent.toFixed(2) }} €</span>
         </div>
       </div>
 
       <!-- Restant -->
       <div class="summary-box remaining" :class="{ negative: remainingFromIncome < 0 }">
-        <div class="summary-label">Restant</div>
+        <div class="summary-label">{{ t('budget.remaining') }}</div>
         <div class="summary-row">
-          <span class="summary-sub">vs Budget</span>
+          <span class="summary-sub">vs {{ t('budget.title') }}</span>
           <span class="summary-value" :class="{ negative: remaining < 0 }">{{ remaining.toFixed(2) }} €</span>
         </div>
         <div class="summary-row">
-          <span class="summary-sub">vs Revenus</span>
+          <span class="summary-sub">vs {{ t('budget.income') }}</span>
           <span class="summary-value highlight" :class="{ negative: remainingFromIncome < 0 }">{{ remainingFromIncome.toFixed(2) }} €</span>
         </div>
       </div>
 
       <!-- Progress -->
       <div class="summary-box progress-box">
-        <div class="summary-label">Utilisé</div>
+        <div class="summary-label">{{ t('budget.percentage') }}</div>
         <n-progress
           type="circle"
           :percentage="Math.min(percentage, 100)"
@@ -57,24 +57,24 @@
 
     <!-- Solde -->
     <div class="balance-row" :class="{ negative: balance < 0 }">
-      <span>Solde (Revenus - Budget):</span>
+      <span>{{ t('budget.balance') }} ({{ t('budget.income') }} - {{ t('budget.title') }}):</span>
       <span class="balance-value">{{ balance >= 0 ? '+' : '' }}{{ balance.toFixed(2) }} €</span>
     </div>
 
     <!-- Projected Summary -->
     <n-divider style="margin: 16px 0;" />
-    <div class="section-title">PROJETÉ (avec récurrents)</div>
+    <div class="section-title">{{ t('budget.projected').toUpperCase() }} ({{ t('recurring.title').toLowerCase() }})</div>
     <div class="projected-grid" :class="{ mobile: isMobile }">
       <div class="projected-item">
-        <span class="projected-label">Dépenses</span>
+        <span class="projected-label">{{ t('budget.expenses') }}</span>
         <span class="projected-value">{{ totalProjected.toFixed(2) }} €</span>
       </div>
       <div class="projected-item">
-        <span class="projected-label">Restant (budget)</span>
+        <span class="projected-label">{{ t('budget.remaining') }} ({{ t('budget.title').toLowerCase() }})</span>
         <span class="projected-value" :class="{ negative: projectedRemaining < 0 }">{{ projectedRemaining.toFixed(2) }} €</span>
       </div>
       <div class="projected-item">
-        <span class="projected-label">Restant (revenus)</span>
+        <span class="projected-label">{{ t('budget.remaining') }} ({{ t('budget.income').toLowerCase() }})</span>
         <span class="projected-value" :class="{ negative: projectedRemainingFromIncome < 0 }">{{ projectedRemainingFromIncome.toFixed(2) }} €</span>
       </div>
       <div class="projected-item progress">
@@ -93,6 +93,9 @@
 
 <script setup lang="ts">
 import { NCard, NProgress, NDivider } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   totalIncome: number

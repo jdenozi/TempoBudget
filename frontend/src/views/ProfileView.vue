@@ -107,9 +107,24 @@
       </n-space>
     </n-card>
 
-    <!-- Security -->
-    <n-card title="Security">
+    <!-- Settings -->
+    <n-card :title="t('profile.title')">
       <n-space vertical>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-weight: 500;">{{ t('profile.language') }}</div>
+            <n-text depth="3">{{ t('common.filter') }}</n-text>
+          </div>
+          <n-select
+            :value="locale"
+            :options="languageOptions"
+            style="width: 150px;"
+            @update:value="handleLanguageChange"
+          />
+        </div>
+
+        <n-divider />
+
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
           <div>
             <div style="font-weight: 500;">Auto Logout</div>
@@ -249,16 +264,35 @@ import {
   NTag, NModal, NForm, NFormItem, NInput, NSelect, useMessage,
   type FormInst, type FormRules
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
 import { useSettingsStore, INACTIVITY_OPTIONS } from '@/stores/settings'
 import { authAPI, invitationsAPI, type BudgetInvitationWithDetails } from '@/services/api'
+import { SUPPORTED_LOCALES, saveLocale, type Locale } from '@/i18n'
 
 const router = useRouter()
 const message = useMessage()
+const { locale, t } = useI18n()
 const authStore = useAuthStore()
 const budgetStore = useBudgetStore()
 const settingsStore = useSettingsStore()
+
+/** Options for language selector */
+const languageOptions = SUPPORTED_LOCALES.map(l => ({
+  label: l.name,
+  value: l.code,
+}))
+
+/**
+ * Changes the application language.
+ * @param newLocale - The new locale code
+ */
+const handleLanguageChange = (newLocale: Locale) => {
+  locale.value = newLocale
+  saveLocale(newLocale)
+  message.success(t('common.success'))
+}
 
 /** Options for inactivity timeout selector */
 const inactivityOptions = INACTIVITY_OPTIONS.map(opt => ({

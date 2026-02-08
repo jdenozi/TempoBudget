@@ -77,7 +77,7 @@
 
       <!-- Mobile Menu Drawer -->
       <n-drawer v-model:show="showDrawer" :width="280" placement="left">
-        <n-drawer-content title="Menu" closable body-content-style="display: flex; flex-direction: column; height: 100%;">
+        <n-drawer-content :title="t('common.filter')" closable body-content-style="display: flex; flex-direction: column; height: 100%;">
           <n-menu
             :options="menuOptions"
             v-model:value="activeKey"
@@ -97,7 +97,7 @@
         :width="isMobile ? '100%' : 400"
         placement="right"
       >
-        <n-drawer-content title="New Transaction" closable>
+        <n-drawer-content :title="t('transaction.addTransaction')" closable>
           <AddTransactionForm @success="handleTransactionSuccess" />
         </n-drawer-content>
       </n-drawer>
@@ -121,8 +121,9 @@ import {
   NConfigProvider, NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
   NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, darkTheme, lightTheme
 } from 'naive-ui'
-import { ref, h, onMounted, onUnmounted } from 'vue'
+import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined, HistoryOutlined, BarChartOutlined,
   UserOutlined, SettingOutlined, SyncOutlined
@@ -131,6 +132,7 @@ import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
 /** Whether the sidebar is collapsed */
 const collapsed = ref(false)
@@ -164,33 +166,33 @@ onUnmounted(() => {
 })
 
 /** Navigation menu options */
-const menuOptions: MenuOption[] = [
+const menuOptions = computed<MenuOption[]>(() => [
   {
-    label: 'My Budgets',
+    label: t('nav.dashboard'),
     key: 'dashboard',
     icon: () => h(DashboardOutlined)
   },
   {
-    label: 'Recurring',
+    label: t('nav.recurring'),
     key: 'recurring',
     icon: () => h(SyncOutlined)
   },
   {
-    label: 'History',
+    label: t('nav.history'),
     key: 'history',
     icon: () => h(HistoryOutlined)
   },
   {
-    label: 'Charts',
+    label: t('nav.charts'),
     key: 'charts',
     icon: () => h(BarChartOutlined)
   },
   {
-    label: 'Profile',
+    label: t('nav.profile'),
     key: 'profile',
     icon: () => h(UserOutlined)
   }
-]
+])
 
 /**
  * Handles menu item click on desktop.

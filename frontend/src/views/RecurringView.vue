@@ -10,7 +10,7 @@
 
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">Recurring Transactions</h1>
+    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('recurring.title') }}</h1>
 
     <!-- Budget Selector -->
     <n-select
@@ -23,20 +23,20 @@
 
     <!-- Date Range Filter -->
     <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
-      <span>Période :</span>
+      <span>{{ t('common.period') }} :</span>
       <n-date-picker
         v-model:value="startDate"
         type="date"
         :style="{ width: isMobile ? '100%' : '160px' }"
-        placeholder="Date début"
+        :placeholder="t('common.startDate')"
         clearable
       />
-      <span>à</span>
+      <span>{{ t('common.to').toLowerCase() }}</span>
       <n-date-picker
         v-model:value="endDate"
         type="date"
         :style="{ width: isMobile ? '100%' : '160px' }"
-        placeholder="Date fin"
+        :placeholder="t('common.endDate')"
         clearable
       />
     </n-space>
@@ -44,17 +44,17 @@
     <!-- Projections Summary -->
     <n-card v-if="startDate && endDate && budgetStore.recurringTransactions.length > 0" size="small">
       <n-space :vertical="isMobile" justify="space-around">
-        <n-statistic label="Revenus projetés">
+        <n-statistic :label="t('recurring.projectedIncome')">
           <template #default>
             <span style="color: #18a058;">{{ projectedIncome.toFixed(2) }} €</span>
           </template>
         </n-statistic>
-        <n-statistic label="Dépenses projetées">
+        <n-statistic :label="t('recurring.projectedExpenses')">
           <template #default>
             <span style="color: #d03050;">{{ projectedExpenses.toFixed(2) }} €</span>
           </template>
         </n-statistic>
-        <n-statistic label="Solde net">
+        <n-statistic :label="t('recurring.netBalance')">
           <template #default>
             <span :style="{ color: netBalance >= 0 ? '#18a058' : '#d03050', fontWeight: 'bold' }">
               {{ netBalance >= 0 ? '+' : '' }}{{ netBalance.toFixed(2) }} €
@@ -156,12 +156,12 @@
     <!-- Empty States -->
     <n-empty
       v-else-if="!budgetStore.loading && selectedBudgetId"
-      description="No recurring transactions"
+      :description="t('recurring.noRecurring')"
     />
 
     <n-empty
       v-else-if="!budgetStore.loading && !selectedBudgetId"
-      description="Select a budget"
+      :description="t('budget.selectBudget')"
     />
 
     <!-- Edit Modal -->
@@ -203,6 +203,7 @@ import {
   NSpace, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
   NSelect, NSpin, NEmpty, NDatePicker, NStatistic, useMessage
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import type { RecurringTransactionWithCategory, UpdateRecurringTransactionPayload } from '@/services/api'
@@ -210,6 +211,7 @@ import EditRecurringModal from '@/components/modals/EditRecurringModal.vue'
 import RecurringVersionHistory from '@/components/modals/RecurringVersionHistory.vue'
 
 const message = useMessage()
+const { t } = useI18n()
 const budgetStore = useBudgetStore()
 
 /** Whether the viewport is mobile-sized */

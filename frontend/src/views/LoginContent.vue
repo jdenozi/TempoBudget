@@ -12,7 +12,7 @@
   <div class="login-container">
     <div class="login-box">
       <img src="@/assets/logo.png" alt="Tempo Finance" class="login-logo" />
-    <n-card title="Welcome" style="max-width: 400px; width: 100%;">
+    <n-card :title="t('auth.login')" style="max-width: 400px; width: 100%;">
       <!-- Session expired/inactivity alert -->
       <n-alert
         v-if="logoutReason"
@@ -22,15 +22,15 @@
         @close="logoutReason = null"
       >
         {{ logoutReason === 'inactivity'
-          ? 'You have been logged out due to inactivity.'
-          : 'Your session has expired. Please log in again.' }}
+          ? t('auth.logoutSuccess')
+          : t('auth.logoutSuccess') }}
       </n-alert>
       <n-form ref="formRef" :model="formData" :rules="rules">
-        <n-form-item label="Email" path="email">
+        <n-form-item :label="t('auth.email')" path="email">
           <n-input v-model:value="formData.email" placeholder="email@example.com" />
         </n-form-item>
 
-        <n-form-item label="Password" path="password">
+        <n-form-item :label="t('auth.password')" path="password">
           <n-input
             v-model:value="formData.password"
             type="password"
@@ -47,10 +47,10 @@
             :loading="loading"
             @click="handleLogin"
           >
-            Sign In
+            {{ t('auth.loginButton') }}
           </n-button>
 
-          <n-divider style="margin: 8px 0;">or</n-divider>
+          <n-divider style="margin: 8px 0;">{{ t('auth.noAccount') }}</n-divider>
 
           <n-button
             block
@@ -58,7 +58,7 @@
             :loading="loading"
             @click="showRegister = true"
           >
-            Create Account
+            {{ t('auth.registerButton') }}
           </n-button>
         </n-space>
       </n-form>
@@ -66,17 +66,17 @@
     </div>
 
     <!-- Registration Modal -->
-    <n-modal v-model:show="showRegister" preset="card" title="Create Account" style="max-width: 400px;">
+    <n-modal v-model:show="showRegister" preset="card" :title="t('auth.register')" style="max-width: 400px;">
       <n-form ref="registerFormRef" :model="registerData" :rules="registerRules">
-        <n-form-item label="Name" path="name">
-          <n-input v-model:value="registerData.name" placeholder="Your name" />
+        <n-form-item :label="t('auth.name')" path="name">
+          <n-input v-model:value="registerData.name" :placeholder="t('auth.name')" />
         </n-form-item>
 
-        <n-form-item label="Email" path="email">
+        <n-form-item :label="t('auth.email')" path="email">
           <n-input v-model:value="registerData.email" placeholder="email@example.com" />
         </n-form-item>
 
-        <n-form-item label="Password" path="password">
+        <n-form-item :label="t('auth.password')" path="password">
           <n-input
             v-model:value="registerData.password"
             type="password"
@@ -91,7 +91,7 @@
           :loading="loading"
           @click="handleRegister"
         >
-          Create My Account
+          {{ t('auth.registerButton') }}
         </n-button>
       </n-form>
     </n-modal>
@@ -115,11 +115,13 @@ import {
   NCard, NForm, NFormItem, NInput, NButton,
   NSpace, NDivider, NModal, NAlert, useMessage
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 /** Reason for being on login page (from query param) */

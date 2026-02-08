@@ -1,45 +1,45 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Change Password"
+      :title="t('profile.changePassword')"
       :bordered="false"
       size="huge"
       style="width: 400px; max-width: 95vw;"
     >
       <n-form ref="formRef" :model="formData" :rules="rules">
-        <n-form-item label="Current Password" path="currentPassword">
+        <n-form-item :label="t('profile.currentPassword')" path="currentPassword">
           <n-input
             v-model:value="formData.currentPassword"
             type="password"
             show-password-on="click"
-            placeholder="Enter your current password"
+            :placeholder="t('placeholders.enterCurrentPassword')"
           />
         </n-form-item>
 
-        <n-form-item label="New Password" path="newPassword">
+        <n-form-item :label="t('profile.newPassword')" path="newPassword">
           <n-input
             v-model:value="formData.newPassword"
             type="password"
             show-password-on="click"
-            placeholder="Enter your new password"
+            :placeholder="t('placeholders.enterNewPassword')"
           />
         </n-form-item>
 
-        <n-form-item label="Confirm New Password" path="confirmPassword">
+        <n-form-item :label="t('auth.confirmPassword')" path="confirmPassword">
           <n-input
             v-model:value="formData.confirmPassword"
             type="password"
             show-password-on="click"
-            placeholder="Confirm your new password"
+            :placeholder="t('placeholders.confirmNewPassword')"
           />
         </n-form-item>
       </n-form>
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Cancel</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.cancel') }}</n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            Change Password
+            {{ t('profile.changePassword') }}
           </n-button>
         </n-space>
       </template>
@@ -48,8 +48,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { NModal, NCard, NForm, NFormItem, NInput, NSpace, NButton, type FormInst, type FormRules } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   show: boolean
@@ -71,20 +74,20 @@ const formData = ref({
   confirmPassword: '',
 })
 
-const rules: FormRules = {
-  currentPassword: [{ required: true, message: 'Current password is required' }],
+const rules = computed<FormRules>(() => ({
+  currentPassword: [{ required: true, message: t('errors.required') }],
   newPassword: [
-    { required: true, message: 'New password is required' },
-    { min: 6, message: 'Password must be at least 6 characters' }
+    { required: true, message: t('errors.required') },
+    { min: 6, message: t('errors.minLength', { min: 6 }) }
   ],
   confirmPassword: [
-    { required: true, message: 'Please confirm your new password' },
+    { required: true, message: t('errors.required') },
     {
       validator: (_rule, value) => value === formData.value.newPassword,
-      message: 'Passwords do not match'
+      message: t('errors.passwordMismatch')
     }
   ]
-}
+}))
 
 const handleSubmit = async () => {
   try {

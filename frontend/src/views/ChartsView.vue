@@ -13,15 +13,15 @@
 
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">Charts</h1>
+    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('charts.title') }}</h1>
 
     <!-- Filters -->
-    <n-card title="Filters" size="small">
+    <n-card :title="t('common.filter')" size="small">
       <n-space :vertical="isMobile" :size="isMobile ? 12 : 16">
         <n-select
           v-model:value="selectedBudget"
           :options="budgetOptions"
-          placeholder="Select a budget"
+          :placeholder="t('budget.selectBudget')"
           :style="{ width: isMobile ? '100%' : '200px' }"
           size="small"
         />
@@ -39,7 +39,7 @@
     <n-grid :cols="isMobile ? 1 : 2" :x-gap="16" :y-gap="16">
       <!-- Expense Distribution by Category -->
       <n-gi>
-        <n-card title="Expense Distribution">
+        <n-card :title="t('charts.expensesByCategory')">
           <div :style="{ height: isMobile ? '250px' : '300px', position: 'relative' }">
             <Pie :data="pieChartData" :options="pieChartOptions" />
           </div>
@@ -48,7 +48,7 @@
 
       <!-- Income Distribution -->
       <n-gi>
-        <n-card title="Income Distribution">
+        <n-card :title="t('charts.incomeVsExpenses')">
           <div :style="{ height: isMobile ? '250px' : '300px', position: 'relative' }">
             <Doughnut :data="doughnutChartData" :options="doughnutChartOptions" />
           </div>
@@ -57,7 +57,7 @@
 
       <!-- Monthly Evolution -->
       <n-gi :span="isMobile ? 1 : 2">
-        <n-card title="Last 6 Months Evolution">
+        <n-card :title="t('charts.monthlyTrend')">
           <div :style="{ height: isMobile ? '250px' : '300px', position: 'relative' }">
             <Bar :data="barChartData" :options="barChartOptions" />
           </div>
@@ -66,7 +66,7 @@
 
       <!-- Budget vs Actual by Category -->
       <n-gi :span="isMobile ? 1 : 2">
-        <n-card title="Budget vs Actual">
+        <n-card :title="budgetVsActualTitle">
           <div :style="{ height: isMobile ? '300px' : '350px', position: 'relative' }">
             <Bar :data="comparisonChartData" :options="comparisonChartOptions" />
           </div>
@@ -101,6 +101,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
 
 // Register Chart.js components
@@ -114,6 +115,7 @@ ChartJS.register(
   Legend
 )
 
+const { t, locale } = useI18n()
 const budgetStore = useBudgetStore()
 
 /** Whether the viewport is mobile-sized */
@@ -124,6 +126,9 @@ const selectedBudget = ref<string | null>(null)
 
 /** Selected month timestamp */
 const selectedMonth = ref(Date.now())
+
+/** Budget vs Actual title */
+const budgetVsActualTitle = computed(() => `${t('budget.title')} vs ${t('budget.spent')}`)
 
 /**
  * Checks if the viewport is mobile-sized.
@@ -203,10 +208,11 @@ const incomeByCategory = computed(() => {
 const monthlyData = computed(() => {
   const months: { month: string; income: number; expenses: number }[] = []
   const now = new Date(selectedMonth.value)
+  const localeStr = locale.value === 'fr' ? 'fr-FR' : 'en-US'
 
   for (let i = 5; i >= 0; i--) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthName = date.toLocaleString('en-US', { month: 'long' })
+    const monthName = date.toLocaleString(localeStr, { month: 'long' })
     const monthNum = date.getMonth()
     const yearNum = date.getFullYear()
 
@@ -335,13 +341,13 @@ const barChartData = computed(() => ({
   labels: monthlyData.value.map(d => d.month),
   datasets: [
     {
-      label: 'Income',
+      label: t('budget.income'),
       data: monthlyData.value.map(d => d.income),
       backgroundColor: '#18a058',
       borderRadius: 4
     },
     {
-      label: 'Expenses',
+      label: t('budget.expenses'),
       data: monthlyData.value.map(d => d.expenses),
       backgroundColor: '#d03050',
       borderRadius: 4
@@ -397,13 +403,13 @@ const comparisonChartData = computed(() => ({
   labels: budgetVsActual.value.categories,
   datasets: [
     {
-      label: 'Planned Budget',
+      label: t('budget.title'),
       data: budgetVsActual.value.budget,
       backgroundColor: '#5470c6',
       borderRadius: 4
     },
     {
-      label: 'Actual',
+      label: t('budget.spent'),
       data: budgetVsActual.value.actual,
       backgroundColor: '#91cc75',
       borderRadius: 4
