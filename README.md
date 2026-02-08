@@ -1,14 +1,17 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Tempo Finance Logo" width="150">
+  <img src="docs/logo.png" alt="Tempo Budget Logo" width="150">
 </p>
 
-<h1 align="center">Tempo Finance</h1>
+<h1 align="center">Tempo Budget</h1>
 
 <p align="center">
   An accessible personal and shared budget management application
 </p>
 
 <p align="center">
+  <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
+    <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
   <img src="https://img.shields.io/badge/version-0.14.1-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
