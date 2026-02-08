@@ -9,6 +9,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
+    <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
   <img src="https://img.shields.io/badge/version-0.14.1-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
