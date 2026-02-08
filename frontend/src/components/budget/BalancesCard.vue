@@ -1,5 +1,5 @@
 <template>
-  <n-card v-if="balances.length > 0" title="Balances">
+  <n-card v-if="balances.length > 0" :title="t('member.balances')">
     <n-space vertical size="large">
       <!-- Balance summary per member -->
       <n-list bordered>
@@ -8,19 +8,19 @@
             <template #description>
               <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8" style="margin-top: 8px;">
                 <n-gi>
-                  <div style="font-size: 12px; color: #888;">Share</div>
+                  <div style="font-size: 12px; color: #888;">{{ t('member.share') }}</div>
                   <div style="font-weight: bold;">{{ balance.share }}%</div>
                 </n-gi>
                 <n-gi>
-                  <div style="font-size: 12px; color: #888;">Should pay</div>
+                  <div style="font-size: 12px; color: #888;">{{ shouldPayLabel }}</div>
                   <div style="font-weight: bold;">{{ balance.total_due.toFixed(2) }} €</div>
                 </n-gi>
                 <n-gi>
-                  <div style="font-size: 12px; color: #888;">Has paid</div>
+                  <div style="font-size: 12px; color: #888;">{{ hasPaidLabel }}</div>
                   <div style="font-weight: bold;">{{ balance.total_paid.toFixed(2) }} €</div>
                 </n-gi>
                 <n-gi>
-                  <div style="font-size: 12px; color: #888;">Balance</div>
+                  <div style="font-size: 12px; color: #888;">{{ t('budget.balance') }}</div>
                   <div :style="{ fontWeight: 'bold', color: balance.balance >= 0 ? '#18a058' : '#d03050' }">
                     {{ balance.balance >= 0 ? '+' : '' }}{{ balance.balance.toFixed(2) }} €
                   </div>
@@ -33,9 +33,9 @@
 
       <!-- Settlement summary -->
       <n-card size="small" :bordered="false" style="background: rgba(255,255,255,0.05);">
-        <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">Remboursements</div>
+        <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">{{ settlementsLabel }}</div>
         <div v-if="settlements.length === 0">
-          <n-tag type="success">Tout est équilibré !</n-tag>
+          <n-tag type="success">{{ allBalancedText }}</n-tag>
         </div>
         <n-space v-else vertical size="medium">
           <div
@@ -59,7 +59,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NCard, NSpace, NList, NListItem, NThing, NGrid, NGi, NTag } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { MemberBalance } from '@/services/api'
+
+const { t } = useI18n()
 
 interface Props {
   balances: MemberBalance[]
@@ -67,6 +70,11 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const shouldPayLabel = computed(() => t('member.owes'))
+const hasPaidLabel = computed(() => t('budget.spent'))
+const settlementsLabel = computed(() => t('member.balances'))
+const allBalancedText = computed(() => t('common.success') + '!')
 
 const settlements = computed(() => {
   const result: { from: string; to: string; amount: number }[] = []

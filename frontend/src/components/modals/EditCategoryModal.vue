@@ -1,18 +1,18 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Edit Category"
+      :title="t('category.editCategory')"
       :bordered="false"
       size="huge"
       role="dialog"
       :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
     >
       <n-form :model="formData">
-        <n-form-item label="Name">
-          <n-input v-model:value="formData.name" placeholder="Category name" />
+        <n-form-item :label="t('category.categoryName')">
+          <n-input v-model:value="formData.name" :placeholder="t('category.categoryName')" />
         </n-form-item>
 
-        <n-form-item label="Budget Amount">
+        <n-form-item :label="t('budget.amount')">
           <n-input-number
             v-model:value="formData.amount"
             :min="0"
@@ -23,18 +23,18 @@
             <template #suffix>€</template>
           </n-input-number>
           <template v-if="formData.isSubcategory && maxAmount !== undefined" #feedback>
-            Budget disponible: {{ maxAmount.toFixed(2) }} €
+            {{ t('budget.remaining') }}: {{ maxAmount.toFixed(2) }} €
           </template>
         </n-form-item>
 
         <n-form-item label="Tags">
           <n-checkbox-group v-model:value="formData.tags">
             <n-space>
-              <n-checkbox value="besoin">Besoin</n-checkbox>
-              <n-checkbox value="loisir">Loisir</n-checkbox>
-              <n-checkbox value="épargne">Épargne</n-checkbox>
-              <n-checkbox value="crédit">Crédit</n-checkbox>
-              <n-checkbox value="revenu">Revenu</n-checkbox>
+              <n-checkbox value="besoin">{{ t('tags.need') }}</n-checkbox>
+              <n-checkbox value="loisir">{{ t('tags.leisure') }}</n-checkbox>
+              <n-checkbox value="épargne">{{ t('tags.savings') }}</n-checkbox>
+              <n-checkbox value="crédit">{{ t('tags.credit') }}</n-checkbox>
+              <n-checkbox value="revenu">{{ t('tags.income') }}</n-checkbox>
             </n-space>
           </n-checkbox-group>
         </n-form-item>
@@ -42,9 +42,9 @@
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Cancel</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.cancel') }}</n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            Save
+            {{ t('common.save') }}
           </n-button>
         </n-space>
       </template>
@@ -58,6 +58,9 @@ import {
   NModal, NCard, NForm, NFormItem, NInput, NInputNumber,
   NCheckboxGroup, NCheckbox, NSpace, NButton
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface CategoryData {
   id: string

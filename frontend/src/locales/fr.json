@@ -216,6 +216,28 @@
     "validation": "Erreur de validation",
     "required": "Ce champ est requis",
     "invalidEmail": "Email invalide",
-    "loadingError": "Erreur de chargement des données"
+    "loadingError": "Erreur de chargement des données",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "minLength": "Minimum {min} caractères"
+  },
+  "versionHistory": {
+    "title": "Historique des versions",
+    "noHistory": "Aucun historique disponible",
+    "scheduled": "Programmé",
+    "current": "Actuel",
+    "until": "Jusqu'au",
+    "cancelChange": "Annuler cette modification",
+    "pendingWarning": "Une modification est déjà programmée pour le {date}. Enregistrer remplacera la modification en attente.",
+    "unknown": "Inconnu"
+  },
+  "placeholders": {
+    "selectCategory": "Sélectionner une catégorie",
+    "selectSubcategory": "Sélectionner une sous-catégorie (optionnel)",
+    "selectFrequency": "Sélectionner une fréquence",
+    "enterEmail": "email@exemple.com",
+    "enterCurrentPassword": "Entrez votre mot de passe actuel",
+    "enterNewPassword": "Entrez votre nouveau mot de passe",
+    "confirmNewPassword": "Confirmez votre nouveau mot de passe",
+    "changeReason": "Ex: Augmentation de prix, Changement de fournisseur..."
   }
 }

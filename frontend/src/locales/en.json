@@ -216,6 +216,28 @@
     "validation": "Validation error",
     "required": "This field is required",
     "invalidEmail": "Invalid email",
-    "loadingError": "Error loading data"
+    "loadingError": "Error loading data",
+    "passwordMismatch": "Passwords do not match",
+    "minLength": "Minimum {min} characters"
+  },
+  "versionHistory": {
+    "title": "Version History",
+    "noHistory": "No version history available",
+    "scheduled": "Scheduled",
+    "current": "Current",
+    "until": "Until",
+    "cancelChange": "Cancel this change",
+    "pendingWarning": "A change is already scheduled for {date}. Saving will replace the pending change.",
+    "unknown": "Unknown"
+  },
+  "placeholders": {
+    "selectCategory": "Select category",
+    "selectSubcategory": "Select subcategory (optional)",
+    "selectFrequency": "Select frequency",
+    "enterEmail": "email@example.com",
+    "enterCurrentPassword": "Enter your current password",
+    "enterNewPassword": "Enter your new password",
+    "confirmNewPassword": "Confirm your new password",
+    "changeReason": "e.g., Price increase, Changed provider..."
   }
 }

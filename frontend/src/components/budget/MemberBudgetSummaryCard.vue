@@ -10,10 +10,10 @@
 -->
 
 <template>
-  <n-card title="Budget par membre">
+  <n-card :title="t('member.members') + ' - ' + t('budget.title')">
     <n-space vertical size="large">
       <!-- No members message -->
-      <n-empty v-if="members.length === 0" description="Aucun membre dans ce budget partagé" />
+      <n-empty v-if="members.length === 0" :description="noMembersText" />
 
       <!-- Summary table -->
       <n-data-table
@@ -46,21 +46,21 @@
 
           <n-grid :cols="2" :x-gap="12" :y-gap="8">
             <n-gi>
-              <div style="font-size: 12px; color: #888;">Budget alloué</div>
+              <div style="font-size: 12px; color: #888;">{{ t('budget.amount') }}</div>
               <div style="font-weight: bold;">{{ mb.allocatedBudget.toFixed(2) }} €</div>
             </n-gi>
             <n-gi>
-              <div style="font-size: 12px; color: #888;">Dépensé</div>
+              <div style="font-size: 12px; color: #888;">{{ t('budget.spent') }}</div>
               <div style="font-weight: bold;">{{ mb.spent.toFixed(2) }} €</div>
             </n-gi>
             <n-gi>
-              <div style="font-size: 12px; color: #888;">Restant</div>
+              <div style="font-size: 12px; color: #888;">{{ t('budget.remaining') }}</div>
               <div :style="{ fontWeight: 'bold', color: mb.remaining >= 0 ? '#18a058' : '#d03050' }">
                 {{ mb.remaining.toFixed(2) }} €
               </div>
             </n-gi>
             <n-gi>
-              <div style="font-size: 12px; color: #888;">Progression</div>
+              <div style="font-size: 12px; color: #888;">{{ t('budget.percentage') }}</div>
               <n-progress
                 type="line"
                 :percentage="Math.min(mb.percentage, 100)"
@@ -79,21 +79,21 @@
         <n-divider style="margin: 8px 0;" />
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8">
         <n-gi>
-          <div style="font-size: 12px; color: #888;">Budget total</div>
+          <div style="font-size: 12px; color: #888;">{{ t('budget.totalBudget') }}</div>
           <div style="font-weight: bold; font-size: 16px;">{{ totalBudget.toFixed(2) }} €</div>
         </n-gi>
         <n-gi>
-          <div style="font-size: 12px; color: #888;">Total dépensé</div>
+          <div style="font-size: 12px; color: #888;">{{ t('budget.totalExpenses') }}</div>
           <div style="font-weight: bold; font-size: 16px;">{{ totalSpent.toFixed(2) }} €</div>
         </n-gi>
         <n-gi>
-          <div style="font-size: 12px; color: #888;">Total restant</div>
+          <div style="font-size: 12px; color: #888;">{{ t('budget.remaining') }}</div>
           <div :style="{ fontWeight: 'bold', fontSize: '16px', color: totalRemaining >= 0 ? '#18a058' : '#d03050' }">
             {{ totalRemaining.toFixed(2) }} €
           </div>
         </n-gi>
         <n-gi>
-          <div style="font-size: 12px; color: #888;">Progression globale</div>
+          <div style="font-size: 12px; color: #888;">{{ t('budget.percentage') }}</div>
           <n-progress
             type="line"
             :percentage="Math.min(totalPercentage, 100)"
@@ -116,7 +116,10 @@ import {
   NProgress, NDivider, NEmpty
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { BudgetMemberWithUser, Transaction } from '@/services/api'
+
+const { t } = useI18n()
 
 interface Props {
   members: BudgetMemberWithUser[]
@@ -137,6 +140,8 @@ interface MemberBudget {
   remaining: number
   percentage: number
 }
+
+const noMembersText = computed(() => t('member.members') + ': 0')
 
 /** Calculate budget allocation per member */
 const memberBudgets = computed<MemberBudget[]>(() => {
@@ -171,7 +176,7 @@ const totalPercentage = computed(() => props.totalBudget > 0 ? (totalSpent.value
 /** Table columns for desktop view */
 const columns = computed<DataTableColumns<MemberBudget>>(() => [
   {
-    title: 'Membre',
+    title: t('member.memberRole'),
     key: 'name',
     render: (row) => {
       return h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
@@ -185,25 +190,25 @@ const columns = computed<DataTableColumns<MemberBudget>>(() => [
     },
   },
   {
-    title: 'Part',
+    title: t('member.share'),
     key: 'share',
     width: 80,
     render: (row) => h(NTag, { size: 'small', type: 'info' }, { default: () => `${row.share}%` }),
   },
   {
-    title: 'Budget alloué',
+    title: t('budget.amount'),
     key: 'allocatedBudget',
     width: 120,
     render: (row) => `${row.allocatedBudget.toFixed(2)} €`,
   },
   {
-    title: 'Dépensé',
+    title: t('budget.spent'),
     key: 'spent',
     width: 100,
     render: (row) => `${row.spent.toFixed(2)} €`,
   },
   {
-    title: 'Restant',
+    title: t('budget.remaining'),
     key: 'remaining',
     width: 100,
     render: (row) => h('span', {
@@ -211,7 +216,7 @@ const columns = computed<DataTableColumns<MemberBudget>>(() => [
     }, `${row.remaining.toFixed(2)} €`),
   },
   {
-    title: 'Progression',
+    title: t('budget.percentage'),
     key: 'percentage',
     width: 150,
     render: (row) => h(NProgress, {

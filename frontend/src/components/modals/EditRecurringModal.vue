@@ -11,18 +11,18 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Edit Recurring Transaction"
+      :title="t('recurring.editRecurring')"
       :bordered="false"
       size="huge"
       role="dialog"
       :style="{ maxWidth: isMobile ? '95vw' : '500px' }"
     >
       <n-form :model="formData">
-        <n-form-item label="Title">
-          <n-input v-model:value="formData.title" placeholder="Transaction title" />
+        <n-form-item :label="t('transaction.transactionTitle')">
+          <n-input v-model:value="formData.title" :placeholder="t('transaction.transactionTitle')" />
         </n-form-item>
 
-        <n-form-item label="Amount">
+        <n-form-item :label="t('transaction.amount')">
           <n-input-number
             v-model:value="formData.amount"
             :min="0.01"
@@ -33,33 +33,33 @@
           </n-input-number>
         </n-form-item>
 
-        <n-form-item label="Category">
+        <n-form-item :label="t('category.title')">
           <n-select
             v-model:value="formData.category_id"
             :options="parentCategoryOptions"
-            placeholder="Select category"
+            :placeholder="t('placeholders.selectCategory')"
             @update:value="handleCategoryChange"
           />
         </n-form-item>
 
-        <n-form-item v-if="subcategoryOptions.length > 0" label="Subcategory">
+        <n-form-item v-if="subcategoryOptions.length > 0" :label="t('category.subcategory')">
           <n-select
             v-model:value="formData.subcategory_id"
             :options="subcategoryOptions"
-            placeholder="Select subcategory (optional)"
+            :placeholder="t('placeholders.selectSubcategory')"
             clearable
           />
         </n-form-item>
 
-        <n-form-item label="Frequency">
+        <n-form-item :label="t('recurring.frequency')">
           <n-select
             v-model:value="formData.frequency"
             :options="frequencyOptions"
-            placeholder="Select frequency"
+            :placeholder="t('placeholders.selectFrequency')"
           />
         </n-form-item>
 
-        <n-form-item v-if="formData.frequency === 'monthly'" label="Day of Month">
+        <n-form-item v-if="formData.frequency === 'monthly'" :label="t('recurring.dayOfMonth')">
           <n-input-number
             v-model:value="formData.day"
             :min="1"
@@ -68,17 +68,17 @@
           />
         </n-form-item>
 
-        <n-form-item v-if="formData.frequency === 'weekly'" label="Day of Week">
+        <n-form-item v-if="formData.frequency === 'weekly'" :label="t('recurring.dayOfWeek')">
           <n-select
             v-model:value="formData.day"
             :options="weekDayOptions"
-            placeholder="Select day"
+            :placeholder="t('recurring.dayOfWeek')"
           />
         </n-form-item>
 
         <n-divider />
 
-        <n-form-item label="Effective Date">
+        <n-form-item :label="t('recurring.effectiveDate')">
           <n-date-picker
             v-model:value="formData.effective_date_timestamp"
             type="date"
@@ -87,34 +87,33 @@
           />
           <template #feedback>
             <span v-if="isFutureDate" style="color: #f0a020;">
-              Change will be scheduled for {{ formatDate(formData.effective_date_timestamp) }}
+              {{ t('recurring.scheduledChange') }} {{ formatDate(formData.effective_date_timestamp) }}
             </span>
             <span v-else style="color: #18a058;">
-              Change will be applied immediately
+              {{ t('recurring.immediateChange') }}
             </span>
           </template>
         </n-form-item>
 
-        <n-form-item label="Reason for Change (optional)">
+        <n-form-item :label="t('recurring.changeReason') + ' (' + t('common.pending').toLowerCase() + ')'">
           <n-input
             v-model:value="formData.change_reason"
             type="textarea"
-            placeholder="e.g., Price increase, Changed provider..."
+            :placeholder="t('placeholders.changeReason')"
             :rows="2"
           />
         </n-form-item>
       </n-form>
 
       <n-alert v-if="recurring?.pending_version" type="warning" style="margin-bottom: 16px;">
-        A change is already scheduled for {{ recurring.pending_version.effective_from }}.
-        Saving will replace the pending change.
+        {{ t('versionHistory.pendingWarning', { date: recurring.pending_version.effective_from }) }}
       </n-alert>
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Cancel</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.cancel') }}</n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            Save
+            {{ t('common.save') }}
           </n-button>
         </n-space>
       </template>
@@ -128,7 +127,10 @@ import {
   NModal, NCard, NForm, NFormItem, NInput, NInputNumber,
   NSelect, NDatePicker, NDivider, NAlert, NSpace, NButton
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { RecurringTransactionWithCategory, Category, UpdateRecurringTransactionPayload } from '@/services/api'
+
+const { t } = useI18n()
 
 interface Props {
   show: boolean
@@ -168,22 +170,22 @@ const formData = ref<FormData>({
 })
 
 /** Frequency options */
-const frequencyOptions = [
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Yearly', value: 'yearly' },
-]
+const frequencyOptions = computed(() => [
+  { label: t('recurring.monthly'), value: 'monthly' },
+  { label: t('recurring.weekly'), value: 'weekly' },
+  { label: t('recurring.yearly'), value: 'yearly' },
+])
 
 /** Week day options */
-const weekDayOptions = [
-  { label: 'Monday', value: 0 },
-  { label: 'Tuesday', value: 1 },
-  { label: 'Wednesday', value: 2 },
-  { label: 'Thursday', value: 3 },
-  { label: 'Friday', value: 4 },
-  { label: 'Saturday', value: 5 },
-  { label: 'Sunday', value: 6 },
-]
+const weekDayOptions = computed(() => [
+  { label: t('days.monday'), value: 0 },
+  { label: t('days.tuesday'), value: 1 },
+  { label: t('days.wednesday'), value: 2 },
+  { label: t('days.thursday'), value: 3 },
+  { label: t('days.friday'), value: 4 },
+  { label: t('days.saturday'), value: 5 },
+  { label: t('days.sunday'), value: 6 },
+])
 
 /** Parent category options */
 const parentCategoryOptions = computed(() => {

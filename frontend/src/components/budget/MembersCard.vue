@@ -1,13 +1,13 @@
 <template>
-  <n-card title="Budget Members">
+  <n-card :title="t('member.members')">
     <n-space vertical>
       <!-- Share total warning -->
       <n-alert
         v-if="members.length > 0 && Math.abs(totalShares - 100) > 0.01"
         :type="totalShares < 100 ? 'warning' : 'error'"
-        :title="totalShares < 100 ? 'Shares incomplete' : 'Shares exceed 100%'"
+        :title="totalShares < 100 ? sharesIncompleteTitle : sharesExceedTitle"
       >
-        Total shares: {{ totalShares.toFixed(1) }}% (should be 100%)
+        {{ t('member.share') }}: {{ totalShares.toFixed(1) }}% ({{ shouldBe100 }})
       </n-alert>
 
       <!-- Member list with shares -->
@@ -25,7 +25,7 @@
             <template #description>
               <div>{{ member.user_email }}</div>
               <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 12px; color: #888;">Share:</span>
+                <span style="font-size: 12px; color: #888;">{{ t('member.share') }}:</span>
                 <n-input-number
                   v-if="isOwner"
                   :value="member.share"
@@ -48,7 +48,7 @@
           <template #suffix>
             <n-space align="center">
               <n-tag :type="member.role === 'owner' ? 'success' : 'default'" size="small">
-                {{ member.role === 'owner' ? 'Owner' : 'Member' }}
+                {{ member.role === 'owner' ? t('member.owner') : t('member.memberRole') }}
               </n-tag>
 
               <n-popconfirm
@@ -62,14 +62,14 @@
                     </template>
                   </n-button>
                 </template>
-                Remove this member from the budget?
+                {{ t('member.removeMemberConfirm') }}
               </n-popconfirm>
             </n-space>
           </template>
         </n-list-item>
       </n-list>
 
-      <n-empty v-else description="No members" />
+      <n-empty v-else :description="noMembersText" />
     </n-space>
 
     <template #footer>
@@ -79,7 +79,7 @@
         type="primary"
         size="small"
       >
-        Invite a Member
+        {{ t('member.addMember') }}
       </n-button>
     </template>
   </n-card>
@@ -92,7 +92,10 @@ import {
   NInputNumber, NTag, NButton, NIcon, NPopconfirm, NAlert, NEmpty
 } from 'naive-ui'
 import { TrashOutline } from '@vicons/ionicons5'
+import { useI18n } from 'vue-i18n'
 import type { BudgetMemberWithUser } from '@/services/api'
+
+const { t } = useI18n()
 
 interface Props {
   members: BudgetMemberWithUser[]
@@ -111,4 +114,9 @@ defineEmits<{
 const totalShares = computed(() => {
   return props.members.reduce((sum, m) => sum + m.share, 0)
 })
+
+const sharesIncompleteTitle = computed(() => t('member.share') + ' ' + t('common.pending').toLowerCase())
+const sharesExceedTitle = computed(() => t('member.share') + ' > 100%')
+const shouldBe100 = computed(() => '100%')
+const noMembersText = computed(() => t('member.members') + ': 0')
 </script>

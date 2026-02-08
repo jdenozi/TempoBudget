@@ -1,35 +1,35 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Add Category"
+      :title="t('category.addCategory')"
       :bordered="false"
       size="huge"
       role="dialog"
       :style="{ maxWidth: isMobile ? '95vw' : '400px' }"
     >
       <n-form ref="formRef" :model="formData">
-        <n-form-item label="Type">
+        <n-form-item :label="t('transaction.type')">
           <n-radio-group v-model:value="formData.isSubcategory">
             <n-space>
-              <n-radio :value="false">Category</n-radio>
-              <n-radio :value="true">Subcategory</n-radio>
+              <n-radio :value="false">{{ t('category.title') }}</n-radio>
+              <n-radio :value="true">{{ t('category.subcategory') }}</n-radio>
             </n-space>
           </n-radio-group>
         </n-form-item>
 
-        <n-form-item v-if="formData.isSubcategory" label="Parent Category">
+        <n-form-item v-if="formData.isSubcategory" :label="t('category.parentCategory')">
           <n-select
             v-model:value="formData.parentId"
             :options="parentCategoryOptions"
-            placeholder="Select parent category"
+            :placeholder="t('category.parentCategory')"
           />
         </n-form-item>
 
-        <n-form-item label="Name">
-          <n-input v-model:value="formData.name" placeholder="Housing" />
+        <n-form-item :label="t('category.categoryName')">
+          <n-input v-model:value="formData.name" :placeholder="t('category.categoryName')" />
         </n-form-item>
 
-        <n-form-item label="Budget Amount">
+        <n-form-item :label="t('budget.amount')">
           <n-input-number
             v-model:value="formData.amount"
             :min="0"
@@ -40,18 +40,18 @@
             <template #suffix>€</template>
           </n-input-number>
           <template v-if="formData.isSubcategory && maxAmount !== undefined" #feedback>
-            Budget disponible: {{ maxAmount.toFixed(2) }} €
+            {{ t('budget.remaining') }}: {{ maxAmount.toFixed(2) }} €
           </template>
         </n-form-item>
 
         <n-form-item label="Tags">
           <n-checkbox-group v-model:value="formData.tags">
             <n-space>
-              <n-checkbox value="besoin">Besoin</n-checkbox>
-              <n-checkbox value="loisir">Loisir</n-checkbox>
-              <n-checkbox value="épargne">Épargne</n-checkbox>
-              <n-checkbox value="crédit">Crédit</n-checkbox>
-              <n-checkbox value="revenu">Revenu</n-checkbox>
+              <n-checkbox value="besoin">{{ t('tags.need') }}</n-checkbox>
+              <n-checkbox value="loisir">{{ t('tags.leisure') }}</n-checkbox>
+              <n-checkbox value="épargne">{{ t('tags.savings') }}</n-checkbox>
+              <n-checkbox value="crédit">{{ t('tags.credit') }}</n-checkbox>
+              <n-checkbox value="revenu">{{ t('tags.income') }}</n-checkbox>
             </n-space>
           </n-checkbox-group>
         </n-form-item>
@@ -59,9 +59,9 @@
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Cancel</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.cancel') }}</n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            Add
+            {{ t('common.add') }}
           </n-button>
         </n-space>
       </template>
@@ -76,6 +76,9 @@ import {
   NRadioGroup, NRadio, NSelect, NCheckboxGroup, NCheckbox,
   NSpace, NButton
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   show: boolean

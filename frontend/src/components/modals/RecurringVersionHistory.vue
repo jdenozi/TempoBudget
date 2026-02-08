@@ -11,7 +11,7 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)">
     <n-card
-      title="Version History"
+      :title="t('versionHistory.title')"
       :bordered="false"
       size="huge"
       role="dialog"
@@ -21,7 +21,7 @@
         <n-spin size="large" />
       </div>
 
-      <n-empty v-else-if="versions.length === 0" description="No version history available" />
+      <n-empty v-else-if="versions.length === 0" :description="t('versionHistory.noHistory')" />
 
       <n-timeline v-else>
         <n-timeline-item
@@ -33,10 +33,10 @@
         >
           <n-space vertical size="small">
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-              <span><strong>Amount:</strong> {{ version.amount.toFixed(2) }} €</span>
-              <span><strong>Category:</strong> {{ getCategoryName(version.category_id) }}</span>
-              <span><strong>Frequency:</strong> {{ getFrequencyLabel(version.frequency) }}</span>
-              <span v-if="version.day"><strong>Day:</strong> {{ version.day }}</span>
+              <span><strong>{{ t('transaction.amount') }}:</strong> {{ version.amount.toFixed(2) }} €</span>
+              <span><strong>{{ t('category.title') }}:</strong> {{ getCategoryName(version.category_id) }}</span>
+              <span><strong>{{ t('recurring.frequency') }}:</strong> {{ getFrequencyLabel(version.frequency) }}</span>
+              <span v-if="version.day"><strong>{{ t('recurring.day') }}:</strong> {{ version.day }}</span>
             </div>
 
             <div v-if="version.change_reason" style="color: #888; font-style: italic;">
@@ -44,7 +44,7 @@
             </div>
 
             <div v-if="version.effective_until" style="font-size: 12px; color: #888;">
-              Until {{ formatDate(version.effective_until) }}
+              {{ t('versionHistory.until') }} {{ formatDate(version.effective_until) }}
             </div>
 
             <n-button
@@ -53,7 +53,7 @@
               type="error"
               @click="handleCancel(version.id)"
             >
-              Cancel this change
+              {{ t('versionHistory.cancelChange') }}
             </n-button>
           </n-space>
         </n-timeline-item>
@@ -61,7 +61,7 @@
 
       <template #footer>
         <n-space justify="end">
-          <n-button @click="$emit('update:show', false)">Close</n-button>
+          <n-button @click="$emit('update:show', false)">{{ t('common.close') }}</n-button>
         </n-space>
       </template>
     </n-card>
@@ -73,8 +73,11 @@ import { ref, watch } from 'vue'
 import {
   NModal, NCard, NTimeline, NTimelineItem, NSpace, NButton, NSpin, NEmpty
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import type { RecurringTransactionVersion, Category } from '@/services/api'
 import { recurringAPI } from '@/services/api'
+
+const { t, locale } = useI18n()
 
 interface Props {
   show: boolean
@@ -134,15 +137,15 @@ const getVersionType = (version: RecurringTransactionVersion): 'success' | 'warn
 
 /** Get version title based on status */
 const getVersionTitle = (version: RecurringTransactionVersion) => {
-  if (isFutureVersion(version)) return `Scheduled: ${version.title}`
-  if (isActiveVersion(version)) return `Current: ${version.title}`
+  if (isFutureVersion(version)) return `${t('versionHistory.scheduled')}: ${version.title}`
+  if (isActiveVersion(version)) return `${t('versionHistory.current')}: ${version.title}`
   return version.title
 }
 
 /** Format date string */
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
-  return date.toLocaleDateString('fr-FR', {
+  return date.toLocaleDateString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -152,9 +155,9 @@ const formatDate = (dateStr: string) => {
 /** Get frequency label */
 const getFrequencyLabel = (frequency: string) => {
   const labels: Record<string, string> = {
-    monthly: 'Monthly',
-    weekly: 'Weekly',
-    yearly: 'Yearly',
+    monthly: t('recurring.monthly'),
+    weekly: t('recurring.weekly'),
+    yearly: t('recurring.yearly'),
   }
   return labels[frequency] || frequency
 }
@@ -162,7 +165,7 @@ const getFrequencyLabel = (frequency: string) => {
 /** Get category name by ID */
 const getCategoryName = (categoryId: string) => {
   const category = props.categories.find(c => c.id === categoryId)
-  if (!category) return 'Unknown'
+  if (!category) return t('versionHistory.unknown')
 
   if (category.parent_id) {
     const parent = props.categories.find(c => c.id === category.parent_id)
