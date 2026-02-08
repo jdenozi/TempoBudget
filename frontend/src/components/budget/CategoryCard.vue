@@ -120,13 +120,19 @@
               </n-popconfirm>
             </n-space>
           </div>
-          <div style="display: flex; gap: 16px; font-size: 12px;">
+          <div style="display: flex; gap: 16px; font-size: 12px; flex-wrap: wrap;">
             <span v-if="sub.amount > 0" style="color: #888;">Budget: {{ sub.amount.toFixed(2) }} €</span>
             <span style="color: #18a058;">{{ category.isIncome ? 'Reçu' : 'Dépensé' }}: {{ sub.spent.toFixed(2) }} €</span>
             <span v-if="sub.amount > 0" :style="{ color: (sub.amount - sub.spent) >= 0 ? '#18a058' : '#d03050' }">
               {{ category.isIncome ? 'À recevoir' : 'Restant' }}: {{ (sub.amount - sub.spent).toFixed(2) }} €
             </span>
             <span style="color: #f0a020;">Projeté: {{ sub.projected.toFixed(2) }} €</span>
+            <span
+              v-if="sub.amount > 0 && sub.projected !== sub.spent"
+              :style="{ color: (sub.amount - sub.projected) >= 0 ? '#18a058' : '#d03050' }"
+            >
+              (Restant projeté: {{ (sub.amount - sub.projected).toFixed(2) }} €)
+            </span>
           </div>
           <!-- Member shares for subcategories -->
           <div

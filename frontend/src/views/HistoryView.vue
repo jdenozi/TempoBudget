@@ -21,6 +21,26 @@
       @update:value="loadTransactions"
     />
 
+    <!-- Date Range Filter -->
+    <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
+      <span>Période :</span>
+      <n-date-picker
+        v-model:value="startDate"
+        type="date"
+        :style="{ width: isMobile ? '100%' : '160px' }"
+        placeholder="Date début"
+        clearable
+      />
+      <span>à</span>
+      <n-date-picker
+        v-model:value="endDate"
+        type="date"
+        :style="{ width: isMobile ? '100%' : '160px' }"
+        placeholder="Date fin"
+        clearable
+      />
+    </n-space>
+
     <!-- Loading State -->
     <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
       <n-spin size="large" />
@@ -31,7 +51,7 @@
       <n-card size="small">
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
           <n-gi>
-            <n-statistic label="Transactions" :value="budgetStore.transactions.length" />
+            <n-statistic label="Transactions" :value="filteredTransactions.length" />
           </n-gi>
           <n-gi>
             <n-statistic label="Total Income" :value="totalIncome.toFixed(2)">
@@ -52,9 +72,9 @@
       </n-card>
 
       <!-- Mobile View: Cards -->
-      <n-space v-if="isMobile && budgetStore.transactions.length > 0" vertical>
+      <n-space v-if="isMobile && filteredTransactions.length > 0" vertical>
         <n-card
-          v-for="transaction in budgetStore.transactions"
+          v-for="transaction in filteredTransactions"
           :key="transaction.id"
           size="small"
         >
@@ -98,10 +118,10 @@
       </n-space>
 
       <!-- Desktop View: Table -->
-      <n-card v-else-if="!isMobile && budgetStore.transactions.length > 0">
+      <n-card v-else-if="!isMobile && filteredTransactions.length > 0">
         <n-data-table
           :columns="columns"
-          :data="budgetStore.transactions"
+          :data="filteredTransactions"
           :pagination="pagination"
         />
       </n-card>
@@ -227,6 +247,10 @@ const isMobile = ref(false)
 /** Currently selected budget ID */
 const selectedBudgetId = ref<string | null>(null)
 
+/** Date range filter */
+const startDate = ref<number | null>(null)
+const endDate = ref<number | null>(null)
+
 /** Edit modal state */
 const showEditModal = ref(false)
 const editingTransaction = ref<Transaction | null>(null)
@@ -250,6 +274,11 @@ const checkMobile = () => {
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // Set default date range to current month
+  const now = new Date()
+  startDate.value = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  endDate.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).getTime()
 
   // Load budgets if not already loaded
   if (budgetStore.budgets.length === 0) {
@@ -319,16 +348,33 @@ const getCategoryName = (categoryId: string): string => {
   return category.name
 }
 
+/** Transactions filtered by date range */
+const filteredTransactions = computed(() => {
+  if (!startDate.value || !endDate.value) {
+    return budgetStore.transactions
+  }
+
+  const start = new Date(startDate.value)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(endDate.value)
+  end.setHours(23, 59, 59, 999)
+
+  return budgetStore.transactions.filter(t => {
+    const transactionDate = new Date(t.date)
+    return transactionDate >= start && transactionDate <= end
+  })
+})
+
 /** Total income amount */
 const totalIncome = computed(() => {
-  return budgetStore.transactions
+  return filteredTransactions.value
     .filter(t => t.transaction_type === 'income')
     .reduce((sum, t) => sum + t.amount, 0)
 })
 
 /** Total expenses amount */
 const totalExpenses = computed(() => {
-  return budgetStore.transactions
+  return filteredTransactions.value
     .filter(t => t.transaction_type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0)
 })

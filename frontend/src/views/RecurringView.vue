@@ -21,6 +21,49 @@
       @update:value="loadRecurring"
     />
 
+    <!-- Date Range Filter -->
+    <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
+      <span>Période :</span>
+      <n-date-picker
+        v-model:value="startDate"
+        type="date"
+        :style="{ width: isMobile ? '100%' : '160px' }"
+        placeholder="Date début"
+        clearable
+      />
+      <span>à</span>
+      <n-date-picker
+        v-model:value="endDate"
+        type="date"
+        :style="{ width: isMobile ? '100%' : '160px' }"
+        placeholder="Date fin"
+        clearable
+      />
+    </n-space>
+
+    <!-- Projections Summary -->
+    <n-card v-if="startDate && endDate && budgetStore.recurringTransactions.length > 0" size="small">
+      <n-space :vertical="isMobile" justify="space-around">
+        <n-statistic label="Revenus projetés">
+          <template #default>
+            <span style="color: #18a058;">{{ projectedIncome.toFixed(2) }} €</span>
+          </template>
+        </n-statistic>
+        <n-statistic label="Dépenses projetées">
+          <template #default>
+            <span style="color: #d03050;">{{ projectedExpenses.toFixed(2) }} €</span>
+          </template>
+        </n-statistic>
+        <n-statistic label="Solde net">
+          <template #default>
+            <span :style="{ color: netBalance >= 0 ? '#18a058' : '#d03050', fontWeight: 'bold' }">
+              {{ netBalance >= 0 ? '+' : '' }}{{ netBalance.toFixed(2) }} €
+            </span>
+          </template>
+        </n-statistic>
+      </n-space>
+    </n-card>
+
     <!-- Loading State -->
     <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
       <n-spin size="large" />
@@ -158,7 +201,7 @@
 import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import {
   NSpace, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
-  NSelect, NSpin, NEmpty, useMessage
+  NSelect, NSpin, NEmpty, NDatePicker, NStatistic, useMessage
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
@@ -174,6 +217,10 @@ const isMobile = ref(false)
 
 /** Currently selected budget ID */
 const selectedBudgetId = ref<string | null>(null)
+
+/** Date range for projections */
+const startDate = ref<number | null>(null)
+const endDate = ref<number | null>(null)
 
 /** Edit modal state */
 const showEditModal = ref(false)
@@ -194,6 +241,11 @@ const checkMobile = () => {
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // Set default date range to current month
+  const now = new Date()
+  startDate.value = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  endDate.value = new Date(now.getFullYear(), now.getMonth() + 1, 0).getTime()
 
   // Load budgets if not already loaded
   if (budgetStore.budgets.length === 0) {
@@ -235,6 +287,97 @@ const loadRecurring = async () => {
     message.error('Error loading data')
   }
 }
+
+/**
+ * Counts occurrences of a recurring transaction within a date range.
+ * @param recurring - The recurring transaction
+ * @param start - Start date
+ * @param end - End date
+ * @returns Number of occurrences
+ */
+const countOccurrences = (
+  recurring: RecurringTransactionWithCategory,
+  start: Date,
+  end: Date
+): number => {
+  if (!recurring.active) return 0
+
+  let count = 0
+
+  if (recurring.frequency === 'monthly') {
+    const recurringDay = recurring.day || 1
+    const current = new Date(start.getFullYear(), start.getMonth(), 1)
+
+    while (current <= end) {
+      const lastDayOfMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate()
+      const targetDay = Math.min(recurringDay, lastDayOfMonth)
+      const targetDate = new Date(current.getFullYear(), current.getMonth(), targetDay)
+
+      if (targetDate >= start && targetDate <= end) {
+        count++
+      }
+      current.setMonth(current.getMonth() + 1)
+    }
+  } else if (recurring.frequency === 'weekly') {
+    const recurringDayOfWeek = (recurring.day || 1) % 7
+    const current = new Date(start)
+
+    while (current.getDay() !== recurringDayOfWeek && current <= end) {
+      current.setDate(current.getDate() + 1)
+    }
+
+    while (current <= end) {
+      count++
+      current.setDate(current.getDate() + 7)
+    }
+  } else if (recurring.frequency === 'yearly') {
+    // For yearly, use the creation month and specified day
+    const createdAt = new Date(recurring.created_at)
+    const recurringMonth = createdAt.getMonth()
+    const recurringDay = recurring.day || 1
+
+    let year = start.getFullYear()
+    while (year <= end.getFullYear()) {
+      const lastDayOfTargetMonth = new Date(year, recurringMonth + 1, 0).getDate()
+      const targetDay = Math.min(recurringDay, lastDayOfTargetMonth)
+      const targetDate = new Date(year, recurringMonth, targetDay)
+
+      if (targetDate >= start && targetDate <= end) {
+        count++
+      }
+      year++
+    }
+  }
+
+  return count
+}
+
+/** Projected income for the selected period */
+const projectedIncome = computed(() => {
+  if (!startDate.value || !endDate.value) return 0
+
+  const start = new Date(startDate.value)
+  const end = new Date(endDate.value)
+
+  return budgetStore.recurringTransactions
+    .filter(r => r.transaction_type === 'income')
+    .reduce((sum, r) => sum + (r.amount * countOccurrences(r, start, end)), 0)
+})
+
+/** Projected expenses for the selected period */
+const projectedExpenses = computed(() => {
+  if (!startDate.value || !endDate.value) return 0
+
+  const start = new Date(startDate.value)
+  const end = new Date(endDate.value)
+
+  return budgetStore.recurringTransactions
+    .filter(r => r.transaction_type === 'expense')
+    .reduce((sum, r) => sum + (r.amount * countOccurrences(r, start, end)), 0)
+})
+
+/** Net balance for the selected period */
+const netBalance = computed(() => projectedIncome.value - projectedExpenses.value)
 
 /**
  * Returns a human-readable label for the frequency.
