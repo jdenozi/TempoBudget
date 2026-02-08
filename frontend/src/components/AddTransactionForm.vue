@@ -15,44 +15,44 @@
 <template>
   <n-form ref="formRef" :model="transaction" :rules="rules">
     <!-- Transaction Type -->
-    <n-form-item label="Type" path="type">
+    <n-form-item :label="t('transaction.type')" path="type">
       <n-radio-group v-model:value="transaction.type" size="small">
         <n-radio-button value="expense">
-          <span style="color: #d03050;">Débit</span>
+          <span style="color: #d03050;">{{ t('transaction.expense') }}</span>
         </n-radio-button>
         <n-radio-button value="income">
-          <span style="color: #18a058;">Crédit</span>
+          <span style="color: #18a058;">{{ t('transaction.income') }}</span>
         </n-radio-button>
       </n-radio-group>
     </n-form-item>
 
     <!-- Budget Selection -->
-    <n-form-item label="Budget" path="budgetId">
+    <n-form-item :label="t('budget.title')" path="budgetId">
       <n-select
         v-model:value="transaction.budgetId"
         :options="budgetOptions"
-        placeholder="Select budget"
+        :placeholder="t('budget.selectBudget')"
         size="small"
       />
     </n-form-item>
 
     <!-- Category Selection -->
-    <n-form-item label="Category" path="category">
+    <n-form-item :label="t('category.title')" path="category">
       <n-select
         v-model:value="transaction.category"
         :options="categoryOptions"
-        placeholder="Select category"
+        :placeholder="t('category.title')"
         filterable
         size="small"
       />
     </n-form-item>
 
     <!-- Subcategory Selection (only shown if parent has subcategories) -->
-    <n-form-item v-if="subcategoryOptions.length > 0" label="Subcategory">
+    <n-form-item v-if="subcategoryOptions.length > 0" :label="t('category.subcategory')">
       <n-select
         v-model:value="transaction.subcategory"
         :options="subcategoryOptions"
-        placeholder="Select subcategory (optional)"
+        :placeholder="t('category.subcategory')"
         clearable
         filterable
         size="small"
@@ -60,7 +60,7 @@
     </n-form-item>
 
     <!-- Amount -->
-    <n-form-item label="Amount" path="amount">
+    <n-form-item :label="t('transaction.amount')" path="amount">
       <n-input-number
         v-model:value="transaction.amount"
         style="width: 100%;"
@@ -73,16 +73,16 @@
     </n-form-item>
 
     <!-- Title -->
-    <n-form-item label="Title" path="title">
+    <n-form-item :label="t('transaction.transactionTitle')" path="title">
       <n-input
         v-model:value="transaction.title"
-        placeholder="e.g., Groceries"
+        :placeholder="t('transaction.transactionTitle')"
         size="small"
       />
     </n-form-item>
 
     <!-- Date -->
-    <n-form-item label="Date" path="date">
+    <n-form-item :label="t('transaction.date')" path="date">
       <n-date-picker
         v-model:value="transaction.date"
         type="date"
@@ -92,15 +92,15 @@
     </n-form-item>
 
     <!-- Recurring Option -->
-    <n-form-item label="Recurring">
+    <n-form-item :label="t('recurring.title')">
       <n-checkbox v-model:checked="transaction.isRecurring">
-        Recurring transaction
+        {{ t('recurring.title') }}
       </n-checkbox>
     </n-form-item>
 
     <n-collapse-transition :show="transaction.isRecurring">
       <n-space vertical>
-        <n-form-item label="Frequency">
+        <n-form-item :label="t('recurring.frequency')">
           <n-select
             v-model:value="transaction.recurringFrequency"
             :options="frequencyOptions"
@@ -108,7 +108,7 @@
           />
         </n-form-item>
 
-        <n-form-item label="Day of month" v-if="transaction.recurringFrequency === 'monthly'">
+        <n-form-item :label="t('recurring.dayOfMonth')" v-if="transaction.recurringFrequency === 'monthly'">
           <n-input-number
             v-model:value="transaction.recurringDay"
             :min="1"
@@ -121,22 +121,22 @@
     </n-collapse-transition>
 
     <!-- Comment -->
-    <n-form-item label="Comment">
+    <n-form-item :label="t('transaction.comment')">
       <n-input
         v-model:value="transaction.comment"
         type="textarea"
-        placeholder="Notes..."
+        :placeholder="t('transaction.comment')"
         :rows="2"
         size="small"
       />
     </n-form-item>
 
     <!-- Who paid (only for group budgets) -->
-    <n-form-item v-if="isGroupBudget" label="Who paid?">
+    <n-form-item v-if="isGroupBudget" :label="t('member.members')">
       <n-select
         v-model:value="transaction.paidByUserId"
         :options="memberOptions"
-        placeholder="Select who paid"
+        :placeholder="t('member.members')"
         size="small"
       />
     </n-form-item>
@@ -149,7 +149,7 @@
       size="medium"
       style="margin-top: 16px;"
     >
-      Save
+      {{ t('common.save') }}
     </n-button>
   </n-form>
 </template>
@@ -174,6 +174,7 @@ import {
   NSpace, useMessage
 } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
 import { useAuthStore } from '@/stores/auth'
 import { recurringAPI, budgetMembersAPI, type BudgetMemberWithUser } from '@/services/api'
@@ -181,6 +182,7 @@ import { formatDateLocal } from '@/utils/date'
 
 const emit = defineEmits(['success'])
 const message = useMessage()
+const { t } = useI18n()
 const formRef = ref<FormInst | null>(null)
 const budgetStore = useBudgetStore()
 const authStore = useAuthStore()
@@ -253,11 +255,11 @@ const subcategoryOptions = computed(() => {
 })
 
 /** Available frequency options for recurring transactions */
-const frequencyOptions = [
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Yearly', value: 'yearly' }
-]
+const frequencyOptions = computed(() => [
+  { label: t('recurring.monthly'), value: 'monthly' },
+  { label: t('recurring.weekly'), value: 'weekly' },
+  { label: t('recurring.yearly'), value: 'yearly' }
+])
 
 /** Check if selected budget is a group budget */
 const isGroupBudget = computed(() => {
