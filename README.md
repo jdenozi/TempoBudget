@@ -8,13 +8,28 @@
   An accessible personal and shared budget management application
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.14.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+</p>
+
 ## Features
 
-* **Personal budgets**: Expense tracking by category
+### Budget Management
+* **Personal budgets**: Expense tracking by category with subcategories
 * **Group budgets**: Sharing with split allocation between members
-* **Recurring transactions**: Automatic generation of monthly expenses
-* **Projections**: Estimation of upcoming expenses
+* **Balance tracking**: See who owes what in shared budgets
+
+### Transactions
+* **Recurring transactions**: Automatic generation of monthly/weekly/yearly expenses
+* **Version history**: Track changes to recurring transactions with effective dates
+* **Date filtering**: Filter transactions and recurring by date range
+
+### Analytics
+* **Projections**: Estimation of upcoming expenses based on recurring transactions
+* **Projected remaining**: See remaining budget after projected expenses
 * **Statistics**: Breakdown by tags (credit, needs, leisure, savings)
+* **Charts**: Visual representation of spending patterns
 
 ## Tech Stack
 
@@ -27,7 +42,10 @@
 ```bash
 # Backend
 cd backend
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env  # Configure your JWT_SECRET
 uvicorn app.main:app --reload
 
 # Frontend
@@ -46,6 +64,12 @@ docker-compose -f docker-compose.prod.yml up -d
 ```
 
 The application is accessible on port 80.
+
+## Recent Changes (v0.14.0)
+
+* Date range filter in Recurring and History views
+* Projected totals calculation for selected periods
+* Fixed remaining/projected remaining display for subcategories
 
 ## License
 
