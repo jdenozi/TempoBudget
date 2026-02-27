@@ -152,7 +152,9 @@
   "history": {
     "title": "Historique des transactions",
     "totalTransactions": "Transactions",
-    "balance": "Solde"
+    "balance": "Solde",
+    "filterByCategory": "Filtrer par catégorie",
+    "filterBySubcategory": "Filtrer par sous-catégorie"
   },
   "charts": {
     "title": "Graphiques",

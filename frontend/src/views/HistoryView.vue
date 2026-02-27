@@ -41,6 +41,26 @@
       />
     </n-space>
 
+    <!-- Category / Subcategory Filter -->
+    <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
+      <n-select
+        v-model:value="filterCategoryId"
+        :options="filterCategoryOptions"
+        :placeholder="t('history.filterByCategory')"
+        :style="{ width: isMobile ? '100%' : '220px' }"
+        clearable
+        @update:value="handleFilterCategoryChange"
+      />
+      <n-select
+        v-if="filterSubcategoryOptions.length > 0"
+        v-model:value="filterSubcategoryId"
+        :options="filterSubcategoryOptions"
+        :placeholder="t('history.filterBySubcategory')"
+        :style="{ width: isMobile ? '100%' : '220px' }"
+        clearable
+      />
+    </n-space>
+
     <!-- Loading State -->
     <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
       <n-spin size="large" />
@@ -253,6 +273,10 @@ const selectedBudgetId = ref<string | null>(null)
 const startDate = ref<number | null>(null)
 const endDate = ref<number | null>(null)
 
+/** Category filter */
+const filterCategoryId = ref<string | null>(null)
+const filterSubcategoryId = ref<string | null>(null)
+
 /** Edit modal state */
 const showEditModal = ref(false)
 const editingTransaction = ref<Transaction | null>(null)
@@ -338,6 +362,26 @@ const subcategoryOptions = computed(() => {
     .map(c => ({ label: c.name, value: c.id }))
 })
 
+/** Category options for the filter dropdown */
+const filterCategoryOptions = computed(() => {
+  return budgetStore.categories
+    .filter(c => !c.parent_id)
+    .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Subcategory options for the filter dropdown based on selected filter category */
+const filterSubcategoryOptions = computed(() => {
+  if (!filterCategoryId.value) return []
+  return budgetStore.categories
+    .filter(c => c.parent_id === filterCategoryId.value)
+    .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Reset subcategory filter when parent category filter changes */
+const handleFilterCategoryChange = () => {
+  filterSubcategoryId.value = null
+}
+
 /** Get category name by ID */
 const getCategoryName = (categoryId: string): string => {
   const category = budgetStore.categories.find(c => c.id === categoryId)
@@ -350,21 +394,36 @@ const getCategoryName = (categoryId: string): string => {
   return category.name
 }
 
-/** Transactions filtered by date range */
+/** Transactions filtered by date range and category */
 const filteredTransactions = computed(() => {
-  if (!startDate.value || !endDate.value) {
-    return budgetStore.transactions
+  let transactions = budgetStore.transactions
+
+  // Filter by date range
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate.value)
+    end.setHours(23, 59, 59, 999)
+
+    transactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date)
+      return transactionDate >= start && transactionDate <= end
+    })
   }
 
-  const start = new Date(startDate.value)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(endDate.value)
-  end.setHours(23, 59, 59, 999)
+  // Filter by category / subcategory
+  if (filterSubcategoryId.value) {
+    transactions = transactions.filter(t => t.category_id === filterSubcategoryId.value)
+  } else if (filterCategoryId.value) {
+    const subcategoryIds = budgetStore.categories
+      .filter(c => c.parent_id === filterCategoryId.value)
+      .map(c => c.id)
+    transactions = transactions.filter(t =>
+      t.category_id === filterCategoryId.value || subcategoryIds.includes(t.category_id)
+    )
+  }
 
-  return budgetStore.transactions.filter(t => {
-    const transactionDate = new Date(t.date)
-    return transactionDate >= start && transactionDate <= end
-  })
+  return transactions
 })
 
 /** Total income amount */
