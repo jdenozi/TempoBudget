@@ -24,6 +24,7 @@ services:
       start_period: 10s
     networks:
       - tempo-network
+      - web
 
   frontend:
     build:
@@ -40,8 +41,11 @@ services:
     restart: unless-stopped
     networks:
       - tempo-network
+      - web
 
 networks:
   tempo-network:
     external: true
     name: ${NETWORK_NAME:-ngix-proxy-manager_default}
+  web:
+    external: true
