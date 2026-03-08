@@ -32,6 +32,21 @@
           :style="{ width: isMobile ? '100%' : '200px' }"
           size="small"
         />
+
+        <n-select
+          v-model:value="selectedCategories"
+          :options="categoryOptions"
+          :placeholder="t('charts.filterByCategory')"
+          :style="{ width: isMobile ? '100%' : '300px' }"
+          size="small"
+          multiple
+          clearable
+        />
+
+        <n-switch v-model:value="includeExceptional">
+          <template #checked>{{ t('charts.includeExceptional') }}</template>
+          <template #unchecked>{{ t('charts.includeExceptional') }}</template>
+        </n-switch>
       </n-space>
     </n-card>
 
@@ -88,8 +103,8 @@
  * - Bar chart for budget vs actual comparison
  */
 
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { NSpace, NCard, NSelect, NDatePicker, NGrid, NGi } from 'naive-ui'
+import { ref, computed, onMounted, watch } from 'vue'
+import { NSpace, NCard, NSelect, NDatePicker, NGrid, NGi, NSwitch } from 'naive-ui'
 import { Pie, Doughnut, Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -103,6 +118,8 @@ import {
 } from 'chart.js'
 import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
+import { useMobileDetect } from '@/composables/useMobileDetect'
+import { CHART_COLORS, INCOME_COLORS, usePieChartOptions, useBarChartOptions } from '@/composables/useChartOptions'
 
 // Register Chart.js components
 ChartJS.register(
@@ -117,9 +134,7 @@ ChartJS.register(
 
 const { t, locale } = useI18n()
 const budgetStore = useBudgetStore()
-
-/** Whether the viewport is mobile-sized */
-const isMobile = ref(false)
+const { isMobile } = useMobileDetect()
 
 /** Selected budget ID */
 const selectedBudget = ref<string | null>(null)
@@ -127,27 +142,20 @@ const selectedBudget = ref<string | null>(null)
 /** Selected month timestamp */
 const selectedMonth = ref(Date.now())
 
+/** Category filter */
+const selectedCategories = ref<string[]>([])
+
+/** Include exceptional (non-budgeted) transactions */
+const includeExceptional = ref(true)
+
 /** Budget vs Actual title */
 const budgetVsActualTitle = computed(() => `${t('budget.title')} vs ${t('budget.spent')}`)
 
-/**
- * Checks if the viewport is mobile-sized.
- */
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-}
-
 onMounted(async () => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
   await budgetStore.fetchBudgets()
   if (budgetStore.budgets.length > 0) {
     selectedBudget.value = budgetStore.budgets[0].id
   }
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
 })
 
 // Watch budget selection and load data
@@ -165,17 +173,41 @@ const budgetOptions = computed(() =>
   budgetStore.budgets.map(b => ({ label: b.name, value: b.id }))
 )
 
+/** Category options for multi-select filter */
+const categoryOptions = computed(() =>
+  budgetStore.categories
+    .filter(c => !c.parent_id)
+    .map(c => ({ label: c.name, value: c.id }))
+)
+
 /** Selected month as Date */
 const selectedMonthDate = computed(() => new Date(selectedMonth.value))
 
-/** Filter transactions by selected month */
+/** Filter transactions by selected month, categories, and exceptional toggle */
 const filteredTransactions = computed(() => {
   const month = selectedMonthDate.value.getMonth()
   const year = selectedMonthDate.value.getFullYear()
-  return budgetStore.transactions.filter(t => {
+
+  let transactions = budgetStore.transactions.filter(t => {
     const date = new Date(t.date)
     return date.getMonth() === month && date.getFullYear() === year
   })
+
+  // Filter by categories (if any selected)
+  if (selectedCategories.value.length > 0) {
+    const subcategoryIds = budgetStore.categories
+      .filter(c => c.parent_id && selectedCategories.value.includes(c.parent_id))
+      .map(c => c.id)
+    const allIds = [...selectedCategories.value, ...subcategoryIds]
+    transactions = transactions.filter(t => allIds.includes(t.category_id))
+  }
+
+  // Exclude exceptional if toggle is off
+  if (!includeExceptional.value) {
+    transactions = transactions.filter(t => t.is_budgeted === 1)
+  }
+
+  return transactions
 })
 
 /** Expenses by category for the selected month */
@@ -246,17 +278,7 @@ const budgetVsActual = computed(() => {
 })
 
 /** Color palette for charts */
-const colors = [
-  '#5470c6',
-  '#91cc75',
-  '#fac858',
-  '#ee6666',
-  '#73c0de',
-  '#3ba272',
-  '#fc8452',
-  '#9a60b4',
-  '#ea7ccc'
-]
+const colors = CHART_COLORS
 
 /** Pie chart data for expense distribution */
 const pieChartData = computed(() => ({
@@ -270,71 +292,21 @@ const pieChartData = computed(() => ({
 }))
 
 /** Pie chart options */
-const pieChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: isMobile.value ? 'bottom' : 'right',
-      labels: {
-        boxWidth: 15,
-        padding: 10,
-        font: {
-          size: isMobile.value ? 10 : 12
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const label = context.label || ''
-          const value = context.parsed || 0
-          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
-          const percentage = ((value / total) * 100).toFixed(2)
-          return `${label}: ${value.toFixed(2)} € (${percentage}%)`
-        }
-      }
-    }
-  }
-}
+const pieChartOptions = usePieChartOptions(isMobile)
 
 /** Doughnut chart data for income distribution */
 const doughnutChartData = computed(() => ({
   labels: Object.keys(incomeByCategory.value),
   datasets: [{
     data: Object.values(incomeByCategory.value),
-    backgroundColor: ['#18a058', '#91cc75', '#73c0de', '#fac858', '#ee6666'],
+    backgroundColor: INCOME_COLORS,
     borderWidth: 2,
     borderColor: '#fff'
   }]
 }))
 
 /** Doughnut chart options */
-const doughnutChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: isMobile.value ? 'bottom' : 'right',
-      labels: {
-        boxWidth: 15,
-        padding: 10,
-        font: {
-          size: isMobile.value ? 10 : 12
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const label = context.label || ''
-          const value = context.parsed || 0
-          return `${label}: ${value.toFixed(2)} €`
-        }
-      }
-    }
-  }
-}
+const doughnutChartOptions = usePieChartOptions(isMobile, { showPercentage: false })
 
 /** Bar chart data for monthly evolution */
 const barChartData = computed(() => ({
@@ -356,47 +328,7 @@ const barChartData = computed(() => ({
 }))
 
 /** Bar chart options for monthly evolution */
-const barChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top',
-      labels: {
-        font: {
-          size: isMobile.value ? 10 : 12
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const label = context.dataset.label || ''
-          const value = context.parsed.y || 0
-          return `${label}: ${value.toFixed(2)} €`
-        }
-      }
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: (value: any) => `${value} €`,
-        font: {
-          size: isMobile.value ? 9 : 11
-        }
-      }
-    },
-    x: {
-      ticks: {
-        font: {
-          size: isMobile.value ? 9 : 11
-        }
-      }
-    }
-  }
-}
+const barChartOptions = useBarChartOptions(isMobile)
 
 /** Comparison chart data for budget vs actual */
 const comparisonChartData = computed(() => ({
@@ -418,47 +350,5 @@ const comparisonChartData = computed(() => ({
 }))
 
 /** Comparison chart options */
-const comparisonChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top',
-      labels: {
-        font: {
-          size: isMobile.value ? 10 : 12
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const label = context.dataset.label || ''
-          const value = context.parsed.y || 0
-          return `${label}: ${value.toFixed(2)} €`
-        }
-      }
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        callback: (value: any) => `${value} €`,
-        font: {
-          size: isMobile.value ? 9 : 11
-        }
-      }
-    },
-    x: {
-      ticks: {
-        font: {
-          size: isMobile.value ? 9 : 11
-        },
-        maxRotation: isMobile.value ? 45 : 0,
-        minRotation: isMobile.value ? 45 : 0
-      }
-    }
-  }
-}
+const comparisonChartOptions = useBarChartOptions(isMobile, { rotateLabels: true })
 </script>

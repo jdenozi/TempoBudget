@@ -158,13 +158,14 @@ async def get_budget_summaries(
         )
         income_budget = result.fetchone().total
 
-        # Get total spent (expenses) for CURRENT MONTH ONLY
+        # Get total spent (expenses) for CURRENT MONTH ONLY (budgeted only)
         result = await db.execute(
             text("""
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM transactions
                 WHERE budget_id = :budget_id
                 AND transaction_type = 'expense'
+                AND is_budgeted = 1
                 AND date >= :month_start
                 AND date < :month_end
             """),

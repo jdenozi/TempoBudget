@@ -17,6 +17,7 @@ class Transaction(BaseModel):
     date: str = Field(..., description="Date of the transaction")
     comment: str | None = Field(None, description="Optional comment")
     is_recurring: int = Field(..., description="Whether from recurring template (0/1)")
+    is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
     created_at: str = Field(..., description="Creation timestamp")
 
@@ -32,6 +33,7 @@ class CreateTransaction(BaseModel):
     transaction_type: Literal["income", "expense"] = Field(..., description="Type")
     date: str = Field(..., description="Date (ISO 8601 format)")
     comment: str | None = Field(None, description="Optional comment")
+    is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
 
 
@@ -60,6 +62,7 @@ class UpdateTransaction(BaseModel):
     transaction_type: Literal["income", "expense"] | None = Field(None, description="Type")
     date: str | None = Field(None, description="Date (ISO 8601 format)")
     comment: str | None = Field(None, description="Optional comment")
+    is_budgeted: int | None = Field(None, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
 
 

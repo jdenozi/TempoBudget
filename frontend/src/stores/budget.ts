@@ -176,6 +176,7 @@ export const useBudgetStore = defineStore('budget', () => {
     transaction_type: string
     date: string
     comment?: string
+    is_budgeted?: number
     paid_by_user_id?: string
   }) {
     const transaction = await transactionsAPI.create(data)
@@ -196,6 +197,7 @@ export const useBudgetStore = defineStore('budget', () => {
     transaction_type?: string
     date?: string
     comment?: string
+    is_budgeted?: number
     paid_by_user_id?: string
   }) {
     const updated = await transactionsAPI.update(id, data)

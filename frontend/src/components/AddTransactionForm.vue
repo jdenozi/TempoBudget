@@ -91,6 +91,14 @@
       />
     </n-form-item>
 
+    <!-- Budgeted Toggle (expenses only) -->
+    <n-form-item v-if="transaction.type === 'expense'" :label="t('transaction.isBudgeted')">
+      <n-switch v-model:value="transaction.isBudgeted">
+        <template #checked>{{ t('transaction.budgeted') }}</template>
+        <template #unchecked>{{ t('transaction.exceptional') }}</template>
+      </n-switch>
+    </n-form-item>
+
     <!-- Recurring Option -->
     <n-form-item :label="t('recurring.title')">
       <n-checkbox v-model:checked="transaction.isRecurring">
@@ -171,7 +179,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import {
   NForm, NFormItem, NInput, NInputNumber, NSelect, NRadioGroup,
   NRadioButton, NButton, NDatePicker, NCheckbox, NCollapseTransition,
-  NSpace, useMessage
+  NSpace, NSwitch, useMessage
 } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -201,6 +209,7 @@ const transaction = ref({
   title: '',
   date: Date.now(),
   comment: '',
+  isBudgeted: true,
   isRecurring: false,
   recurringFrequency: 'monthly',
   recurringDay: 1,
@@ -360,6 +369,7 @@ const handleSubmit = async () => {
         transaction_type: transaction.value.type,
         date: dateString,
         comment: transaction.value.comment || undefined,
+        is_budgeted: transaction.value.type === 'expense' ? (transaction.value.isBudgeted ? 1 : 0) : 1,
         paid_by_user_id: transaction.value.paidByUserId || undefined,
       })
       message.success('Transaction saved!')
@@ -379,6 +389,7 @@ const handleSubmit = async () => {
       title: '',
       date: Date.now(),
       comment: '',
+      isBudgeted: true,
       isRecurring: false,
       recurringFrequency: 'monthly',
       recurringDay: 1,

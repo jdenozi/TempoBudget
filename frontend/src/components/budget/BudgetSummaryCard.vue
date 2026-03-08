@@ -23,8 +23,12 @@
           <span class="summary-value">{{ totalBudget.toFixed(2) }} €</span>
         </div>
         <div class="summary-row">
-          <span class="summary-sub">{{ t('budget.spent') }}</span>
+          <span class="summary-sub">{{ t('budget.spentBudgeted') }}</span>
           <span class="summary-value highlight">{{ totalSpent.toFixed(2) }} €</span>
+        </div>
+        <div v-if="totalSpentAll !== undefined && totalSpentAll !== totalSpent" class="summary-row">
+          <span class="summary-sub">{{ t('budget.spentTotal') }}</span>
+          <span class="summary-value" style="opacity: 0.6;">{{ totalSpentAll.toFixed(2) }} €</span>
         </div>
       </div>
 
@@ -102,6 +106,7 @@ interface Props {
   totalIncomeReceived: number
   totalBudget: number
   totalSpent: number
+  totalSpentAll?: number
   remaining: number
   remainingFromIncome: number
   percentage: number

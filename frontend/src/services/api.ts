@@ -127,6 +127,7 @@ export interface Transaction {
   date: string
   comment?: string
   is_recurring: number
+  is_budgeted: number
   paid_by_user_id?: string
   created_at: string
 }
@@ -360,6 +361,7 @@ export const transactionsAPI = {
     transaction_type: string
     date: string
     comment?: string
+    is_budgeted?: number
     paid_by_user_id?: string
   }) => {
     const response = await api.post<Transaction>(`/budgets/${data.budget_id}/transactions`, data)
@@ -379,6 +381,7 @@ export const transactionsAPI = {
     transaction_type?: string
     date?: string
     comment?: string
+    is_budgeted?: number
     paid_by_user_id?: string
   }) => {
     const response = await api.put<Transaction>(`/transactions/${id}`, data)
@@ -636,5 +639,298 @@ export const budgetsAPI = {
   },
 }
 
+
+// ============================================================================
+// Pro (Auto-Entrepreneur) Types
+// ============================================================================
+
+export interface ProProfile {
+  id: string
+  user_id: string
+  siret: string | null
+  activity_type: string
+  cotisation_rate: number
+  declaration_frequency: string
+  revenue_threshold: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProClient {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface ProCategory {
+  id: string
+  user_id: string
+  name: string
+  type: 'income' | 'expense'
+  is_default: number
+  created_at: string
+}
+
+export interface ProProduct {
+  id: string
+  user_id: string
+  name: string
+  type: 'product' | 'service' | 'gift_card'
+  default_price: number
+  category_id: string | null
+  created_at: string
+  category_name: string | null
+}
+
+export interface ProTransactionItem {
+  id: string
+  transaction_id: string
+  product_id: string
+  quantity: number
+  unit_price: number
+  created_at: string
+  product_name: string | null
+}
+
+export interface ProTransaction {
+  id: string
+  user_id: string
+  client_id: string | null
+  category_id: string
+  title: string
+  amount: number
+  transaction_type: 'income' | 'expense'
+  date: string
+  payment_method: string | null
+  comment: string | null
+  discount_type: string | null
+  discount_value: number | null
+  coupon_id: string | null
+  gift_card_payment: number
+  created_at: string
+  client_name: string | null
+  category_name: string | null
+  items: ProTransactionItem[]
+}
+
+export interface ProCoupon {
+  id: string
+  user_id: string
+  code: string
+  name: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  valid_from: string | null
+  valid_until: string | null
+  max_uses: number
+  used_count: number
+  is_active: number
+  created_at: string
+}
+
+export interface ProGiftCard {
+  id: string
+  user_id: string
+  code: string
+  initial_amount: number
+  remaining_balance: number
+  client_id: string | null
+  purchase_transaction_id: string | null
+  purchase_date: string
+  is_active: number
+  created_at: string
+  client_name: string | null
+}
+
+export interface ProGiftCardUsage {
+  id: string
+  gift_card_id: string
+  transaction_id: string
+  amount_used: number
+  created_at: string
+  transaction_title: string | null
+}
+
+export interface ProDashboardSummary {
+  ca_month: number
+  ca_quarter: number
+  ca_year: number
+  expenses_month: number
+  expenses_quarter: number
+  expenses_year: number
+  net_month: number
+  cotisations_estimated: number
+  threshold_percentage: number
+}
+
+// ============================================================================
+// Pro API Methods
+// ============================================================================
+
+export const proProfileAPI = {
+  get: async () => {
+    const response = await api.get<ProProfile>('/pro/profile')
+    return response.data
+  },
+  update: async (data: Partial<ProProfile>) => {
+    const response = await api.put<ProProfile>('/pro/profile', data)
+    return response.data
+  },
+}
+
+export const proClientsAPI = {
+  getAll: async () => {
+    const response = await api.get<ProClient[]>('/pro/clients')
+    return response.data
+  },
+  create: async (data: { name: string; email?: string; phone?: string; address?: string; notes?: string }) => {
+    const response = await api.post<ProClient>('/pro/clients', data)
+    return response.data
+  },
+  update: async (id: string, data: { name?: string; email?: string; phone?: string; address?: string; notes?: string }) => {
+    const response = await api.put<ProClient>(`/pro/clients/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/clients/${id}`)
+  },
+}
+
+export const proCategoriesAPI = {
+  getAll: async () => {
+    const response = await api.get<ProCategory[]>('/pro/categories')
+    return response.data
+  },
+  create: async (data: { name: string; type: 'income' | 'expense' }) => {
+    const response = await api.post<ProCategory>('/pro/categories', data)
+    return response.data
+  },
+  update: async (id: string, data: { name?: string; type?: 'income' | 'expense' }) => {
+    const response = await api.put<ProCategory>(`/pro/categories/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/categories/${id}`)
+  },
+}
+
+export const proProductsAPI = {
+  getAll: async () => {
+    const response = await api.get<ProProduct[]>('/pro/products')
+    return response.data
+  },
+  create: async (data: { name: string; type: 'product' | 'service' | 'gift_card'; default_price: number; category_id?: string }) => {
+    const response = await api.post<ProProduct>('/pro/products', data)
+    return response.data
+  },
+  update: async (id: string, data: { name?: string; type?: 'product' | 'service' | 'gift_card'; default_price?: number; category_id?: string }) => {
+    const response = await api.put<ProProduct>(`/pro/products/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/products/${id}`)
+  },
+}
+
+export const proTransactionsAPI = {
+  getAll: async (params?: { start_date?: string; end_date?: string; client_id?: string; category_id?: string; payment_method?: string; product_id?: string }) => {
+    const response = await api.get<ProTransaction[]>('/pro/transactions', { params })
+    return response.data
+  },
+  create: async (data: {
+    client_id?: string
+    category_id: string
+    title?: string
+    amount?: number
+    transaction_type: 'income' | 'expense'
+    date: string
+    payment_method?: string
+    comment?: string
+    items?: { product_id: string; quantity: number; unit_price: number }[]
+    discount_type?: 'percentage' | 'fixed'
+    discount_value?: number
+    coupon_id?: string
+    gift_card_id?: string
+    gift_card_amount?: number
+  }) => {
+    const response = await api.post<ProTransaction>('/pro/transactions', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    client_id?: string
+    category_id?: string
+    title?: string
+    amount?: number
+    transaction_type?: 'income' | 'expense'
+    date?: string
+    payment_method?: string
+    comment?: string
+  }) => {
+    const response = await api.put<ProTransaction>(`/pro/transactions/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/transactions/${id}`)
+  },
+}
+
+export const proCouponsAPI = {
+  getAll: async () => {
+    const response = await api.get<ProCoupon[]>('/pro/coupons')
+    return response.data
+  },
+  create: async (data: {
+    code: string; name: string; discount_type: 'percentage' | 'fixed';
+    discount_value: number; valid_from?: string; valid_until?: string; max_uses?: number
+  }) => {
+    const response = await api.post<ProCoupon>('/pro/coupons', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    code?: string; name?: string; discount_type?: 'percentage' | 'fixed';
+    discount_value?: number; valid_from?: string; valid_until?: string;
+    max_uses?: number; is_active?: number
+  }) => {
+    const response = await api.put<ProCoupon>(`/pro/coupons/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/coupons/${id}`)
+  },
+}
+
+export const proGiftCardsAPI = {
+  getAll: async () => {
+    const response = await api.get<ProGiftCard[]>('/pro/gift-cards')
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get<ProGiftCard>(`/pro/gift-cards/${id}`)
+    return response.data
+  },
+  create: async (data: { code: string; initial_amount: number; client_id?: string; purchase_date: string }) => {
+    const response = await api.post<ProGiftCard>('/pro/gift-cards', data)
+    return response.data
+  },
+  getUsages: async (id: string) => {
+    const response = await api.get<ProGiftCardUsage[]>(`/pro/gift-cards/${id}/usages`)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/gift-cards/${id}`)
+  },
+}
+
+export const proDashboardAPI = {
+  getSummary: async () => {
+    const response = await api.get<ProDashboardSummary>('/pro/dashboard')
+    return response.data
+  },
+}
 
 export default api

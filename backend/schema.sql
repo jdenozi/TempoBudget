@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS transactions (
                                             date TEXT NOT NULL,
                                             comment TEXT,
                                             is_recurring INTEGER NOT NULL DEFAULT 0,
+                                            is_budgeted INTEGER NOT NULL DEFAULT 1,
                                             paid_by_user_id TEXT,
                                             created_at TEXT NOT NULL,
                                             FOREIGN KEY (budget_id) REFERENCES budgets(id),
@@ -138,3 +139,141 @@ CREATE TABLE IF NOT EXISTS budget_invitations (
 
 CREATE INDEX IF NOT EXISTS idx_invitations_email ON budget_invitations(invitee_email);
 CREATE INDEX IF NOT EXISTS idx_invitations_status ON budget_invitations(status);
+
+-- Pro Profiles (auto-entrepreneur)
+CREATE TABLE IF NOT EXISTS pro_profiles (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL UNIQUE,
+    siret TEXT,
+    activity_type TEXT DEFAULT 'services',
+    cotisation_rate REAL DEFAULT 21.1,
+    declaration_frequency TEXT DEFAULT 'quarterly',
+    revenue_threshold REAL DEFAULT 77700,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Pro Clients
+CREATE TABLE IF NOT EXISTS pro_clients (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Pro Categories
+CREATE TABLE IF NOT EXISTS pro_categories (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'expense',
+    is_default INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Pro Transactions
+CREATE TABLE IF NOT EXISTS pro_transactions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    client_id TEXT,
+    category_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    amount REAL NOT NULL,
+    transaction_type TEXT NOT NULL,
+    date TEXT NOT NULL,
+    payment_method TEXT DEFAULT 'cash',
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES pro_clients(id) ON DELETE SET NULL,
+    FOREIGN KEY (category_id) REFERENCES pro_categories(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pro_transactions_user ON pro_transactions(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_pro_transactions_client ON pro_transactions(client_id);
+
+-- Pro Products/Services Catalogue
+CREATE TABLE IF NOT EXISTS pro_products (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'service',
+    default_price REAL NOT NULL DEFAULT 0,
+    category_id TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES pro_categories(id) ON DELETE SET NULL
+);
+
+-- Pro Transaction Items (line items)
+CREATE TABLE IF NOT EXISTS pro_transaction_items (
+    id TEXT PRIMARY KEY,
+    transaction_id TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price REAL NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (transaction_id) REFERENCES pro_transactions(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES pro_products(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pro_products_user ON pro_products(user_id);
+CREATE INDEX IF NOT EXISTS idx_pro_transaction_items_tx ON pro_transaction_items(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_pro_transaction_items_product ON pro_transaction_items(product_id);
+
+-- Pro Coupons
+CREATE TABLE IF NOT EXISTS pro_coupons (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    discount_type TEXT NOT NULL DEFAULT 'percentage',
+    discount_value REAL NOT NULL DEFAULT 0,
+    valid_from TEXT,
+    valid_until TEXT,
+    max_uses INTEGER DEFAULT 0,
+    used_count INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_pro_coupons_user ON pro_coupons(user_id);
+CREATE INDEX IF NOT EXISTS idx_pro_coupons_code ON pro_coupons(user_id, code);
+
+-- Pro Gift Cards
+CREATE TABLE IF NOT EXISTS pro_gift_cards (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code TEXT NOT NULL,
+    initial_amount REAL NOT NULL,
+    remaining_balance REAL NOT NULL,
+    client_id TEXT,
+    purchase_transaction_id TEXT,
+    purchase_date TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES pro_clients(id) ON DELETE SET NULL,
+    FOREIGN KEY (purchase_transaction_id) REFERENCES pro_transactions(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pro_gift_cards_user ON pro_gift_cards(user_id);
+
+-- Pro Gift Card Usages
+CREATE TABLE IF NOT EXISTS pro_gift_card_usages (
+    id TEXT PRIMARY KEY,
+    gift_card_id TEXT NOT NULL,
+    transaction_id TEXT NOT NULL,
+    amount_used REAL NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (gift_card_id) REFERENCES pro_gift_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (transaction_id) REFERENCES pro_transactions(id) ON DELETE CASCADE
+);

@@ -43,6 +43,7 @@
         :total-income-received="totalIncomeReceived"
         :total-budget="totalBudget"
         :total-spent="totalSpent"
+        :total-spent-all="totalSpentAll"
         :remaining="remaining"
         :remaining-from-income="remainingFromIncome"
         :percentage="percentage"
@@ -305,9 +306,9 @@ const categoriesWithSpent = computed(() => {
     if (!cat.parent_id) {
       const subcategoryIds = getSubcategoryIds(cat.id)
       const allCategoryIds = [cat.id, ...subcategoryIds]
-      // Use filteredTransactions (filtered by selected month)
+      // Use filteredTransactions (filtered by selected month) — only budgeted for budget tracking
       spent = filteredTransactions.value
-        .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === transactionType)
+        .filter(t => allCategoryIds.includes(t.category_id) && t.transaction_type === transactionType && t.is_budgeted === 1)
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring(allCategoryIds, isIncome)
     } else {
@@ -315,9 +316,9 @@ const categoriesWithSpent = computed(() => {
       const parent = budgetStore.categories.find(c => c.id === cat.parent_id)
       const parentIsIncome = parent?.tags?.includes('revenu')
       const subTransactionType = parentIsIncome ? 'income' : 'expense'
-      // Use filteredTransactions (filtered by selected month)
+      // Use filteredTransactions (filtered by selected month) — only budgeted
       spent = filteredTransactions.value
-        .filter(t => t.category_id === cat.id && t.transaction_type === subTransactionType)
+        .filter(t => t.category_id === cat.id && t.transaction_type === subTransactionType && t.is_budgeted === 1)
         .reduce((sum, t) => sum + t.amount, 0)
       projected = spent + getProjectedRecurring([cat.id], parentIsIncome)
     }
@@ -368,6 +369,13 @@ const totalBudget = computed(() => {
 
 const totalSpent = computed(() => {
   return expenseCategories.value.reduce((sum, cat) => sum + cat.spent, 0)
+})
+
+// Total spent including exceptional (non-budgeted) expenses
+const totalSpentAll = computed(() => {
+  return filteredTransactions.value
+    .filter(t => t.transaction_type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0)
 })
 
 const totalProjected = computed(() => {

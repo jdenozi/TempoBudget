@@ -41,7 +41,7 @@
       />
     </n-space>
 
-    <!-- Category / Subcategory Filter -->
+    <!-- Category / Subcategory / Person Filter -->
     <n-space :vertical="isMobile" align="center" v-if="selectedBudgetId">
       <n-select
         v-model:value="filterCategoryId"
@@ -56,6 +56,14 @@
         v-model:value="filterSubcategoryId"
         :options="filterSubcategoryOptions"
         :placeholder="t('history.filterBySubcategory')"
+        :style="{ width: isMobile ? '100%' : '220px' }"
+        clearable
+      />
+      <n-select
+        v-if="isSharedBudget && filterPaidByOptions.length > 0"
+        v-model:value="filterPaidByUserId"
+        :options="filterPaidByOptions"
+        :placeholder="t('history.filterByPerson')"
         :style="{ width: isMobile ? '100%' : '220px' }"
         clearable
       />
@@ -91,6 +99,20 @@
         </n-grid>
       </n-card>
 
+      <!-- Expenses by Person (shared budgets only) -->
+      <n-card v-if="isSharedBudget && expensesByPerson.length > 0" size="small">
+        <template #header>
+          <span style="font-size: 14px; font-weight: 600;">{{ t('history.expensesByPerson') }}</span>
+        </template>
+        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+          <n-gi v-for="person in expensesByPerson" :key="person.name">
+            <n-statistic :label="person.name" :value="person.total.toFixed(2)">
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+        </n-grid>
+      </n-card>
+
       <!-- Mobile View: Cards -->
       <n-space v-if="isMobile && filteredTransactions.length > 0" vertical>
         <n-card
@@ -100,7 +122,12 @@
         >
           <template #header>
             <n-space justify="space-between">
-              <strong>{{ transaction.title }}</strong>
+              <n-space align="center" :size="4">
+                <strong>{{ transaction.title }}</strong>
+                <n-tag v-if="transaction.is_budgeted === 0" type="warning" size="small">
+                  {{ t('transaction.exceptional') }}
+                </n-tag>
+              </n-space>
               <n-tag :type="transaction.transaction_type === 'expense' ? 'error' : 'success'" size="small">
                 {{ transaction.transaction_type === 'expense' ? '-' : '+' }}{{ transaction.amount.toFixed(2) }} €
               </n-tag>
@@ -223,6 +250,13 @@
             placeholder="Optional comment"
           />
         </n-form-item>
+
+        <n-form-item v-if="editForm.transaction_type === 'expense'" :label="t('transaction.isBudgeted')">
+          <n-switch v-model:value="editForm.is_budgeted">
+            <template #checked>{{ t('transaction.budgeted') }}</template>
+            <template #unchecked>{{ t('transaction.exceptional') }}</template>
+          </n-switch>
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -251,12 +285,13 @@ import {
   NSpace, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
   NSelect, NGrid, NGi, NStatistic, NSpin, NEmpty, NModal, NForm,
   NFormItem, NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
-  useMessage
+  NSwitch, useMessage
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
-import type { Transaction } from '@/services/api'
+import type { Transaction, BudgetMemberWithUser } from '@/services/api'
+import { budgetMembersAPI } from '@/services/api'
 import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
 
 const message = useMessage()
@@ -277,6 +312,12 @@ const endDate = ref<number | null>(null)
 const filterCategoryId = ref<string | null>(null)
 const filterSubcategoryId = ref<string | null>(null)
 
+/** Person filter */
+const filterPaidByUserId = ref<string | null>(null)
+
+/** Budget members for shared budgets */
+const budgetMembers = ref<BudgetMemberWithUser[]>([])
+
 /** Edit modal state */
 const showEditModal = ref(false)
 const editingTransaction = ref<Transaction | null>(null)
@@ -287,7 +328,8 @@ const editForm = ref({
   date: null as number | null,
   comment: '',
   category_id: null as string | null,
-  subcategory_id: null as string | null
+  subcategory_id: null as string | null,
+  is_budgeted: true
 })
 
 /**
@@ -336,6 +378,10 @@ const budgetOptions = computed(() => {
 const loadTransactions = async () => {
   if (!selectedBudgetId.value) return
 
+  // Reset person filter when switching budgets
+  filterPaidByUserId.value = null
+  budgetMembers.value = []
+
   try {
     await Promise.all([
       budgetStore.fetchTransactions(selectedBudgetId.value),
@@ -344,6 +390,16 @@ const loadTransactions = async () => {
   } catch (error) {
     console.error('Error loading transactions:', error)
     message.error('Error loading data')
+  }
+
+  // Load members if this is a shared budget (isolated to avoid breaking the page)
+  const selectedBudget = budgetStore.budgets.find(b => b.id === selectedBudgetId.value)
+  if (selectedBudget?.budget_type === 'shared') {
+    try {
+      budgetMembers.value = await budgetMembersAPI.getMembers(selectedBudgetId.value)
+    } catch (error) {
+      console.error('Error loading budget members:', error)
+    }
   }
 }
 
@@ -375,6 +431,20 @@ const filterSubcategoryOptions = computed(() => {
   return budgetStore.categories
     .filter(c => c.parent_id === filterCategoryId.value)
     .map(c => ({ label: c.name, value: c.id }))
+})
+
+/** Whether the selected budget is shared */
+const isSharedBudget = computed(() => {
+  const budget = budgetStore.budgets.find(b => b.id === selectedBudgetId.value)
+  return budget?.budget_type === 'shared'
+})
+
+/** Person filter options from budget members */
+const filterPaidByOptions = computed(() => {
+  return budgetMembers.value.map(m => ({
+    label: m.user_name,
+    value: m.user_id
+  }))
 })
 
 /** Reset subcategory filter when parent category filter changes */
@@ -423,7 +493,51 @@ const filteredTransactions = computed(() => {
     )
   }
 
+  // Filter by person
+  if (filterPaidByUserId.value) {
+    transactions = transactions.filter(t => t.paid_by_user_id === filterPaidByUserId.value)
+  }
+
   return transactions
+})
+
+/** Filtered transactions without person filter (for per-person summary) */
+const filteredTransactionsWithoutPerson = computed(() => {
+  let transactions = budgetStore.transactions
+
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(endDate.value)
+    end.setHours(23, 59, 59, 999)
+    transactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date)
+      return transactionDate >= start && transactionDate <= end
+    })
+  }
+
+  if (filterSubcategoryId.value) {
+    transactions = transactions.filter(t => t.category_id === filterSubcategoryId.value)
+  } else if (filterCategoryId.value) {
+    const subcategoryIds = budgetStore.categories
+      .filter(c => c.parent_id === filterCategoryId.value)
+      .map(c => c.id)
+    transactions = transactions.filter(t =>
+      t.category_id === filterCategoryId.value || subcategoryIds.includes(t.category_id)
+    )
+  }
+
+  return transactions
+})
+
+/** Expenses by person for shared budgets */
+const expensesByPerson = computed(() => {
+  return budgetMembers.value.map(member => {
+    const total = filteredTransactionsWithoutPerson.value
+      .filter(t => t.transaction_type === 'expense' && t.paid_by_user_id === member.user_id)
+      .reduce((sum, t) => sum + t.amount, 0)
+    return { name: member.user_name, total }
+  })
 })
 
 /** Total income amount */
@@ -492,7 +606,8 @@ const openEditModal = (transaction: Transaction) => {
     date: parseDateToTimestamp(transaction.date),
     comment: transaction.comment || '',
     category_id: parentCategoryId,
-    subcategory_id: subcategoryId
+    subcategory_id: subcategoryId,
+    is_budgeted: transaction.is_budgeted === 1
   }
   showEditModal.value = true
 }
@@ -514,7 +629,8 @@ const handleSaveEdit = async () => {
       transaction_type: editForm.value.transaction_type,
       date: dateStr,
       comment: editForm.value.comment || undefined,
-      category_id: categoryId
+      category_id: categoryId,
+      is_budgeted: editForm.value.transaction_type === 'expense' ? (editForm.value.is_budgeted ? 1 : 0) : 1
     })
     message.success('Transaction updated')
     showEditModal.value = false
@@ -546,6 +662,14 @@ const columns = computed<DataTableColumns<Transaction>>(() => [
   {
     title: 'Title',
     key: 'title',
+    render: (row) => {
+      const children: any[] = [row.title]
+      if (row.is_budgeted === 0) {
+        children.push(' ')
+        children.push(h(NTag, { type: 'warning', size: 'small' }, { default: () => t('transaction.exceptional') }))
+      }
+      return h('span', {}, children)
+    }
   },
   {
     title: 'Category',

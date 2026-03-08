@@ -26,7 +26,7 @@ async def get_transactions(budget_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
             FROM transactions WHERE budget_id = :budget_id ORDER BY date DESC
         """),
         {"budget_id": budget_id}
@@ -42,6 +42,7 @@ async def get_transactions(budget_id: str, db: AsyncSession = Depends(get_db)):
         date=row.date,
         comment=row.comment,
         is_recurring=row.is_recurring,
+        is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
         created_at=row.created_at,
     ) for row in rows]
@@ -60,9 +61,9 @@ async def create_transaction(
     await db.execute(
         text("""
             INSERT INTO transactions (id, budget_id, category_id, title, amount,
-                                       transaction_type, date, comment, is_recurring, paid_by_user_id, created_at)
+                                       transaction_type, date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at)
             VALUES (:id, :budget_id, :category_id, :title, :amount,
-                    :transaction_type, :date, :comment, 0, :paid_by_user_id, :created_at)
+                    :transaction_type, :date, :comment, 0, :is_budgeted, :paid_by_user_id, :created_at)
         """),
         {
             "id": transaction_id,
@@ -73,6 +74,7 @@ async def create_transaction(
             "transaction_type": payload.transaction_type,
             "date": payload.date,
             "comment": payload.comment,
+            "is_budgeted": payload.is_budgeted,
             "paid_by_user_id": payload.paid_by_user_id,
             "created_at": now,
         }
@@ -82,7 +84,7 @@ async def create_transaction(
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
             FROM transactions WHERE id = :id
         """),
         {"id": transaction_id}
@@ -98,6 +100,7 @@ async def create_transaction(
         date=row.date,
         comment=row.comment,
         is_recurring=row.is_recurring,
+        is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
         created_at=row.created_at,
     )
@@ -147,6 +150,9 @@ async def update_transaction(
     if payload.comment is not None:
         updates.append("comment = :comment")
         params["comment"] = payload.comment
+    if payload.is_budgeted is not None:
+        updates.append("is_budgeted = :is_budgeted")
+        params["is_budgeted"] = payload.is_budgeted
     if payload.paid_by_user_id is not None:
         updates.append("paid_by_user_id = :paid_by_user_id")
         params["paid_by_user_id"] = payload.paid_by_user_id
@@ -160,7 +166,7 @@ async def update_transaction(
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
             FROM transactions WHERE id = :id
         """),
         {"id": transaction_id}
@@ -176,6 +182,7 @@ async def update_transaction(
         date=row.date,
         comment=row.comment,
         is_recurring=row.is_recurring,
+        is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
         created_at=row.created_at,
     )
