@@ -251,7 +251,7 @@
           />
         </n-form-item>
 
-        <n-form-item v-if="editForm.transaction_type === 'expense'" :label="t('transaction.isBudgeted')">
+        <n-form-item :label="t('transaction.isBudgeted')">
           <n-switch v-model:value="editForm.is_budgeted">
             <template #checked>{{ t('transaction.budgeted') }}</template>
             <template #unchecked>{{ t('transaction.exceptional') }}</template>
@@ -630,7 +630,7 @@ const handleSaveEdit = async () => {
       date: dateStr,
       comment: editForm.value.comment || undefined,
       category_id: categoryId,
-      is_budgeted: editForm.value.transaction_type === 'expense' ? (editForm.value.is_budgeted ? 1 : 0) : 1
+      is_budgeted: editForm.value.is_budgeted ? 1 : 0
     })
     message.success('Transaction updated')
     showEditModal.value = false

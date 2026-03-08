@@ -91,8 +91,8 @@
       />
     </n-form-item>
 
-    <!-- Budgeted Toggle (expenses only) -->
-    <n-form-item v-if="transaction.type === 'expense'" :label="t('transaction.isBudgeted')">
+    <!-- Budgeted Toggle -->
+    <n-form-item :label="t('transaction.isBudgeted')">
       <n-switch v-model:value="transaction.isBudgeted">
         <template #checked>{{ t('transaction.budgeted') }}</template>
         <template #unchecked>{{ t('transaction.exceptional') }}</template>
@@ -369,7 +369,7 @@ const handleSubmit = async () => {
         transaction_type: transaction.value.type,
         date: dateString,
         comment: transaction.value.comment || undefined,
-        is_budgeted: transaction.value.type === 'expense' ? (transaction.value.isBudgeted ? 1 : 0) : 1,
+        is_budgeted: transaction.value.isBudgeted ? 1 : 0,
         paid_by_user_id: transaction.value.paidByUserId || undefined,
       })
       message.success('Transaction saved!')
