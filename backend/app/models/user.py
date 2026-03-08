@@ -43,6 +43,12 @@ class AuthResponse(BaseModel):
     user: User = Field(..., description="The authenticated user's details")
 
 
+class UpdateProfileRequest(BaseModel):
+    """Request payload for updating user profile."""
+    name: str | None = Field(None, min_length=1, description="Display name")
+    phone: str | None = Field(None, description="Phone number")
+
+
 class ChangePasswordRequest(BaseModel):
     """Request payload for changing password."""
     current_password: str = Field(..., description="Current password")

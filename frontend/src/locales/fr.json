@@ -177,7 +177,8 @@
     "monthlyTrend": "Tendance mensuelle",
     "tagDistribution": "Répartition par tags",
     "filterByCategory": "Filtrer par catégories",
-    "includeExceptional": "Inclure les exceptionnelles"
+    "includeExceptional": "Inclure les exceptionnelles",
+    "categoryMonthlyTrend": "Tendance mensuelle par catégorie"
   },
   "member": {
     "members": "Membres",
@@ -208,6 +209,14 @@
   "profile": {
     "title": "Profil",
     "personalInfo": "Informations personnelles",
+    "editProfile": "Modifier le profil",
+    "name": "Nom",
+    "phone": "Téléphone",
+    "email": "Email",
+    "changePhoto": "Changer la photo",
+    "profileUpdated": "Profil mis à jour",
+    "avatarUpdated": "Photo mise à jour",
+    "memberSince": "Membre depuis",
     "changePassword": "Changer le mot de passe",
     "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",

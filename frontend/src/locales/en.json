@@ -177,7 +177,8 @@
     "monthlyTrend": "Monthly trend",
     "tagDistribution": "Tag distribution",
     "filterByCategory": "Filter by categories",
-    "includeExceptional": "Include exceptional"
+    "includeExceptional": "Include exceptional",
+    "categoryMonthlyTrend": "Category monthly trend"
   },
   "member": {
     "members": "Members",
@@ -208,6 +209,14 @@
   "profile": {
     "title": "Profile",
     "personalInfo": "Personal information",
+    "editProfile": "Edit profile",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "changePhoto": "Change photo",
+    "profileUpdated": "Profile updated",
+    "avatarUpdated": "Photo updated",
+    "memberSince": "Member since",
     "changePassword": "Change password",
     "currentPassword": "Current password",
     "newPassword": "New password",

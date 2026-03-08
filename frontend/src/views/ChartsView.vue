@@ -87,6 +87,15 @@
           </div>
         </n-card>
       </n-gi>
+
+      <!-- Category Monthly Trend -->
+      <n-gi :span="isMobile ? 1 : 2">
+        <n-card :title="t('charts.categoryMonthlyTrend')">
+          <div :style="{ height: isMobile ? '300px' : '350px', position: 'relative' }">
+            <Bar :data="categoryTrendChartData" :options="categoryTrendChartOptions" />
+          </div>
+        </n-card>
+      </n-gi>
     </n-grid>
   </n-space>
 </template>
@@ -351,4 +360,88 @@ const comparisonChartData = computed(() => ({
 
 /** Comparison chart options */
 const comparisonChartOptions = useBarChartOptions(isMobile, { rotateLabels: true })
+
+/** Category monthly trend data — last 6 months, per selected or top 5 categories */
+const categoryTrendData = computed(() => {
+  const now = new Date(selectedMonth.value)
+  const localeStr = locale.value === 'fr' ? 'fr-FR' : 'en-US'
+
+  // Build 6-month labels
+  const monthLabels: string[] = []
+  const monthKeys: { month: number; year: number }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    monthLabels.push(date.toLocaleString(localeStr, { month: 'long' }))
+    monthKeys.push({ month: date.getMonth(), year: date.getFullYear() })
+  }
+
+  // Determine which categories to show
+  let targetCategoryIds: string[]
+  if (selectedCategories.value.length > 0) {
+    targetCategoryIds = [...selectedCategories.value]
+  } else {
+    // Top 5 by total expense amount across all 6 months
+    const totals: Record<string, number> = {}
+    const parentCategories = budgetStore.categories.filter(c => !c.parent_id)
+    for (const cat of parentCategories) {
+      const subcatIds = budgetStore.categories
+        .filter(c => c.parent_id === cat.id)
+        .map(c => c.id)
+      const allIds = [cat.id, ...subcatIds]
+      totals[cat.id] = budgetStore.transactions
+        .filter(t => {
+          if (t.transaction_type !== 'expense') return false
+          if (!includeExceptional.value && t.is_budgeted !== 1) return false
+          const d = new Date(t.date)
+          return monthKeys.some(mk => mk.month === d.getMonth() && mk.year === d.getFullYear())
+            && allIds.includes(t.category_id)
+        })
+        .reduce((sum, t) => sum + t.amount, 0)
+    }
+    targetCategoryIds = Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .filter(([, v]) => v > 0)
+      .map(([id]) => id)
+  }
+
+  // Build datasets
+  const datasets = targetCategoryIds.map((catId, idx) => {
+    const cat = budgetStore.categories.find(c => c.id === catId)
+    const subcatIds = budgetStore.categories
+      .filter(c => c.parent_id === catId)
+      .map(c => c.id)
+    const allIds = [catId, ...subcatIds]
+
+    const data = monthKeys.map(mk => {
+      return budgetStore.transactions
+        .filter(t => {
+          if (t.transaction_type !== 'expense') return false
+          if (!includeExceptional.value && t.is_budgeted !== 1) return false
+          const d = new Date(t.date)
+          return d.getMonth() === mk.month && d.getFullYear() === mk.year
+            && allIds.includes(t.category_id)
+        })
+        .reduce((sum, t) => sum + t.amount, 0)
+    })
+
+    return {
+      label: cat?.name || 'Other',
+      data,
+      backgroundColor: colors[idx % colors.length],
+      borderRadius: 4,
+    }
+  })
+
+  return { labels: monthLabels, datasets }
+})
+
+/** Category trend chart data */
+const categoryTrendChartData = computed(() => ({
+  labels: categoryTrendData.value.labels,
+  datasets: categoryTrendData.value.datasets,
+}))
+
+/** Category trend chart options */
+const categoryTrendChartOptions = useBarChartOptions(isMobile)
 </script>

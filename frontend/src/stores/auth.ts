@@ -104,6 +104,20 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('auth_user')
   }
 
+  async function updateProfile(data: { name?: string; phone?: string }) {
+    const updated = await authAPI.updateProfile(data)
+    user.value = updated
+    localStorage.setItem('auth_user', JSON.stringify(updated))
+    return updated
+  }
+
+  async function uploadAvatar(file: File) {
+    const updated = await authAPI.uploadAvatar(file)
+    user.value = updated
+    localStorage.setItem('auth_user', JSON.stringify(updated))
+    return updated
+  }
+
   return {
     user,
     token,
@@ -112,5 +126,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     login,
     logout,
+    updateProfile,
+    uploadAvatar,
   }
 })

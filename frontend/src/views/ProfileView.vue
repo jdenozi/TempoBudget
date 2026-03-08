@@ -5,7 +5,8 @@
   Profile View
 
   User profile management page displaying:
-  - Personal information
+  - Editable personal information (name, phone)
+  - Avatar upload
   - Usage statistics
   - Pending budget invitations
   - Security settings
@@ -14,36 +15,77 @@
 
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">My Profile</h1>
+    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('profile.title') }}</h1>
 
     <!-- User Information -->
-    <n-card title="Personal Information">
+    <n-card :title="t('profile.personalInfo')">
+      <template #header-extra>
+        <n-button
+          v-if="!editing"
+          size="small"
+          @click="startEditing"
+        >
+          {{ t('profile.editProfile') }}
+        </n-button>
+        <n-space v-else>
+          <n-button size="small" @click="cancelEditing">{{ t('common.cancel') }}</n-button>
+          <n-button size="small" type="primary" :loading="savingProfile" @click="saveProfile">
+            {{ t('common.save') }}
+          </n-button>
+        </n-space>
+      </template>
+
       <n-space vertical size="large">
         <!-- Avatar -->
         <div style="display: flex; align-items: center; gap: 16px;">
-          <n-avatar
-            :size="isMobile ? 80 : 100"
-            round
-            :src="authStore.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authStore.user?.name}`"
+          <div style="position: relative; cursor: pointer;" @click="triggerAvatarUpload">
+            <n-avatar
+              :size="isMobile ? 80 : 100"
+              round
+              :src="authStore.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authStore.user?.name}`"
+            />
+            <n-spin v-if="uploadingAvatar" :size="20" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" />
+          </div>
+          <n-button size="small" :loading="uploadingAvatar" @click="triggerAvatarUpload">
+            {{ t('profile.changePhoto') }}
+          </n-button>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style="display: none;"
+            @change="handleAvatarChange"
           />
-          <n-button size="small" disabled>Change Photo</n-button>
         </div>
 
-        <!-- User Details (read-only for now) -->
-        <n-descriptions :column="1" bordered>
-          <n-descriptions-item label="Name">
+        <!-- User Details -->
+        <n-descriptions v-if="!editing" :column="1" bordered>
+          <n-descriptions-item :label="t('profile.name')">
             {{ authStore.user?.name }}
           </n-descriptions-item>
-          <n-descriptions-item label="Email">
+          <n-descriptions-item :label="t('profile.email')">
             {{ authStore.user?.email }}
           </n-descriptions-item>
-          <n-descriptions-item label="Phone">
-            {{ authStore.user?.phone || 'Not provided' }}
+          <n-descriptions-item :label="t('profile.phone')">
+            {{ authStore.user?.phone || '—' }}
           </n-descriptions-item>
-          <n-descriptions-item label="Member since">
+          <n-descriptions-item :label="t('profile.memberSince')">
             {{ formatDate(authStore.user?.created_at) }}
           </n-descriptions-item>
         </n-descriptions>
+
+        <!-- Edit Mode -->
+        <n-form v-else>
+          <n-form-item :label="t('profile.name')">
+            <n-input v-model:value="editForm.name" :placeholder="t('profile.name')" />
+          </n-form-item>
+          <n-form-item :label="t('profile.email')">
+            <n-input :value="authStore.user?.email" disabled />
+          </n-form-item>
+          <n-form-item :label="t('profile.phone')">
+            <n-input v-model:value="editForm.phone" :placeholder="t('profile.phone')" />
+          </n-form-item>
+        </n-form>
       </n-space>
     </n-card>
 
@@ -245,23 +287,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * User profile view component.
- *
- * Features:
- * - Display user information
- * - Show usage statistics
- * - Handle budget invitations
- * - Security settings (placeholder)
- * - Logout functionality
- */
-
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   NSpace, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
   NGrid, NGi, NStatistic, NText, NDivider, NAlert, NPopconfirm,
-  NTag, NModal, NForm, NFormItem, NInput, NSelect, useMessage,
+  NTag, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
   type FormInst, type FormRules
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -278,54 +309,98 @@ const authStore = useAuthStore()
 const budgetStore = useBudgetStore()
 const settingsStore = useSettingsStore()
 
-/** Options for language selector */
 const languageOptions = SUPPORTED_LOCALES.map(l => ({
   label: l.name,
   value: l.code,
 }))
 
-/**
- * Changes the application language.
- * @param newLocale - The new locale code
- */
 const handleLanguageChange = (newLocale: Locale) => {
   locale.value = newLocale
   saveLocale(newLocale)
   message.success(t('common.success'))
 }
 
-/** Options for inactivity timeout selector */
 const inactivityOptions = INACTIVITY_OPTIONS.map(opt => ({
   label: opt.label,
   value: opt.value,
 }))
 
-/** Whether the viewport is mobile-sized */
 const isMobile = ref(false)
-
-/** List of pending invitations */
 const invitations = ref<BudgetInvitationWithDetails[]>([])
-
-/** ID of invitation currently being processed */
 const processingInvitation = ref<string | null>(null)
-
-/** Whether the change password modal is visible */
 const showChangePassword = ref(false)
-
-/** Whether password change is in progress */
 const changingPassword = ref(false)
-
-/** Form ref for password validation */
 const passwordFormRef = ref<FormInst | null>(null)
 
-/** Password form data */
+/** Profile editing state */
+const editing = ref(false)
+const savingProfile = ref(false)
+const uploadingAvatar = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const editForm = ref({ name: '', phone: '' })
+
+const startEditing = () => {
+  editForm.value = {
+    name: authStore.user?.name || '',
+    phone: authStore.user?.phone || '',
+  }
+  editing.value = true
+}
+
+const cancelEditing = () => {
+  editing.value = false
+}
+
+const saveProfile = async () => {
+  savingProfile.value = true
+  try {
+    await authStore.updateProfile({
+      name: editForm.value.name || undefined,
+      phone: editForm.value.phone || undefined,
+    })
+    message.success(t('profile.profileUpdated'))
+    editing.value = false
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    message.error(t('errors.generic'))
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+const triggerAvatarUpload = () => {
+  fileInputRef.value?.click()
+}
+
+const handleAvatarChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (file.size > 2 * 1024 * 1024) {
+    message.error('File too large (max 2 MB)')
+    return
+  }
+
+  uploadingAvatar.value = true
+  try {
+    await authStore.uploadAvatar(file)
+    message.success(t('profile.avatarUpdated'))
+  } catch (error) {
+    console.error('Error uploading avatar:', error)
+    message.error(t('errors.generic'))
+  } finally {
+    uploadingAvatar.value = false
+    input.value = ''
+  }
+}
+
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
   confirmPassword: '',
 })
 
-/** Password form validation rules */
 const passwordRules: FormRules = {
   currentPassword: [
     { required: true, message: 'Current password is required' }
@@ -345,9 +420,6 @@ const passwordRules: FormRules = {
   ]
 }
 
-/**
- * Checks if the viewport is mobile-sized.
- */
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
@@ -356,7 +428,6 @@ onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
 
-  // Load budgets if not already loaded
   if (budgetStore.budgets.length === 0) {
     try {
       await budgetStore.fetchBudgets()
@@ -365,7 +436,6 @@ onMounted(async () => {
     }
   }
 
-  // Load invitations
   try {
     invitations.value = await invitationsAPI.getMyInvitations()
   } catch (error) {
@@ -377,10 +447,6 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 
-/**
- * Formats a date string for display.
- * @param dateString - ISO date string
- */
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
@@ -391,7 +457,6 @@ const formatDate = (dateString: string | undefined) => {
   })
 }
 
-/** Number of transactions this month */
 const transactionsThisMonth = computed(() => {
   const now = new Date()
   const thisMonth = now.getMonth()
@@ -403,27 +468,15 @@ const transactionsThisMonth = computed(() => {
   }).length
 })
 
-/** Total number of categories */
-const totalCategories = computed(() => {
-  return budgetStore.categories.length
-})
+const totalCategories = computed(() => budgetStore.categories.length)
+const totalRecurring = computed(() => budgetStore.recurringTransactions.length)
 
-/** Total number of recurring transactions */
-const totalRecurring = computed(() => {
-  return budgetStore.recurringTransactions.length
-})
-
-/**
- * Accepts a budget invitation.
- * @param id - Invitation ID
- */
 const handleAcceptInvitation = async (id: string) => {
   processingInvitation.value = id
   try {
     await invitationsAPI.acceptInvitation(id)
     message.success('Invitation accepted!')
     invitations.value = invitations.value.filter(inv => inv.id !== id)
-    // Reload budgets
     await budgetStore.fetchBudgets()
   } catch (error) {
     console.error('Error accepting invitation:', error)
@@ -433,10 +486,6 @@ const handleAcceptInvitation = async (id: string) => {
   }
 }
 
-/**
- * Rejects a budget invitation.
- * @param id - Invitation ID
- */
 const handleRejectInvitation = async (id: string) => {
   processingInvitation.value = id
   try {
@@ -451,27 +500,17 @@ const handleRejectInvitation = async (id: string) => {
   }
 }
 
-/**
- * Logs out the current user.
- */
 const handleLogout = () => {
   authStore.logout()
   message.info('Signed out successfully')
   router.push('/login')
 }
 
-/**
- * Handles account deletion (placeholder).
- */
 const handleDeleteAccount = () => {
   message.error('Feature not implemented')
 }
 
-/**
- * Handles password change.
- */
 const handleChangePassword = async () => {
-  // Validate form
   try {
     await passwordFormRef.value?.validate()
   } catch {
@@ -486,7 +525,6 @@ const handleChangePassword = async () => {
     )
     message.success('Password changed successfully')
     showChangePassword.value = false
-    // Reset form
     passwordForm.value = {
       currentPassword: '',
       newPassword: '',

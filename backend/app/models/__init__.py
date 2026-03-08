@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Data models module."""
 
-from .user import User, CreateUser, LoginRequest, AuthResponse, ChangePasswordRequest
+from .user import User, CreateUser, LoginRequest, AuthResponse, ChangePasswordRequest, UpdateProfileRequest
 from .budget import Budget, CreateBudget, UpdateBudget, BudgetSummary
 from .category import Category, CreateCategory, UpdateCategory
 from .transaction import (
@@ -25,7 +25,7 @@ from .pro import (
 )
 
 __all__ = [
-    "User", "CreateUser", "LoginRequest", "AuthResponse", "ChangePasswordRequest",
+    "User", "CreateUser", "LoginRequest", "AuthResponse", "ChangePasswordRequest", "UpdateProfileRequest",
     "Budget", "CreateBudget", "UpdateBudget", "BudgetSummary",
     "Category", "CreateCategory", "UpdateCategory",
     "Transaction", "CreateTransaction", "UpdateTransaction",
