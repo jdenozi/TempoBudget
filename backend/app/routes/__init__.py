@@ -9,6 +9,7 @@ from .categories import router as categories_router
 from .transactions import router as transactions_router
 from .budget_members import router as budget_members_router
 from .invitations import router as invitations_router
+from .pro import router as pro_router
 
 api_router = APIRouter(prefix="/api")
 
@@ -18,3 +19,4 @@ api_router.include_router(categories_router, tags=["categories"])
 api_router.include_router(transactions_router, tags=["transactions"])
 api_router.include_router(budget_members_router, tags=["budget_members"])
 api_router.include_router(invitations_router, prefix="/invitations", tags=["invitations"])
+api_router.include_router(pro_router, prefix="/pro", tags=["pro"])

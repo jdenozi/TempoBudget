@@ -77,6 +77,41 @@ const router = createRouter({
           name: 'profile',
           component: ProfileView,
         },
+        {
+          path: 'pro',
+          name: 'pro-dashboard',
+          component: () => import('@/views/pro/ProDashboardView.vue'),
+        },
+        {
+          path: 'pro/history',
+          name: 'pro-history',
+          component: () => import('@/views/pro/ProHistoryView.vue'),
+        },
+        {
+          path: 'pro/charts',
+          name: 'pro-charts',
+          component: () => import('@/views/pro/ProChartsView.vue'),
+        },
+        {
+          path: 'pro/clients',
+          name: 'pro-clients',
+          component: () => import('@/views/pro/ProClientsView.vue'),
+        },
+        {
+          path: 'pro/products',
+          name: 'pro-products',
+          component: () => import('@/views/pro/ProProductsView.vue'),
+        },
+        {
+          path: 'pro/coupons',
+          name: 'pro-coupons',
+          component: () => import('@/views/pro/ProCouponsView.vue'),
+        },
+        {
+          path: 'pro/gift-cards',
+          name: 'pro-gift-cards',
+          component: () => import('@/views/pro/ProGiftCardsView.vue'),
+        },
       ],
     },
   ],

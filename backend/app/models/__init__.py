@@ -12,6 +12,17 @@ from .transaction import (
 )
 from .budget_member import BudgetMember, BudgetMemberWithUser, InviteMemberRequest, UpdateMemberShareRequest, MemberBalance
 from .invitation import BudgetInvitation, BudgetInvitationWithDetails
+from .pro import (
+    ProProfile, UpdateProProfile,
+    ProClient, CreateProClient, UpdateProClient,
+    ProCategory, CreateProCategory, UpdateProCategory,
+    ProTransaction, CreateProTransaction, UpdateProTransaction,
+    ProProduct, CreateProProduct, UpdateProProduct,
+    ProTransactionItem, CreateProTransactionItem,
+    ProCoupon, CreateProCoupon, UpdateProCoupon,
+    ProGiftCard, CreateProGiftCard, ProGiftCardUsage,
+    ProDashboardSummary
+)
 
 __all__ = [
     "User", "CreateUser", "LoginRequest", "AuthResponse", "ChangePasswordRequest",
@@ -22,4 +33,13 @@ __all__ = [
     "UpdateRecurringTransaction", "RecurringTransactionVersion", "RecurringTransactionWithCategory",
     "BudgetMember", "BudgetMemberWithUser", "InviteMemberRequest", "UpdateMemberShareRequest", "MemberBalance",
     "BudgetInvitation", "BudgetInvitationWithDetails",
+    "ProProfile", "UpdateProProfile",
+    "ProClient", "CreateProClient", "UpdateProClient",
+    "ProCategory", "CreateProCategory", "UpdateProCategory",
+    "ProTransaction", "CreateProTransaction", "UpdateProTransaction",
+    "ProProduct", "CreateProProduct", "UpdateProProduct",
+    "ProTransactionItem", "CreateProTransactionItem",
+    "ProCoupon", "CreateProCoupon", "UpdateProCoupon",
+    "ProGiftCard", "CreateProGiftCard", "ProGiftCardUsage",
+    "ProDashboardSummary",
 ]

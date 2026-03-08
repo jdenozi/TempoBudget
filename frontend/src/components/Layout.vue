@@ -56,11 +56,23 @@
             </n-button>
             <div style="display: flex; align-items: center; gap: 12px;">
               <img src="@/assets/logo.png" alt="Tempo Finance" style="width: 36px; height: 36px; border-radius: 8px;" />
-              <h2 style="margin: 0;">Tempo Finance</h2>
+              <h2 v-if="!isMobile" style="margin: 0;">Tempo Finance</h2>
+            </div>
+
+            <div class="pro-toggle">
+              <n-switch
+                :value="proStore.isProMode"
+                @update:value="handleProToggle"
+                :round="false"
+              >
+                <template #checked>Pro</template>
+                <template #unchecked>Pro</template>
+              </n-switch>
             </div>
           </div>
 
           <n-button
+            v-if="!proStore.isProMode"
             type="primary"
             circle
             @click="showTransactionDrawer = true"
@@ -119,20 +131,25 @@
 
 import {
   NConfigProvider, NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, darkTheme, lightTheme
+  NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, NSwitch,
+  darkTheme, lightTheme
 } from 'naive-ui'
-import { ref, h, computed, onMounted, onUnmounted } from 'vue'
+import { ref, h, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined, HistoryOutlined, BarChartOutlined,
-  UserOutlined, SettingOutlined, SyncOutlined
+  UserOutlined, SettingOutlined, SyncOutlined, TeamOutlined,
+  ShoppingOutlined, TagOutlined, GiftOutlined
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
+import { useMobileDetect } from '@/composables/useMobileDetect'
+import { useProStore } from '@/stores/pro'
 
 const router = useRouter()
 const { t } = useI18n()
+const proStore = useProStore()
 
 /** Whether the sidebar is collapsed */
 const collapsed = ref(false)
@@ -146,27 +163,29 @@ const showDrawer = ref(false)
 /** Transaction form drawer visibility */
 const showTransactionDrawer = ref(false)
 
-/** Whether the viewport is mobile-sized */
-const isMobile = ref(false)
-
-/**
- * Checks if the viewport is mobile-sized and updates state.
- */
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-}
+const { isMobile } = useMobileDetect()
 
 onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+  proStore.initProMode()
+  // Sync activeKey with current route
+  const currentRoute = router.currentRoute.value.name as string
+  if (currentRoute) activeKey.value = currentRoute
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
+/** Handle pro mode toggle */
+const handleProToggle = (value: boolean) => {
+  proStore.setProMode(value)
+  if (value) {
+    activeKey.value = 'pro-dashboard'
+    router.push({ name: 'pro-dashboard' })
+  } else {
+    activeKey.value = 'dashboard'
+    router.push({ name: 'dashboard' })
+  }
+}
 
-/** Navigation menu options */
-const menuOptions = computed<MenuOption[]>(() => [
+/** Personal mode menu options */
+const personalMenuOptions = computed<MenuOption[]>(() => [
   {
     label: t('nav.dashboard'),
     key: 'dashboard',
@@ -193,6 +212,55 @@ const menuOptions = computed<MenuOption[]>(() => [
     icon: () => h(UserOutlined)
   }
 ])
+
+/** Pro mode menu options */
+const proMenuOptions = computed<MenuOption[]>(() => [
+  {
+    label: t('nav.proDashboard'),
+    key: 'pro-dashboard',
+    icon: () => h(DashboardOutlined)
+  },
+  {
+    label: t('nav.proClients'),
+    key: 'pro-clients',
+    icon: () => h(TeamOutlined)
+  },
+  {
+    label: t('nav.proProducts'),
+    key: 'pro-products',
+    icon: () => h(ShoppingOutlined)
+  },
+  {
+    label: t('nav.proCoupons'),
+    key: 'pro-coupons',
+    icon: () => h(TagOutlined)
+  },
+  {
+    label: t('nav.proGiftCards'),
+    key: 'pro-gift-cards',
+    icon: () => h(GiftOutlined)
+  },
+  {
+    label: t('nav.proHistory'),
+    key: 'pro-history',
+    icon: () => h(HistoryOutlined)
+  },
+  {
+    label: t('nav.proCharts'),
+    key: 'pro-charts',
+    icon: () => h(BarChartOutlined)
+  },
+  {
+    label: t('nav.profile'),
+    key: 'profile',
+    icon: () => h(UserOutlined)
+  }
+])
+
+/** Navigation menu options (switches based on pro mode) */
+const menuOptions = computed<MenuOption[]>(() =>
+  proStore.isProMode ? proMenuOptions.value : personalMenuOptions.value
+)
 
 /**
  * Handles menu item click on desktop.
@@ -254,4 +322,7 @@ const buildDate = __BUILD_DATE__
   color: rgba(255, 255, 255, 0.3);
 }
 
+.pro-toggle {
+  margin-left: 8px;
+}
 </style>
