@@ -11,6 +11,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
 
 # Disable docs in production
 DOCS_ENABLED = os.getenv("DOCS_ENABLED", "true").lower() == "true"
@@ -18,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from .database import engine
-from .routes import api_router
+from .routes import api_router, oidc_api_router
 
 
 @asynccontextmanager
@@ -47,6 +48,12 @@ app = FastAPI(
     openapi_url="/api-docs/openapi.json" if DOCS_ENABLED else None,
 )
 
+# Session middleware for OAuth state
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "tempobudget-session-secret-change-in-prod")
+)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -58,6 +65,9 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router)
+
+# Include OIDC routes (at root level)
+app.include_router(oidc_api_router)
 
 
 @app.get("/health")

@@ -34,6 +34,18 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
 
   /**
+   * Clears local auth state without redirect.
+   * Used to clean up before OIDC redirects.
+   */
+  function clearLocalAuth() {
+    token.value = null
+    user.value = null
+    isAuthenticated.value = false
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+  }
+
+  /**
    * Initializes authentication state from localStorage.
    * Called on application startup to restore previous session.
    */
@@ -46,6 +58,32 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = JSON.parse(savedUser)
       isAuthenticated.value = true
     }
+  }
+
+  /**
+   * Sets token and fetches user info from API.
+   * Used after OIDC callback.
+   */
+  async function setTokenAndFetchUser(newToken: string) {
+    token.value = newToken
+    localStorage.setItem('auth_token', newToken)
+
+    try {
+      const userData = await authAPI.getMe()
+      user.value = userData
+      isAuthenticated.value = true
+      localStorage.setItem('auth_user', JSON.stringify(userData))
+    } catch {
+      clearLocalAuth()
+      throw new Error('Failed to fetch user info')
+    }
+  }
+
+  /**
+   * Redirects to OIDC login.
+   */
+  function loginWithOIDC() {
+    window.location.href = '/auth/login'
   }
 
   /**
@@ -128,5 +166,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     updateProfile,
     uploadAvatar,
+    clearLocalAuth,
+    setTokenAndFetchUser,
+    loginWithOIDC,
   }
 })

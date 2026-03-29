@@ -241,6 +241,15 @@ export interface BudgetInvitationWithDetails {
  */
 export const authAPI = {
   /**
+   * Gets current user info from token.
+   * @returns User data
+   */
+  getMe: async () => {
+    const response = await api.get<User>('/auth/me')
+    return response.data
+  },
+
+  /**
    * Registers a new user account.
    * @param email - User's email address
    * @param name - User's display name

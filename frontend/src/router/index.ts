@@ -29,6 +29,7 @@ import HistoryView from '@/views/HistoryView.vue'
 import ChartsView from '@/views/ChartsView.vue'
 import eView from '@/views/ProfileView.vue'
 import ProfileView from '@/views/ProfileView.vue'
+import AuthCallbackView from '@/views/AuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +38,11 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
+    },
+    {
+      path: '/auth/success',
+      name: 'auth-callback',
+      component: AuthCallbackView,
     },
     {
       path: '/',
@@ -119,14 +125,22 @@ const router = createRouter({
 
 /**
  * Navigation guard to protect routes requiring authentication.
- * Redirects unauthenticated users to /login for protected routes.
+ * Redirects unauthenticated users to OIDC login for protected routes.
  * Redirects authenticated users to /dashboard if they visit /login.
  */
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
+  // Allow auth callback without authentication
+  if (to.path === '/auth/success') {
+    next()
+    return
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
+    // Redirect to OIDC login instead of local login page
+    window.location.href = '/auth/login'
+    return
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     next('/dashboard')
   } else {
