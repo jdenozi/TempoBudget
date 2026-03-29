@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse
 from starlette.config import Config
 
 from ..database import get_db
-from ..utils.auth import create_access_token
+from ..auth import create_token
 from sqlalchemy import text
 
 router = APIRouter()
@@ -110,7 +110,7 @@ async def auth_callback(request: Request):
                 }
 
         # Create JWT token
-        jwt_token = create_access_token({"sub": user_id, "email": email})
+        jwt_token = create_token(user_id)
 
         # Redirect to frontend with token
         return RedirectResponse(
