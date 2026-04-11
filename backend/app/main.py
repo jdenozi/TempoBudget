@@ -24,17 +24,34 @@ from .routes import api_router, oidc_api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database schema on startup."""
+    """Initialize database schema and run migrations on startup."""
     schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.sql")
+    migrations_dir = os.path.join(os.path.dirname(__file__), "..", "migrations")
     async with engine.begin() as conn:
+        # Run main schema (CREATE TABLE IF NOT EXISTS)
         with open(schema_path) as f:
             schema = f.read()
-            # Execute each statement separately
             for statement in schema.split(";"):
                 statement = statement.strip()
                 if statement:
                     await conn.execute(text(statement))
-    print("Database schema initialized")
+        print("Database schema initialized")
+
+        # Run migrations (ALTER TABLE may fail if already applied — that's OK)
+        if os.path.isdir(migrations_dir):
+            for filename in sorted(os.listdir(migrations_dir)):
+                if filename.endswith(".sql"):
+                    filepath = os.path.join(migrations_dir, filename)
+                    with open(filepath) as f:
+                        migration = f.read()
+                    for statement in migration.split(";"):
+                        statement = statement.strip()
+                        if statement:
+                            try:
+                                await conn.execute(text(statement))
+                            except Exception:
+                                pass  # Column/index already exists
+            print("Migrations applied")
     yield
 
 
