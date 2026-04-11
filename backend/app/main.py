@@ -28,13 +28,18 @@ async def lifespan(app: FastAPI):
     schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.sql")
     migrations_dir = os.path.join(os.path.dirname(__file__), "..", "migrations")
     async with engine.begin() as conn:
-        # Run main schema (CREATE TABLE IF NOT EXISTS)
+        # Run main schema — tolerant of errors on existing DBs
+        # (CREATE TABLE IF NOT EXISTS won't add new columns to existing tables,
+        #  so CREATE INDEX on new columns may fail until migrations run)
         with open(schema_path) as f:
             schema = f.read()
             for statement in schema.split(";"):
                 statement = statement.strip()
                 if statement:
-                    await conn.execute(text(statement))
+                    try:
+                        await conn.execute(text(statement))
+                    except Exception:
+                        pass  # Index on not-yet-migrated column, etc.
         print("Database schema initialized")
 
         # Run migrations (ALTER TABLE may fail if already applied — that's OK)
@@ -52,6 +57,18 @@ async def lifespan(app: FastAPI):
                             except Exception:
                                 pass  # Column/index already exists
             print("Migrations applied")
+
+        # Re-run schema to create any indexes that failed before migrations
+        with open(schema_path) as f:
+            schema = f.read()
+            for statement in schema.split(";"):
+                statement = statement.strip()
+                if statement:
+                    try:
+                        await conn.execute(text(statement))
+                    except Exception:
+                        pass
+        print("Schema finalized")
     yield
 
 
