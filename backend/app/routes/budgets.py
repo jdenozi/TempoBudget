@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Budget, CreateBudget, BudgetSummary
+from ..models.budget import MonthlyRecap, TopCategory
 
 router = APIRouter()
 
@@ -100,6 +101,79 @@ async def create_budget(
         is_active=row.is_active,
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+@router.get("/monthly-recap", response_model=MonthlyRecap)
+async def get_monthly_recap(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Get monthly recap aggregated across all user budgets."""
+    now = datetime.now(timezone.utc)
+    month_start = f"{now.year}-{now.month:02d}-01"
+    if now.month == 12:
+        month_end = f"{now.year + 1}-01-01"
+    else:
+        month_end = f"{now.year}-{now.month + 1:02d}-01"
+
+    # Total income
+    result = await db.execute(
+        text("""
+            SELECT COALESCE(SUM(t.amount), 0) as total
+            FROM transactions t
+            JOIN budgets b ON t.budget_id = b.id
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            WHERE (b.user_id = :user_id OR bm.user_id = :user_id)
+            AND t.transaction_type = 'income'
+            AND t.date >= :month_start AND t.date < :month_end
+        """),
+        {"user_id": user_id, "month_start": month_start, "month_end": month_end}
+    )
+    total_income = result.fetchone().total
+
+    # Total expenses
+    result = await db.execute(
+        text("""
+            SELECT COALESCE(SUM(t.amount), 0) as total
+            FROM transactions t
+            JOIN budgets b ON t.budget_id = b.id
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            WHERE (b.user_id = :user_id OR bm.user_id = :user_id)
+            AND t.transaction_type = 'expense'
+            AND t.date >= :month_start AND t.date < :month_end
+        """),
+        {"user_id": user_id, "month_start": month_start, "month_end": month_end}
+    )
+    total_expenses = result.fetchone().total
+
+    # Top 3 expense categories
+    result = await db.execute(
+        text("""
+            SELECT c.name, COALESCE(SUM(t.amount), 0) as total
+            FROM transactions t
+            JOIN budgets b ON t.budget_id = b.id
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE (b.user_id = :user_id OR bm.user_id = :user_id)
+            AND t.transaction_type = 'expense'
+            AND t.date >= :month_start AND t.date < :month_end
+            GROUP BY c.name
+            ORDER BY total DESC
+            LIMIT 3
+        """),
+        {"user_id": user_id, "month_start": month_start, "month_end": month_end}
+    )
+    top_categories = [
+        TopCategory(name=row.name or "Unknown", total=round(row.total, 2))
+        for row in result.fetchall()
+    ]
+
+    return MonthlyRecap(
+        total_income=round(total_income, 2),
+        total_expenses=round(total_expenses, 2),
+        balance=round(total_income - total_expenses, 2),
+        top_expense_categories=top_categories,
     )
 
 

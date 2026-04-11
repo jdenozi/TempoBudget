@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +22,14 @@ from ..models import (
     ProCoupon, CreateProCoupon, UpdateProCoupon,
     ProGiftCard, CreateProGiftCard, ProGiftCardUsage,
     ProDashboardSummary,
+    BatchToggleDeclared, DeclarationPeriodSummary,
+    ProInvoiceSettings, UpdateProInvoiceSettings,
+    ProInvoice, CreateProInvoice, UpdateProInvoice, UpdateProInvoiceStatus,
+    ProInvoiceItem, CreateProInvoiceItem,
+    ProQuote, CreateProQuote, UpdateProQuote, UpdateProQuoteStatus,
+    ProQuoteItem, CreateProQuoteItem,
 )
+from ..pdf_generator import generate_invoice_pdf, generate_quote_pdf
 
 router = APIRouter()
 
@@ -797,6 +805,7 @@ async def get_transactions(
             payment_method=r.payment_method, comment=r.comment,
             discount_type=r.discount_type, discount_value=r.discount_value,
             coupon_id=r.coupon_id, gift_card_payment=r.gift_card_payment or 0,
+            is_declared=r.is_declared if hasattr(r, 'is_declared') else 0,
             created_at=r.created_at, client_name=r.client_name,
             category_name=r.category_name, items=items,
         ))
@@ -1009,6 +1018,29 @@ async def create_transaction(
     )
 
 
+@router.put("/transactions/declare", response_model=dict)
+async def batch_toggle_declared(
+    payload: BatchToggleDeclared,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Batch toggle is_declared on transactions."""
+    placeholders = ", ".join(f":id{i}" for i in range(len(payload.transaction_ids)))
+    params = {f"id{i}": tid for i, tid in enumerate(payload.transaction_ids)}
+    params["user_id"] = user_id
+    params["is_declared"] = payload.is_declared
+
+    await db.execute(
+        text(f"""
+            UPDATE pro_transactions SET is_declared = :is_declared
+            WHERE user_id = :user_id AND id IN ({placeholders})
+        """),
+        params,
+    )
+    await db.commit()
+    return {"updated": len(payload.transaction_ids)}
+
+
 @router.put("/transactions/{transaction_id}", response_model=ProTransaction)
 async def update_transaction(
     transaction_id: str,
@@ -1134,4 +1166,845 @@ async def get_dashboard(
         net_month=row.ca_month - row.expenses_month,
         cotisations_estimated=round(cotisations, 2),
         threshold_percentage=round(threshold_pct, 1),
+    )
+
+
+# ────────────────────────────── Declaration Periods ──────────────────────────────
+
+
+MONTH_LABELS_FR = [
+    "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+]
+
+
+@router.get("/declaration/periods", response_model=list[DeclarationPeriodSummary])
+async def get_declaration_periods(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    year: int | None = Query(None),
+):
+    """Get declaration period summaries for the given year (defaults to current year)."""
+    from datetime import date
+    if year is None:
+        year = date.today().year
+
+    # Get profile for frequency and cotisation rate
+    profile_result = await db.execute(
+        text("SELECT declaration_frequency, cotisation_rate FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    profile = profile_result.fetchone()
+    frequency = profile.declaration_frequency if profile else "quarterly"
+    rate = profile.cotisation_rate if profile else 21.1
+
+    # Build periods
+    periods = []
+    if frequency == "monthly":
+        for m in range(1, 13):
+            start = f"{year}-{m:02d}-01"
+            if m == 12:
+                end = f"{year}-12-31"
+            else:
+                end = f"{year}-{m + 1:02d}-01"
+            periods.append((start, end, f"{MONTH_LABELS_FR[m]} {year}"))
+    else:
+        for q in range(1, 5):
+            sm = (q - 1) * 3 + 1
+            start = f"{year}-{sm:02d}-01"
+            if q == 4:
+                end = f"{year + 1}-01-01"
+            else:
+                em = sm + 3
+                end = f"{year}-{em:02d}-01"
+            periods.append((start, end, f"T{q} {year}"))
+
+    summaries = []
+    for p_start, p_end, label in periods:
+        result = await db.execute(
+            text("""
+                SELECT
+                    COUNT(*) as total_tx,
+                    COALESCE(SUM(amount), 0) as total_income,
+                    COALESCE(SUM(CASE WHEN is_declared = 1 THEN amount END), 0) as declared_income,
+                    COALESCE(SUM(CASE WHEN is_declared = 1 THEN 1 ELSE 0 END), 0) as declared_tx
+                FROM pro_transactions
+                WHERE user_id = :user_id
+                  AND transaction_type = 'income'
+                  AND date >= :start AND date < :end
+            """),
+            {"user_id": user_id, "start": p_start, "end": p_end},
+        )
+        row = result.fetchone()
+        summaries.append(DeclarationPeriodSummary(
+            period_start=p_start,
+            period_end=p_end,
+            period_label=label,
+            total_income=row.total_income,
+            declared_income=row.declared_income,
+            undeclared_income=row.total_income - row.declared_income,
+            total_transactions=row.total_tx,
+            declared_transactions=row.declared_tx,
+            cotisations_estimated=round(row.declared_income * (rate / 100), 2),
+        ))
+
+    return summaries
+
+
+# ────────────────────────────── Invoice Helpers ──────────────────────────────
+
+
+async def _get_or_create_invoice_settings(db: AsyncSession, user_id: str) -> dict:
+    """Get or create default invoice settings for a user."""
+    result = await db.execute(
+        text("SELECT * FROM pro_invoice_settings WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    row = result.fetchone()
+    if row:
+        return dict(row._mapping)
+    now = datetime.now(timezone.utc).isoformat()
+    settings_id = str(uuid4())
+    await db.execute(
+        text("""INSERT INTO pro_invoice_settings (id, user_id, created_at, updated_at)
+                VALUES (:id, :user_id, :now, :now)"""),
+        {"id": settings_id, "user_id": user_id, "now": now},
+    )
+    await db.commit()
+    result = await db.execute(
+        text("SELECT * FROM pro_invoice_settings WHERE id = :id"),
+        {"id": settings_id},
+    )
+    return dict(result.fetchone()._mapping)
+
+
+async def _generate_number(db: AsyncSession, user_id: str, doc_type: str) -> str:
+    """Generate next document number like F-2026-001 and increment counter."""
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    year = datetime.now(timezone.utc).year
+    if doc_type == "invoice":
+        prefix = settings["invoice_prefix"]
+        seq = settings["next_invoice_number"]
+        await db.execute(
+            text("UPDATE pro_invoice_settings SET next_invoice_number = next_invoice_number + 1, updated_at = :now WHERE user_id = :user_id"),
+            {"user_id": user_id, "now": datetime.now(timezone.utc).isoformat()},
+        )
+    else:
+        prefix = settings["quote_prefix"]
+        seq = settings["next_quote_number"]
+        await db.execute(
+            text("UPDATE pro_invoice_settings SET next_quote_number = next_quote_number + 1, updated_at = :now WHERE user_id = :user_id"),
+            {"user_id": user_id, "now": datetime.now(timezone.utc).isoformat()},
+        )
+    return f"{prefix}-{year}-{seq:03d}"
+
+
+def _calc_totals(items: list, discount_type: str | None, discount_value: float) -> tuple[float, float]:
+    """Calculate subtotal and total from items and discount."""
+    subtotal = sum(i.quantity * i.unit_price for i in items)
+    total = subtotal
+    if discount_type == "percentage" and discount_value:
+        total = subtotal * (1 - discount_value / 100)
+    elif discount_type == "fixed" and discount_value:
+        total = subtotal - discount_value
+    return round(subtotal, 2), round(max(total, 0), 2)
+
+
+async def _get_profile_for_pdf(db: AsyncSession, user_id: str) -> dict:
+    """Get profile + user info for PDF generation."""
+    result = await db.execute(
+        text("""SELECT u.name, u.email, u.phone, p.siret
+                FROM users u LEFT JOIN pro_profiles p ON p.user_id = u.id
+                WHERE u.id = :user_id"""),
+        {"user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        return {}
+    return dict(row._mapping)
+
+
+async def _get_client_dict(db: AsyncSession, client_id: str) -> dict:
+    result = await db.execute(
+        text("SELECT * FROM pro_clients WHERE id = :id"), {"id": client_id}
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return dict(row._mapping)
+
+
+# ────────────────────────────── Invoice Settings ──────────────────────────────
+
+
+@router.get("/invoice-settings", response_model=ProInvoiceSettings)
+async def get_invoice_settings(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get or create invoice settings."""
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    return ProInvoiceSettings(**settings)
+
+
+@router.put("/invoice-settings", response_model=ProInvoiceSettings)
+async def update_invoice_settings(
+    payload: UpdateProInvoiceSettings,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update invoice settings."""
+    await _get_or_create_invoice_settings(db, user_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    updates["user_id"] = user_id
+    await db.execute(
+        text(f"UPDATE pro_invoice_settings SET {set_clause} WHERE user_id = :user_id"),
+        updates,
+    )
+    await db.commit()
+    result = await db.execute(
+        text("SELECT * FROM pro_invoice_settings WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    return ProInvoiceSettings(**dict(result.fetchone()._mapping))
+
+
+# ────────────────────────────── Invoices ──────────────────────────────
+
+
+@router.get("/invoices", response_model=list[ProInvoice])
+async def list_invoices(
+    status_filter: str | None = Query(None, alias="status"),
+    client_id: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List invoices with optional filters."""
+    query = """
+        SELECT i.*, c.name as client_name, c.email as client_email, c.address as client_address
+        FROM pro_invoices i
+        LEFT JOIN pro_clients c ON c.id = i.client_id
+        WHERE i.user_id = :user_id
+    """
+    params: dict = {"user_id": user_id}
+    if status_filter:
+        query += " AND i.status = :status"
+        params["status"] = status_filter
+    if client_id:
+        query += " AND i.client_id = :client_id"
+        params["client_id"] = client_id
+    if start_date:
+        query += " AND i.issue_date >= :start_date"
+        params["start_date"] = start_date
+    if end_date:
+        query += " AND i.issue_date <= :end_date"
+        params["end_date"] = end_date
+    query += " ORDER BY i.issue_date DESC"
+
+    result = await db.execute(text(query), params)
+    invoices = []
+    for row in result.fetchall():
+        inv = dict(row._mapping)
+        # Fetch items
+        items_result = await db.execute(
+            text("SELECT * FROM pro_invoice_items WHERE invoice_id = :id ORDER BY sort_order"),
+            {"id": inv["id"]},
+        )
+        inv["items"] = [dict(r._mapping) for r in items_result.fetchall()]
+        invoices.append(ProInvoice(**inv))
+    return invoices
+
+
+@router.get("/invoices/{invoice_id}", response_model=ProInvoice)
+async def get_invoice(
+    invoice_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single invoice with items."""
+    result = await db.execute(
+        text("""SELECT i.*, c.name as client_name, c.email as client_email, c.address as client_address
+                FROM pro_invoices i
+                LEFT JOIN pro_clients c ON c.id = i.client_id
+                WHERE i.id = :id AND i.user_id = :user_id"""),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = dict(row._mapping)
+    items_result = await db.execute(
+        text("SELECT * FROM pro_invoice_items WHERE invoice_id = :id ORDER BY sort_order"),
+        {"id": invoice_id},
+    )
+    inv["items"] = [dict(r._mapping) for r in items_result.fetchall()]
+    return ProInvoice(**inv)
+
+
+@router.post("/invoices", response_model=ProInvoice, status_code=status.HTTP_201_CREATED)
+async def create_invoice(
+    payload: CreateProInvoice,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new invoice with auto-numbered ID."""
+    invoice_number = await _generate_number(db, user_id, "invoice")
+    subtotal, total = _calc_totals(payload.items, payload.discount_type, payload.discount_value)
+    now = datetime.now(timezone.utc).isoformat()
+    invoice_id = str(uuid4())
+
+    await db.execute(
+        text("""INSERT INTO pro_invoices
+                (id, user_id, client_id, invoice_number, status, issue_date, due_date,
+                 subtotal, total, discount_type, discount_value, notes, created_at, updated_at)
+                VALUES (:id, :user_id, :client_id, :invoice_number, 'draft', :issue_date, :due_date,
+                        :subtotal, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
+        {
+            "id": invoice_id, "user_id": user_id, "client_id": payload.client_id,
+            "invoice_number": invoice_number, "issue_date": payload.issue_date,
+            "due_date": payload.due_date, "subtotal": subtotal, "total": total,
+            "discount_type": payload.discount_type, "discount_value": payload.discount_value,
+            "notes": payload.notes, "now": now,
+        },
+    )
+
+    for idx, item in enumerate(payload.items):
+        item_total = round(item.quantity * item.unit_price, 2)
+        await db.execute(
+            text("""INSERT INTO pro_invoice_items
+                    (id, invoice_id, product_id, description, quantity, unit_price, total, sort_order)
+                    VALUES (:id, :invoice_id, :product_id, :description, :quantity, :unit_price, :total, :sort_order)"""),
+            {
+                "id": str(uuid4()), "invoice_id": invoice_id, "product_id": item.product_id,
+                "description": item.description, "quantity": item.quantity,
+                "unit_price": item.unit_price, "total": item_total, "sort_order": idx,
+            },
+        )
+    await db.commit()
+    return await get_invoice(invoice_id, user_id, db)
+
+
+@router.put("/invoices/{invoice_id}", response_model=ProInvoice)
+async def update_invoice(
+    invoice_id: str,
+    payload: UpdateProInvoice,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a draft invoice."""
+    result = await db.execute(
+        text("SELECT status FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if row.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft invoices can be edited")
+
+    updates = payload.model_dump(exclude_unset=True, exclude={"items"})
+    now = datetime.now(timezone.utc).isoformat()
+
+    # If items are provided, recalculate totals
+    if payload.items is not None:
+        subtotal, total = _calc_totals(
+            payload.items,
+            payload.discount_type or updates.get("discount_type"),
+            payload.discount_value if payload.discount_value is not None else 0,
+        )
+        updates["subtotal"] = subtotal
+        updates["total"] = total
+
+        # Replace items
+        await db.execute(
+            text("DELETE FROM pro_invoice_items WHERE invoice_id = :id"),
+            {"id": invoice_id},
+        )
+        for idx, item in enumerate(payload.items):
+            item_total = round(item.quantity * item.unit_price, 2)
+            await db.execute(
+                text("""INSERT INTO pro_invoice_items
+                        (id, invoice_id, product_id, description, quantity, unit_price, total, sort_order)
+                        VALUES (:id, :invoice_id, :product_id, :description, :quantity, :unit_price, :total, :sort_order)"""),
+                {
+                    "id": str(uuid4()), "invoice_id": invoice_id, "product_id": item.product_id,
+                    "description": item.description, "quantity": item.quantity,
+                    "unit_price": item.unit_price, "total": item_total, "sort_order": idx,
+                },
+            )
+
+    if updates:
+        updates["updated_at"] = now
+        set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+        updates["id"] = invoice_id
+        updates["user_id"] = user_id
+        await db.execute(
+            text(f"UPDATE pro_invoices SET {set_clause} WHERE id = :id AND user_id = :user_id"),
+            updates,
+        )
+    await db.commit()
+    return await get_invoice(invoice_id, user_id, db)
+
+
+@router.delete("/invoices/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invoice(
+    invoice_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a draft invoice."""
+    result = await db.execute(
+        text("SELECT status FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if row.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft invoices can be deleted")
+    await db.execute(text("DELETE FROM pro_invoices WHERE id = :id"), {"id": invoice_id})
+    await db.commit()
+
+
+@router.put("/invoices/{invoice_id}/status", response_model=ProInvoice)
+async def update_invoice_status(
+    invoice_id: str,
+    payload: UpdateProInvoiceStatus,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update invoice status with transition validation."""
+    result = await db.execute(
+        text("SELECT status FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    current = row.status
+    new = payload.status
+    valid_transitions = {
+        "draft": ["sent", "cancelled"],
+        "sent": ["paid", "cancelled"],
+        "paid": ["cancelled"],
+    }
+    if new not in valid_transitions.get(current, []):
+        raise HTTPException(status_code=400, detail=f"Cannot transition from {current} to {new}")
+
+    now = datetime.now(timezone.utc).isoformat()
+    params: dict = {"id": invoice_id, "status": new, "now": now}
+    extra_set = ""
+    if new == "paid":
+        params["payment_method"] = payload.payment_method
+        params["paid_date"] = payload.paid_date or now[:10]
+        extra_set = ", payment_method = :payment_method, paid_date = :paid_date"
+
+    await db.execute(
+        text(f"UPDATE pro_invoices SET status = :status, updated_at = :now{extra_set} WHERE id = :id"),
+        params,
+    )
+    await db.commit()
+    return await get_invoice(invoice_id, user_id, db)
+
+
+@router.put("/invoices/{invoice_id}/reminder", response_model=ProInvoice)
+async def mark_invoice_reminder(
+    invoice_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark reminder sent on an invoice."""
+    now = datetime.now(timezone.utc).isoformat()
+    result = await db.execute(
+        text("UPDATE pro_invoices SET reminder_sent_at = :now, updated_at = :now WHERE id = :id AND user_id = :user_id RETURNING id"),
+        {"id": invoice_id, "user_id": user_id, "now": now},
+    )
+    if not result.fetchone():
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    await db.commit()
+    return await get_invoice(invoice_id, user_id, db)
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf(
+    invoice_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download invoice as PDF."""
+    result = await db.execute(
+        text("SELECT * FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice = dict(row._mapping)
+
+    items_result = await db.execute(
+        text("SELECT * FROM pro_invoice_items WHERE invoice_id = :id ORDER BY sort_order"),
+        {"id": invoice_id},
+    )
+    items = [dict(r._mapping) for r in items_result.fetchall()]
+
+    profile = await _get_profile_for_pdf(db, user_id)
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    client = await _get_client_dict(db, invoice["client_id"])
+
+    pdf_bytes = generate_invoice_pdf(
+        invoice=invoice, items=items, profile=profile, settings=settings, client=client,
+    )
+    filename = f"{invoice['invoice_number']}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ────────────────────────────── Quotes ──────────────────────────────
+
+
+@router.get("/quotes", response_model=list[ProQuote])
+async def list_quotes(
+    status_filter: str | None = Query(None, alias="status"),
+    client_id: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List quotes with optional filters."""
+    query = """
+        SELECT q.*, c.name as client_name, c.email as client_email, c.address as client_address
+        FROM pro_quotes q
+        LEFT JOIN pro_clients c ON c.id = q.client_id
+        WHERE q.user_id = :user_id
+    """
+    params: dict = {"user_id": user_id}
+    if status_filter:
+        query += " AND q.status = :status"
+        params["status"] = status_filter
+    if client_id:
+        query += " AND q.client_id = :client_id"
+        params["client_id"] = client_id
+    if start_date:
+        query += " AND q.issue_date >= :start_date"
+        params["start_date"] = start_date
+    if end_date:
+        query += " AND q.issue_date <= :end_date"
+        params["end_date"] = end_date
+    query += " ORDER BY q.issue_date DESC"
+
+    result = await db.execute(text(query), params)
+    quotes = []
+    for row in result.fetchall():
+        q = dict(row._mapping)
+        items_result = await db.execute(
+            text("SELECT * FROM pro_quote_items WHERE quote_id = :id ORDER BY sort_order"),
+            {"id": q["id"]},
+        )
+        q["items"] = [dict(r._mapping) for r in items_result.fetchall()]
+        quotes.append(ProQuote(**q))
+    return quotes
+
+
+@router.get("/quotes/{quote_id}", response_model=ProQuote)
+async def get_quote(
+    quote_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single quote with items."""
+    result = await db.execute(
+        text("""SELECT q.*, c.name as client_name, c.email as client_email, c.address as client_address
+                FROM pro_quotes q
+                LEFT JOIN pro_clients c ON c.id = q.client_id
+                WHERE q.id = :id AND q.user_id = :user_id"""),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    q = dict(row._mapping)
+    items_result = await db.execute(
+        text("SELECT * FROM pro_quote_items WHERE quote_id = :id ORDER BY sort_order"),
+        {"id": quote_id},
+    )
+    q["items"] = [dict(r._mapping) for r in items_result.fetchall()]
+    return ProQuote(**q)
+
+
+@router.post("/quotes", response_model=ProQuote, status_code=status.HTTP_201_CREATED)
+async def create_quote(
+    payload: CreateProQuote,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new quote."""
+    quote_number = await _generate_number(db, user_id, "quote")
+    subtotal, total = _calc_totals(payload.items, payload.discount_type, payload.discount_value)
+    now = datetime.now(timezone.utc).isoformat()
+    quote_id = str(uuid4())
+
+    await db.execute(
+        text("""INSERT INTO pro_quotes
+                (id, user_id, client_id, quote_number, status, issue_date, validity_date,
+                 subtotal, total, discount_type, discount_value, notes, created_at, updated_at)
+                VALUES (:id, :user_id, :client_id, :quote_number, 'draft', :issue_date, :validity_date,
+                        :subtotal, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
+        {
+            "id": quote_id, "user_id": user_id, "client_id": payload.client_id,
+            "quote_number": quote_number, "issue_date": payload.issue_date,
+            "validity_date": payload.validity_date, "subtotal": subtotal, "total": total,
+            "discount_type": payload.discount_type, "discount_value": payload.discount_value,
+            "notes": payload.notes, "now": now,
+        },
+    )
+
+    for idx, item in enumerate(payload.items):
+        item_total = round(item.quantity * item.unit_price, 2)
+        await db.execute(
+            text("""INSERT INTO pro_quote_items
+                    (id, quote_id, product_id, description, quantity, unit_price, total, sort_order)
+                    VALUES (:id, :quote_id, :product_id, :description, :quantity, :unit_price, :total, :sort_order)"""),
+            {
+                "id": str(uuid4()), "quote_id": quote_id, "product_id": item.product_id,
+                "description": item.description, "quantity": item.quantity,
+                "unit_price": item.unit_price, "total": item_total, "sort_order": idx,
+            },
+        )
+    await db.commit()
+    return await get_quote(quote_id, user_id, db)
+
+
+@router.put("/quotes/{quote_id}", response_model=ProQuote)
+async def update_quote(
+    quote_id: str,
+    payload: UpdateProQuote,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a draft quote."""
+    result = await db.execute(
+        text("SELECT status FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    if row.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft quotes can be edited")
+
+    updates = payload.model_dump(exclude_unset=True, exclude={"items"})
+    now = datetime.now(timezone.utc).isoformat()
+
+    if payload.items is not None:
+        subtotal, total = _calc_totals(
+            payload.items,
+            payload.discount_type or updates.get("discount_type"),
+            payload.discount_value if payload.discount_value is not None else 0,
+        )
+        updates["subtotal"] = subtotal
+        updates["total"] = total
+
+        await db.execute(
+            text("DELETE FROM pro_quote_items WHERE quote_id = :id"),
+            {"id": quote_id},
+        )
+        for idx, item in enumerate(payload.items):
+            item_total = round(item.quantity * item.unit_price, 2)
+            await db.execute(
+                text("""INSERT INTO pro_quote_items
+                        (id, quote_id, product_id, description, quantity, unit_price, total, sort_order)
+                        VALUES (:id, :quote_id, :product_id, :description, :quantity, :unit_price, :total, :sort_order)"""),
+                {
+                    "id": str(uuid4()), "quote_id": quote_id, "product_id": item.product_id,
+                    "description": item.description, "quantity": item.quantity,
+                    "unit_price": item.unit_price, "total": item_total, "sort_order": idx,
+                },
+            )
+
+    if updates:
+        updates["updated_at"] = now
+        set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+        updates["id"] = quote_id
+        updates["user_id"] = user_id
+        await db.execute(
+            text(f"UPDATE pro_quotes SET {set_clause} WHERE id = :id AND user_id = :user_id"),
+            updates,
+        )
+    await db.commit()
+    return await get_quote(quote_id, user_id, db)
+
+
+@router.delete("/quotes/{quote_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_quote(
+    quote_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a draft quote."""
+    result = await db.execute(
+        text("SELECT status FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    if row.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft quotes can be deleted")
+    await db.execute(text("DELETE FROM pro_quotes WHERE id = :id"), {"id": quote_id})
+    await db.commit()
+
+
+@router.put("/quotes/{quote_id}/status", response_model=ProQuote)
+async def update_quote_status(
+    quote_id: str,
+    payload: UpdateProQuoteStatus,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update quote status."""
+    result = await db.execute(
+        text("SELECT status FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    current = row.status
+    new = payload.status
+    valid_transitions = {
+        "draft": ["sent", "expired"],
+        "sent": ["accepted", "rejected", "expired"],
+        "accepted": ["expired"],
+    }
+    if new not in valid_transitions.get(current, []):
+        raise HTTPException(status_code=400, detail=f"Cannot transition from {current} to {new}")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("UPDATE pro_quotes SET status = :status, updated_at = :now WHERE id = :id"),
+        {"id": quote_id, "status": new, "now": now},
+    )
+    await db.commit()
+    return await get_quote(quote_id, user_id, db)
+
+
+@router.post("/quotes/{quote_id}/convert-to-invoice", response_model=ProInvoice)
+async def convert_quote_to_invoice(
+    quote_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Convert a quote to an invoice, linking both."""
+    result = await db.execute(
+        text("SELECT * FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    quote = dict(row._mapping)
+    if quote.get("invoice_id"):
+        raise HTTPException(status_code=400, detail="Quote already converted")
+
+    # Get quote items
+    items_result = await db.execute(
+        text("SELECT * FROM pro_quote_items WHERE quote_id = :id ORDER BY sort_order"),
+        {"id": quote_id},
+    )
+    quote_items = [dict(r._mapping) for r in items_result.fetchall()]
+
+    # Generate invoice number
+    invoice_number = await _generate_number(db, user_id, "invoice")
+    now = datetime.now(timezone.utc).isoformat()
+    invoice_id = str(uuid4())
+
+    # Get payment terms for due_date
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    from datetime import timedelta
+    issue_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    due_date = (datetime.now(timezone.utc) + timedelta(days=settings["payment_terms_days"])).strftime("%Y-%m-%d")
+
+    await db.execute(
+        text("""INSERT INTO pro_invoices
+                (id, user_id, client_id, invoice_number, status, issue_date, due_date,
+                 subtotal, total, discount_type, discount_value, notes, quote_id, created_at, updated_at)
+                VALUES (:id, :user_id, :client_id, :invoice_number, 'draft', :issue_date, :due_date,
+                        :subtotal, :total, :discount_type, :discount_value, :notes, :quote_id, :now, :now)"""),
+        {
+            "id": invoice_id, "user_id": user_id, "client_id": quote["client_id"],
+            "invoice_number": invoice_number, "issue_date": issue_date, "due_date": due_date,
+            "subtotal": quote["subtotal"], "total": quote["total"],
+            "discount_type": quote.get("discount_type"), "discount_value": quote.get("discount_value", 0),
+            "notes": quote.get("notes"), "quote_id": quote_id, "now": now,
+        },
+    )
+
+    # Copy items
+    for item in quote_items:
+        await db.execute(
+            text("""INSERT INTO pro_invoice_items
+                    (id, invoice_id, product_id, description, quantity, unit_price, total, sort_order)
+                    VALUES (:id, :invoice_id, :product_id, :description, :quantity, :unit_price, :total, :sort_order)"""),
+            {
+                "id": str(uuid4()), "invoice_id": invoice_id, "product_id": item.get("product_id"),
+                "description": item["description"], "quantity": item["quantity"],
+                "unit_price": item["unit_price"], "total": item["total"], "sort_order": item["sort_order"],
+            },
+        )
+
+    # Link quote to invoice
+    await db.execute(
+        text("UPDATE pro_quotes SET invoice_id = :invoice_id, updated_at = :now WHERE id = :id"),
+        {"invoice_id": invoice_id, "id": quote_id, "now": now},
+    )
+    await db.commit()
+    return await get_invoice(invoice_id, user_id, db)
+
+
+@router.get("/quotes/{quote_id}/pdf")
+async def download_quote_pdf(
+    quote_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download quote as PDF."""
+    result = await db.execute(
+        text("SELECT * FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        {"id": quote_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    quote = dict(row._mapping)
+
+    items_result = await db.execute(
+        text("SELECT * FROM pro_quote_items WHERE quote_id = :id ORDER BY sort_order"),
+        {"id": quote_id},
+    )
+    items = [dict(r._mapping) for r in items_result.fetchall()]
+
+    profile = await _get_profile_for_pdf(db, user_id)
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    client = await _get_client_dict(db, quote["client_id"])
+
+    pdf_bytes = generate_quote_pdf(
+        quote=quote, items=items, profile=profile, settings=settings, client=client,
+    )
+    filename = f"{quote['quote_number']}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

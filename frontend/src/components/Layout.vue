@@ -140,7 +140,8 @@ import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined, HistoryOutlined, BarChartOutlined,
   UserOutlined, SettingOutlined, SyncOutlined, TeamOutlined,
-  ShoppingOutlined, TagOutlined, GiftOutlined
+  ShoppingOutlined, TagOutlined, GiftOutlined, SwapOutlined,
+  FileTextOutlined, FileDoneOutlined, AppstoreOutlined, AuditOutlined
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
@@ -207,6 +208,11 @@ const personalMenuOptions = computed<MenuOption[]>(() => [
     icon: () => h(BarChartOutlined)
   },
   {
+    label: t('nav.loans'),
+    key: 'loans',
+    icon: () => h(SwapOutlined)
+  },
+  {
     label: t('nav.profile'),
     key: 'profile',
     icon: () => h(UserOutlined)
@@ -229,6 +235,26 @@ const proMenuOptions = computed<MenuOption[]>(() => [
     label: t('nav.proProducts'),
     key: 'pro-products',
     icon: () => h(ShoppingOutlined)
+  },
+  {
+    label: t('nav.proInvoices'),
+    key: 'pro-invoices',
+    icon: () => h(FileTextOutlined)
+  },
+  {
+    label: t('nav.proQuotes'),
+    key: 'pro-quotes',
+    icon: () => h(FileDoneOutlined)
+  },
+  {
+    label: t('nav.proCategories'),
+    key: 'pro-categories',
+    icon: () => h(AppstoreOutlined)
+  },
+  {
+    label: t('nav.proDeclaration'),
+    key: 'pro-declaration',
+    icon: () => h(AuditOutlined)
   },
   {
     label: t('nav.proCoupons'),

@@ -73,6 +73,9 @@
           <span style="font-size: 12px; color: rgba(255,255,255,0.5);">{{ tx.date }}</span>
           <n-tag v-if="tx.client_name" size="tiny">{{ tx.client_name }}</n-tag>
           <n-tag v-if="tx.payment_method" size="tiny" type="info">{{ t(`pro.transactions.${tx.payment_method}`) }}</n-tag>
+          <n-tag v-if="tx.transaction_type === 'income'" size="tiny" :type="tx.is_declared ? 'success' : 'warning'">
+            {{ tx.is_declared ? t('pro.declaration.declared') : t('pro.declaration.undeclared') }}
+          </n-tag>
         </n-space>
         <div v-if="tx.items && tx.items.length > 0" style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">
           <span v-for="(item, idx) in tx.items" :key="item.id">

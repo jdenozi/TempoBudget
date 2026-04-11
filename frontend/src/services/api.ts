@@ -409,6 +409,14 @@ export const transactionsAPI = {
   delete: async (id: string) => {
     await api.delete(`/transactions/${id}`)
   },
+
+  exportCSV: async (budgetId: string, params?: { start_date?: string; end_date?: string; category_id?: string }) => {
+    const response = await api.get(`/budgets/${budgetId}/transactions/export`, {
+      params,
+      responseType: 'blob',
+    })
+    return response.data
+  },
 }
 
 /**
@@ -496,6 +504,11 @@ export const recurringAPI = {
    * @param budgetId - The budget's unique identifier
    * @returns Array of newly created transactions
    */
+  getUpcoming: async () => {
+    const response = await api.get<UpcomingRecurring[]>('/upcoming-recurring')
+    return response.data
+  },
+
   process: async (budgetId: string) => {
     const response = await api.post<Transaction[]>(`/budgets/${budgetId}/recurring/process`)
     return response.data
@@ -596,6 +609,38 @@ export const invitationsAPI = {
 /**
  * Budget management API methods.
  */
+/**
+ * Loans API methods.
+ */
+export const loansAPI = {
+  getAll: async () => {
+    const response = await api.get<Loan[]>('/loans')
+    return response.data
+  },
+  getSummary: async () => {
+    const response = await api.get<LoanSummary>('/loans/summary')
+    return response.data
+  },
+  create: async (data: { person_name: string; amount: number; direction: 'lent' | 'borrowed'; date: string; description?: string }) => {
+    const response = await api.post<Loan>('/loans', data)
+    return response.data
+  },
+  update: async (id: string, data: { person_name?: string; amount?: number; direction?: 'lent' | 'borrowed'; date?: string; description?: string; status?: 'active' | 'repaid' }) => {
+    const response = await api.put<Loan>(`/loans/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/loans/${id}`)
+  },
+  addRepayment: async (loanId: string, data: { amount: number; date: string; comment?: string }) => {
+    const response = await api.post<LoanRepayment>(`/loans/${loanId}/repayments`, data)
+    return response.data
+  },
+  deleteRepayment: async (loanId: string, repaymentId: string) => {
+    await api.delete(`/loans/${loanId}/repayments/${repaymentId}`)
+  },
+}
+
 export const budgetsAPI = {
   /**
    * Retrieves all budgets for the current user.
@@ -612,6 +657,11 @@ export const budgetsAPI = {
    */
   getSummaries: async () => {
     const response = await api.get<BudgetSummary[]>('/budgets/summaries')
+    return response.data
+  },
+
+  getMonthlyRecap: async () => {
+    const response = await api.get<MonthlyRecap>('/budgets/monthly-recap')
     return response.data
   },
 
@@ -653,6 +703,74 @@ export const budgetsAPI = {
   },
 }
 
+
+// ============================================================================
+// Monthly Recap Types
+// ============================================================================
+
+export interface TopCategory {
+  name: string
+  total: number
+}
+
+export interface MonthlyRecap {
+  total_income: number
+  total_expenses: number
+  balance: number
+  top_expense_categories: TopCategory[]
+}
+
+// ============================================================================
+// Upcoming Recurring Types
+// ============================================================================
+
+export interface UpcomingRecurring {
+  id: string
+  title: string
+  amount: number
+  transaction_type: string
+  expected_date: string
+  category_name: string
+  budget_name: string
+  is_processed: boolean
+}
+
+// ============================================================================
+// Loan Types
+// ============================================================================
+
+export interface LoanRepayment {
+  id: string
+  loan_id: string
+  amount: number
+  date: string
+  comment: string | null
+  created_at: string
+}
+
+export interface Loan {
+  id: string
+  user_id: string
+  person_name: string
+  amount: number
+  direction: 'lent' | 'borrowed'
+  date: string
+  description: string | null
+  status: 'active' | 'repaid'
+  created_at: string
+  updated_at: string
+  total_repaid: number
+  remaining: number
+  repayments: LoanRepayment[]
+}
+
+export interface LoanSummary {
+  total_lent: number
+  total_borrowed: number
+  total_lent_remaining: number
+  total_borrowed_remaining: number
+  net_position: number
+}
 
 // ============================================================================
 // Pro (Auto-Entrepreneur) Types
@@ -726,10 +844,23 @@ export interface ProTransaction {
   discount_value: number | null
   coupon_id: string | null
   gift_card_payment: number
+  is_declared: number
   created_at: string
   client_name: string | null
   category_name: string | null
   items: ProTransactionItem[]
+}
+
+export interface DeclarationPeriodSummary {
+  period_start: string
+  period_end: string
+  period_label: string
+  total_income: number
+  declared_income: number
+  undeclared_income: number
+  total_transactions: number
+  declared_transactions: number
+  cotisations_estimated: number
 }
 
 export interface ProCoupon {
@@ -780,6 +911,97 @@ export interface ProDashboardSummary {
   net_month: number
   cotisations_estimated: number
   threshold_percentage: number
+}
+
+// ============================================================================
+// Pro Invoice & Quote Types
+// ============================================================================
+
+export interface ProInvoiceSettings {
+  id: string
+  user_id: string
+  invoice_prefix: string
+  quote_prefix: string
+  next_invoice_number: number
+  next_quote_number: number
+  payment_terms_days: number
+  late_penalty_rate: number
+  bank_name: string | null
+  bank_iban: string | null
+  bank_bic: string | null
+  default_notes: string | null
+  logo_path: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProInvoiceItem {
+  id: string
+  invoice_id: string
+  product_id: string | null
+  description: string
+  quantity: number
+  unit_price: number
+  total: number
+  sort_order: number
+}
+
+export interface ProInvoice {
+  id: string
+  user_id: string
+  client_id: string
+  invoice_number: string
+  status: 'draft' | 'sent' | 'paid' | 'cancelled'
+  issue_date: string
+  due_date: string
+  subtotal: number
+  total: number
+  discount_type: 'percentage' | 'fixed' | null
+  discount_value: number
+  notes: string | null
+  payment_method: string | null
+  paid_date: string | null
+  quote_id: string | null
+  reminder_sent_at: string | null
+  created_at: string
+  updated_at: string
+  client_name: string | null
+  client_email: string | null
+  client_address: string | null
+  items: ProInvoiceItem[]
+}
+
+export interface ProQuoteItem {
+  id: string
+  quote_id: string
+  product_id: string | null
+  description: string
+  quantity: number
+  unit_price: number
+  total: number
+  sort_order: number
+}
+
+export interface ProQuote {
+  id: string
+  user_id: string
+  client_id: string
+  quote_number: string
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+  issue_date: string
+  validity_date: string
+  subtotal: number
+  total: number
+  discount_type: 'percentage' | 'fixed' | null
+  discount_value: number
+  notes: string | null
+  invoice_id: string | null
+  created_at: string
+  updated_at: string
+  client_name: string | null
+  client_email: string | null
+  client_address: string | null
+  items: ProQuoteItem[]
 }
 
 // ============================================================================
@@ -943,6 +1165,112 @@ export const proGiftCardsAPI = {
 export const proDashboardAPI = {
   getSummary: async () => {
     const response = await api.get<ProDashboardSummary>('/pro/dashboard')
+    return response.data
+  },
+}
+
+export const proDeclarationAPI = {
+  getPeriods: async (year?: number) => {
+    const response = await api.get<DeclarationPeriodSummary[]>('/pro/declaration/periods', { params: year ? { year } : {} })
+    return response.data
+  },
+  batchToggleDeclared: async (transaction_ids: string[], is_declared: number) => {
+    const response = await api.put('/pro/transactions/declare', { transaction_ids, is_declared })
+    return response.data
+  },
+}
+
+export const proInvoiceSettingsAPI = {
+  get: async () => {
+    const response = await api.get<ProInvoiceSettings>('/pro/invoice-settings')
+    return response.data
+  },
+  update: async (data: Partial<ProInvoiceSettings>) => {
+    const response = await api.put<ProInvoiceSettings>('/pro/invoice-settings', data)
+    return response.data
+  },
+}
+
+export const proInvoicesAPI = {
+  getAll: async (params?: { status?: string; client_id?: string; start_date?: string; end_date?: string }) => {
+    const response = await api.get<ProInvoice[]>('/pro/invoices', { params })
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get<ProInvoice>(`/pro/invoices/${id}`)
+    return response.data
+  },
+  create: async (data: {
+    client_id: string; issue_date: string; due_date: string;
+    discount_type?: 'percentage' | 'fixed'; discount_value?: number; notes?: string;
+    items: { product_id?: string; description: string; quantity: number; unit_price: number }[]
+  }) => {
+    const response = await api.post<ProInvoice>('/pro/invoices', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    client_id?: string; issue_date?: string; due_date?: string;
+    discount_type?: 'percentage' | 'fixed'; discount_value?: number; notes?: string;
+    items?: { product_id?: string; description: string; quantity: number; unit_price: number }[]
+  }) => {
+    const response = await api.put<ProInvoice>(`/pro/invoices/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/invoices/${id}`)
+  },
+  updateStatus: async (id: string, data: { status: string; payment_method?: string; paid_date?: string }) => {
+    const response = await api.put<ProInvoice>(`/pro/invoices/${id}/status`, data)
+    return response.data
+  },
+  markReminder: async (id: string) => {
+    const response = await api.put<ProInvoice>(`/pro/invoices/${id}/reminder`)
+    return response.data
+  },
+  downloadPdf: async (id: string) => {
+    const response = await api.get(`/pro/invoices/${id}/pdf`, { responseType: 'blob' })
+    return response.data
+  },
+}
+
+export const proQuotesAPI = {
+  getAll: async (params?: { status?: string; client_id?: string; start_date?: string; end_date?: string }) => {
+    const response = await api.get<ProQuote[]>('/pro/quotes', { params })
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get<ProQuote>(`/pro/quotes/${id}`)
+    return response.data
+  },
+  create: async (data: {
+    client_id: string; issue_date: string; validity_date: string;
+    discount_type?: 'percentage' | 'fixed'; discount_value?: number; notes?: string;
+    items: { product_id?: string; description: string; quantity: number; unit_price: number }[]
+  }) => {
+    const response = await api.post<ProQuote>('/pro/quotes', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    client_id?: string; issue_date?: string; validity_date?: string;
+    discount_type?: 'percentage' | 'fixed'; discount_value?: number; notes?: string;
+    items?: { product_id?: string; description: string; quantity: number; unit_price: number }[]
+  }) => {
+    const response = await api.put<ProQuote>(`/pro/quotes/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/quotes/${id}`)
+  },
+  updateStatus: async (id: string, data: { status: string }) => {
+    const response = await api.put<ProQuote>(`/pro/quotes/${id}/status`, data)
+    return response.data
+  },
+  convertToInvoice: async (id: string) => {
+    const response = await api.post<ProInvoice>(`/pro/quotes/${id}/convert-to-invoice`)
+    return response.data
+  },
+  downloadPdf: async (id: string) => {
+    const response = await api.get(`/pro/quotes/${id}/pdf`, { responseType: 'blob' })
     return response.data
   },
 }

@@ -105,6 +105,18 @@ class RecurringTransactionVersion(BaseModel):
         from_attributes = True
 
 
+class UpcomingRecurring(BaseModel):
+    """Upcoming recurring transaction for the current month."""
+    id: str = Field(..., description="Recurring transaction ID")
+    title: str = Field(..., description="Transaction title")
+    amount: float = Field(..., description="Transaction amount")
+    transaction_type: str = Field(..., description="Type: income or expense")
+    expected_date: str = Field(..., description="Expected date this month")
+    category_name: str = Field(..., description="Category name")
+    budget_name: str = Field(..., description="Budget name")
+    is_processed: bool = Field(..., description="Whether already processed")
+
+
 class RecurringTransactionWithCategory(BaseModel):
     """Recurring transaction with resolved category information."""
     id: str = Field(..., description="Unique identifier (UUID)")

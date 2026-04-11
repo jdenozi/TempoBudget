@@ -11,9 +11,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
   proProfileAPI, proClientsAPI, proCategoriesAPI, proTransactionsAPI, proDashboardAPI, proProductsAPI,
-  proCouponsAPI, proGiftCardsAPI,
+  proCouponsAPI, proGiftCardsAPI, proInvoicesAPI, proQuotesAPI, proInvoiceSettingsAPI, proDeclarationAPI,
   type ProProfile, type ProClient, type ProCategory, type ProTransaction, type ProDashboardSummary, type ProProduct,
   type ProCoupon, type ProGiftCard, type ProGiftCardUsage,
+  type ProInvoice, type ProQuote, type ProInvoiceSettings, type DeclarationPeriodSummary,
 } from '@/services/api'
 
 export const useProStore = defineStore('pro', () => {
@@ -41,8 +42,20 @@ export const useProStore = defineStore('pro', () => {
   /** Pro gift cards */
   const proGiftCards = ref<ProGiftCard[]>([])
 
+  /** Pro invoices */
+  const proInvoices = ref<ProInvoice[]>([])
+
+  /** Pro quotes */
+  const proQuotes = ref<ProQuote[]>([])
+
+  /** Invoice settings */
+  const invoiceSettings = ref<ProInvoiceSettings | null>(null)
+
   /** Dashboard summary */
   const dashboardSummary = ref<ProDashboardSummary | null>(null)
+
+  /** Declaration periods */
+  const declarationPeriods = ref<DeclarationPeriodSummary[]>([])
 
   /** Loading state */
   const loading = ref(false)
@@ -253,6 +266,119 @@ export const useProStore = defineStore('pro', () => {
     proTransactions.value = proTransactions.value.filter(t => t.id !== id)
   }
 
+  // ── Invoice Settings ──
+
+  async function fetchInvoiceSettings() {
+    invoiceSettings.value = await proInvoiceSettingsAPI.get()
+  }
+
+  async function updateInvoiceSettings(data: Partial<ProInvoiceSettings>) {
+    invoiceSettings.value = await proInvoiceSettingsAPI.update(data)
+  }
+
+  // ── Invoices ──
+
+  async function fetchInvoices(params?: { status?: string; client_id?: string; start_date?: string; end_date?: string }) {
+    loading.value = true
+    try {
+      proInvoices.value = await proInvoicesAPI.getAll(params)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchInvoice(id: string) {
+    return await proInvoicesAPI.getById(id)
+  }
+
+  async function createInvoice(data: Parameters<typeof proInvoicesAPI.create>[0]) {
+    const inv = await proInvoicesAPI.create(data)
+    proInvoices.value.unshift(inv)
+    return inv
+  }
+
+  async function updateInvoice(id: string, data: Parameters<typeof proInvoicesAPI.update>[1]) {
+    const updated = await proInvoicesAPI.update(id, data)
+    const idx = proInvoices.value.findIndex(i => i.id === id)
+    if (idx !== -1) proInvoices.value[idx] = updated
+    return updated
+  }
+
+  async function deleteInvoice(id: string) {
+    await proInvoicesAPI.delete(id)
+    proInvoices.value = proInvoices.value.filter(i => i.id !== id)
+  }
+
+  async function updateInvoiceStatus(id: string, data: { status: string; payment_method?: string; paid_date?: string }) {
+    const updated = await proInvoicesAPI.updateStatus(id, data)
+    const idx = proInvoices.value.findIndex(i => i.id === id)
+    if (idx !== -1) proInvoices.value[idx] = updated
+    return updated
+  }
+
+  async function markInvoiceReminder(id: string) {
+    const updated = await proInvoicesAPI.markReminder(id)
+    const idx = proInvoices.value.findIndex(i => i.id === id)
+    if (idx !== -1) proInvoices.value[idx] = updated
+    return updated
+  }
+
+  async function downloadInvoicePdf(id: string) {
+    return await proInvoicesAPI.downloadPdf(id)
+  }
+
+  // ── Quotes ──
+
+  async function fetchQuotes(params?: { status?: string; client_id?: string; start_date?: string; end_date?: string }) {
+    loading.value = true
+    try {
+      proQuotes.value = await proQuotesAPI.getAll(params)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchQuote(id: string) {
+    return await proQuotesAPI.getById(id)
+  }
+
+  async function createQuote(data: Parameters<typeof proQuotesAPI.create>[0]) {
+    const q = await proQuotesAPI.create(data)
+    proQuotes.value.unshift(q)
+    return q
+  }
+
+  async function updateQuote(id: string, data: Parameters<typeof proQuotesAPI.update>[1]) {
+    const updated = await proQuotesAPI.update(id, data)
+    const idx = proQuotes.value.findIndex(q => q.id === id)
+    if (idx !== -1) proQuotes.value[idx] = updated
+    return updated
+  }
+
+  async function deleteQuote(id: string) {
+    await proQuotesAPI.delete(id)
+    proQuotes.value = proQuotes.value.filter(q => q.id !== id)
+  }
+
+  async function updateQuoteStatus(id: string, data: { status: string }) {
+    const updated = await proQuotesAPI.updateStatus(id, data)
+    const idx = proQuotes.value.findIndex(q => q.id === id)
+    if (idx !== -1) proQuotes.value[idx] = updated
+    return updated
+  }
+
+  async function convertQuoteToInvoice(id: string) {
+    const invoice = await proQuotesAPI.convertToInvoice(id)
+    proInvoices.value.unshift(invoice)
+    // Refresh quotes to get updated invoice_id link
+    await fetchQuotes()
+    return invoice
+  }
+
+  async function downloadQuotePdf(id: string) {
+    return await proQuotesAPI.downloadPdf(id)
+  }
+
   // ── Dashboard ──
 
   async function fetchDashboard() {
@@ -262,6 +388,16 @@ export const useProStore = defineStore('pro', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // ── Declaration ──
+
+  async function fetchDeclarationPeriods(year?: number) {
+    declarationPeriods.value = await proDeclarationAPI.getPeriods(year)
+  }
+
+  async function batchToggleDeclared(transactionIds: string[], isDeclared: number) {
+    await proDeclarationAPI.batchToggleDeclared(transactionIds, isDeclared)
   }
 
   return {
@@ -274,6 +410,9 @@ export const useProStore = defineStore('pro', () => {
     proCoupons,
     proGiftCards,
     proTransactions,
+    proInvoices,
+    proQuotes,
+    invoiceSettings,
     dashboardSummary,
     loading,
     // Mode
@@ -312,7 +451,32 @@ export const useProStore = defineStore('pro', () => {
     createTransaction,
     updateTransaction,
     deleteTransaction,
+    // Invoice Settings
+    fetchInvoiceSettings,
+    updateInvoiceSettings,
+    // Invoices
+    fetchInvoices,
+    fetchInvoice,
+    createInvoice,
+    updateInvoice,
+    deleteInvoice,
+    updateInvoiceStatus,
+    markInvoiceReminder,
+    downloadInvoicePdf,
+    // Quotes
+    fetchQuotes,
+    fetchQuote,
+    createQuote,
+    updateQuote,
+    deleteQuote,
+    updateQuoteStatus,
+    convertQuoteToInvoice,
+    downloadQuotePdf,
     // Dashboard
     fetchDashboard,
+    // Declaration
+    declarationPeriods,
+    fetchDeclarationPeriods,
+    batchToggleDeclared,
   }
 })
