@@ -32,6 +32,20 @@ class UpdateBudget(BaseModel):
     is_active: int | None = Field(None, ge=0, le=1, description="New active status")
 
 
+class TopCategory(BaseModel):
+    """Top expense category."""
+    name: str = Field(..., description="Category name")
+    total: float = Field(..., description="Total amount spent")
+
+
+class MonthlyRecap(BaseModel):
+    """Monthly recap across all user budgets."""
+    total_income: float = Field(..., description="Total income this month")
+    total_expenses: float = Field(..., description="Total expenses this month")
+    balance: float = Field(..., description="Income - expenses")
+    top_expense_categories: list[TopCategory] = Field(default_factory=list, description="Top 3 expense categories")
+
+
 class BudgetSummary(BaseModel):
     """Summary statistics for a budget."""
     id: str = Field(..., description="Budget unique identifier")

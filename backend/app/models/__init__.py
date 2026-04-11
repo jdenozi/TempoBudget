@@ -3,12 +3,17 @@
 """Data models module."""
 
 from .user import User, CreateUser, LoginRequest, AuthResponse, ChangePasswordRequest, UpdateProfileRequest
-from .budget import Budget, CreateBudget, UpdateBudget, BudgetSummary
+from .budget import Budget, CreateBudget, UpdateBudget, BudgetSummary, MonthlyRecap, TopCategory
 from .category import Category, CreateCategory, UpdateCategory
 from .transaction import (
     Transaction, CreateTransaction, UpdateTransaction,
     RecurringTransaction, CreateRecurringTransaction,
-    UpdateRecurringTransaction, RecurringTransactionVersion, RecurringTransactionWithCategory
+    UpdateRecurringTransaction, RecurringTransactionVersion, RecurringTransactionWithCategory,
+    UpcomingRecurring
+)
+from .loan import (
+    Loan, CreateLoan, UpdateLoan,
+    LoanRepayment, CreateLoanRepayment, LoanSummary
 )
 from .budget_member import BudgetMember, BudgetMemberWithUser, InviteMemberRequest, UpdateMemberShareRequest, MemberBalance
 from .invitation import BudgetInvitation, BudgetInvitationWithDetails
@@ -21,16 +26,23 @@ from .pro import (
     ProTransactionItem, CreateProTransactionItem,
     ProCoupon, CreateProCoupon, UpdateProCoupon,
     ProGiftCard, CreateProGiftCard, ProGiftCardUsage,
-    ProDashboardSummary
+    ProDashboardSummary,
+    BatchToggleDeclared, DeclarationPeriodSummary,
+    ProInvoiceSettings, UpdateProInvoiceSettings,
+    ProInvoice, CreateProInvoice, UpdateProInvoice, UpdateProInvoiceStatus,
+    ProInvoiceItem, CreateProInvoiceItem,
+    ProQuote, CreateProQuote, UpdateProQuote, UpdateProQuoteStatus,
+    ProQuoteItem, CreateProQuoteItem,
 )
 
 __all__ = [
     "User", "CreateUser", "LoginRequest", "AuthResponse", "ChangePasswordRequest", "UpdateProfileRequest",
-    "Budget", "CreateBudget", "UpdateBudget", "BudgetSummary",
+    "Budget", "CreateBudget", "UpdateBudget", "BudgetSummary", "MonthlyRecap", "TopCategory",
     "Category", "CreateCategory", "UpdateCategory",
     "Transaction", "CreateTransaction", "UpdateTransaction",
     "RecurringTransaction", "CreateRecurringTransaction",
-    "UpdateRecurringTransaction", "RecurringTransactionVersion", "RecurringTransactionWithCategory",
+    "UpdateRecurringTransaction", "RecurringTransactionVersion", "RecurringTransactionWithCategory", "UpcomingRecurring",
+    "Loan", "CreateLoan", "UpdateLoan", "LoanRepayment", "CreateLoanRepayment", "LoanSummary",
     "BudgetMember", "BudgetMemberWithUser", "InviteMemberRequest", "UpdateMemberShareRequest", "MemberBalance",
     "BudgetInvitation", "BudgetInvitationWithDetails",
     "ProProfile", "UpdateProProfile",
@@ -42,4 +54,10 @@ __all__ = [
     "ProCoupon", "CreateProCoupon", "UpdateProCoupon",
     "ProGiftCard", "CreateProGiftCard", "ProGiftCardUsage",
     "ProDashboardSummary",
+    "BatchToggleDeclared", "DeclarationPeriodSummary",
+    "ProInvoiceSettings", "UpdateProInvoiceSettings",
+    "ProInvoice", "CreateProInvoice", "UpdateProInvoice", "UpdateProInvoiceStatus",
+    "ProInvoiceItem", "CreateProInvoiceItem",
+    "ProQuote", "CreateProQuote", "UpdateProQuote", "UpdateProQuoteStatus",
+    "ProQuoteItem", "CreateProQuoteItem",
 ]

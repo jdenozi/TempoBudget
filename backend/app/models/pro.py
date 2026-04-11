@@ -111,6 +111,7 @@ class ProTransaction(BaseModel):
     discount_value: float | None = Field(None, description="Discount value")
     coupon_id: str | None = Field(None, description="Coupon ID if applied")
     gift_card_payment: float = Field(0, description="Amount paid by gift card")
+    is_declared: int = Field(0, description="Whether declared to URSSAF (0/1)")
     created_at: str = Field(..., description="Creation timestamp")
     client_name: str | None = Field(None, description="Client name (joined)")
     category_name: str | None = Field(None, description="Category name (joined)")
@@ -294,3 +295,232 @@ class ProDashboardSummary(BaseModel):
     net_month: float = Field(0, description="Net this month")
     cotisations_estimated: float = Field(0, description="Estimated cotisations")
     threshold_percentage: float = Field(0, description="% of revenue threshold used")
+
+
+# ────────────────────────────── Declaration ──────────────────────────────
+
+
+class BatchToggleDeclared(BaseModel):
+    """Request payload for batch toggling declaration status."""
+    transaction_ids: list[str] = Field(..., min_length=1, description="Transaction IDs to toggle")
+    is_declared: int = Field(..., ge=0, le=1, description="0 or 1")
+
+
+class DeclarationPeriodSummary(BaseModel):
+    """Summary for a declaration period."""
+    period_start: str = Field(..., description="Period start date")
+    period_end: str = Field(..., description="Period end date")
+    period_label: str = Field(..., description="Human label e.g. 'Janvier 2026' or 'T1 2026'")
+    total_income: float = Field(0, description="Total income for the period")
+    declared_income: float = Field(0, description="Declared income for the period")
+    undeclared_income: float = Field(0, description="Undeclared income for the period")
+    total_transactions: int = Field(0, description="Total income transactions")
+    declared_transactions: int = Field(0, description="Number of declared transactions")
+    cotisations_estimated: float = Field(0, description="Estimated cotisations on declared income")
+
+
+# ────────────────────────────── Invoice Settings ──────────────────────────────
+
+
+class ProInvoiceSettings(BaseModel):
+    """Invoice/quote settings per user."""
+    id: str
+    user_id: str
+    invoice_prefix: str = "F"
+    quote_prefix: str = "D"
+    next_invoice_number: int = 1
+    next_quote_number: int = 1
+    payment_terms_days: int = 30
+    late_penalty_rate: float = 3.0
+    bank_name: str | None = None
+    bank_iban: str | None = None
+    bank_bic: str | None = None
+    default_notes: str | None = None
+    logo_path: str | None = None
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class UpdateProInvoiceSettings(BaseModel):
+    """Update invoice settings."""
+    invoice_prefix: str | None = None
+    quote_prefix: str | None = None
+    payment_terms_days: int | None = Field(None, ge=0)
+    late_penalty_rate: float | None = Field(None, ge=0)
+    bank_name: str | None = None
+    bank_iban: str | None = None
+    bank_bic: str | None = None
+    default_notes: str | None = None
+    logo_path: str | None = None
+
+
+# ────────────────────────────── Invoice Items ──────────────────────────────
+
+
+class ProInvoiceItem(BaseModel):
+    """A line item in an invoice."""
+    id: str
+    invoice_id: str
+    product_id: str | None = None
+    description: str
+    quantity: float = 1
+    unit_price: float = 0
+    total: float = 0
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProInvoiceItem(BaseModel):
+    """Create payload for an invoice line item."""
+    product_id: str | None = None
+    description: str = Field(..., min_length=1)
+    quantity: float = Field(1, gt=0)
+    unit_price: float = Field(0, ge=0)
+
+
+# ────────────────────────────── Invoices ──────────────────────────────
+
+
+class ProInvoice(BaseModel):
+    """A pro invoice."""
+    id: str
+    user_id: str
+    client_id: str
+    invoice_number: str
+    status: str = "draft"
+    issue_date: str
+    due_date: str
+    subtotal: float = 0
+    total: float = 0
+    discount_type: str | None = None
+    discount_value: float = 0
+    notes: str | None = None
+    payment_method: str | None = None
+    paid_date: str | None = None
+    quote_id: str | None = None
+    reminder_sent_at: str | None = None
+    created_at: str
+    updated_at: str
+    client_name: str | None = None
+    client_email: str | None = None
+    client_address: str | None = None
+    items: list[ProInvoiceItem] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProInvoice(BaseModel):
+    """Create payload for an invoice."""
+    client_id: str
+    issue_date: str
+    due_date: str
+    discount_type: Literal["percentage", "fixed"] | None = None
+    discount_value: float = 0
+    notes: str | None = None
+    items: list[CreateProInvoiceItem] = Field(default_factory=list)
+
+
+class UpdateProInvoice(BaseModel):
+    """Update payload for an invoice."""
+    client_id: str | None = None
+    issue_date: str | None = None
+    due_date: str | None = None
+    discount_type: Literal["percentage", "fixed"] | None = None
+    discount_value: float | None = None
+    notes: str | None = None
+    items: list[CreateProInvoiceItem] | None = None
+
+
+class UpdateProInvoiceStatus(BaseModel):
+    """Update invoice status."""
+    status: Literal["draft", "sent", "paid", "cancelled"]
+    payment_method: str | None = None
+    paid_date: str | None = None
+
+
+# ────────────────────────────── Quote Items ──────────────────────────────
+
+
+class ProQuoteItem(BaseModel):
+    """A line item in a quote."""
+    id: str
+    quote_id: str
+    product_id: str | None = None
+    description: str
+    quantity: float = 1
+    unit_price: float = 0
+    total: float = 0
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProQuoteItem(BaseModel):
+    """Create payload for a quote line item."""
+    product_id: str | None = None
+    description: str = Field(..., min_length=1)
+    quantity: float = Field(1, gt=0)
+    unit_price: float = Field(0, ge=0)
+
+
+# ────────────────────────────── Quotes ──────────────────────────────
+
+
+class ProQuote(BaseModel):
+    """A pro quote (devis)."""
+    id: str
+    user_id: str
+    client_id: str
+    quote_number: str
+    status: str = "draft"
+    issue_date: str
+    validity_date: str
+    subtotal: float = 0
+    total: float = 0
+    discount_type: str | None = None
+    discount_value: float = 0
+    notes: str | None = None
+    invoice_id: str | None = None
+    created_at: str
+    updated_at: str
+    client_name: str | None = None
+    client_email: str | None = None
+    client_address: str | None = None
+    items: list[ProQuoteItem] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProQuote(BaseModel):
+    """Create payload for a quote."""
+    client_id: str
+    issue_date: str
+    validity_date: str
+    discount_type: Literal["percentage", "fixed"] | None = None
+    discount_value: float = 0
+    notes: str | None = None
+    items: list[CreateProQuoteItem] = Field(default_factory=list)
+
+
+class UpdateProQuote(BaseModel):
+    """Update payload for a quote."""
+    client_id: str | None = None
+    issue_date: str | None = None
+    validity_date: str | None = None
+    discount_type: Literal["percentage", "fixed"] | None = None
+    discount_value: float | None = None
+    notes: str | None = None
+    items: list[CreateProQuoteItem] | None = None
+
+
+class UpdateProQuoteStatus(BaseModel):
+    """Update quote status."""
+    status: Literal["draft", "sent", "accepted", "rejected", "expired"]

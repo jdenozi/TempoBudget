@@ -27,7 +27,6 @@ import BudgetDetailView from '@/views/BudgetDetailView.vue'
 import RecurringView from '@/views/RecurringView.vue'
 import HistoryView from '@/views/HistoryView.vue'
 import ChartsView from '@/views/ChartsView.vue'
-import eView from '@/views/ProfileView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import AuthCallbackView from '@/views/AuthCallbackView.vue'
 
@@ -79,6 +78,11 @@ const router = createRouter({
           component: ChartsView,
         },
         {
+          path: 'loans',
+          name: 'loans',
+          component: () => import('@/views/LoansView.vue'),
+        },
+        {
           path: 'profile',
           name: 'profile',
           component: ProfileView,
@@ -117,6 +121,46 @@ const router = createRouter({
           path: 'pro/gift-cards',
           name: 'pro-gift-cards',
           component: () => import('@/views/pro/ProGiftCardsView.vue'),
+        },
+        {
+          path: 'pro/invoices',
+          name: 'pro-invoices',
+          component: () => import('@/views/pro/ProInvoicesView.vue'),
+        },
+        {
+          path: 'pro/invoices/new',
+          name: 'pro-invoice-new',
+          component: () => import('@/views/pro/ProInvoiceDetailView.vue'),
+        },
+        {
+          path: 'pro/invoices/:id',
+          name: 'pro-invoice-detail',
+          component: () => import('@/views/pro/ProInvoiceDetailView.vue'),
+        },
+        {
+          path: 'pro/quotes',
+          name: 'pro-quotes',
+          component: () => import('@/views/pro/ProQuotesView.vue'),
+        },
+        {
+          path: 'pro/quotes/new',
+          name: 'pro-quote-new',
+          component: () => import('@/views/pro/ProQuoteDetailView.vue'),
+        },
+        {
+          path: 'pro/quotes/:id',
+          name: 'pro-quote-detail',
+          component: () => import('@/views/pro/ProQuoteDetailView.vue'),
+        },
+        {
+          path: 'pro/categories',
+          name: 'pro-categories',
+          component: () => import('@/views/pro/ProCategoriesView.vue'),
+        },
+        {
+          path: 'pro/declaration',
+          name: 'pro-declaration',
+          component: () => import('@/views/pro/ProDeclarationView.vue'),
         },
       ],
     },

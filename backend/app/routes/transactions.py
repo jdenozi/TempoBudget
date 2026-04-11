@@ -2,13 +2,18 @@
 # SPDX-License-Identifier: MIT
 """Transaction management routes."""
 
+import csv
+import io
 from datetime import datetime, timezone
+from typing import Annotated, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..auth import get_current_user
 from ..database import get_db
 from ..models import (
     Transaction, CreateTransaction, UpdateTransaction,
@@ -16,6 +21,7 @@ from ..models import (
     UpdateRecurringTransaction, RecurringTransactionVersion,
     RecurringTransactionWithCategory
 )
+from ..models.transaction import UpcomingRecurring
 
 router = APIRouter()
 
@@ -46,6 +52,145 @@ async def get_transactions(budget_id: str, db: AsyncSession = Depends(get_db)):
         paid_by_user_id=row.paid_by_user_id,
         created_at=row.created_at,
     ) for row in rows]
+
+
+@router.get("/budgets/{budget_id}/transactions/export")
+async def export_transactions_csv(
+    budget_id: str,
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    category_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Export transactions as CSV file."""
+    query = """
+        SELECT t.date, t.title, c.name as category_name, t.transaction_type,
+               t.amount, t.comment, t.is_budgeted
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.budget_id = :budget_id
+    """
+    params: dict = {"budget_id": budget_id}
+
+    if start_date:
+        query += " AND t.date >= :start_date"
+        params["start_date"] = start_date
+    if end_date:
+        query += " AND t.date <= :end_date"
+        params["end_date"] = end_date
+    if category_id:
+        query += " AND (t.category_id = :category_id OR c.parent_id = :category_id)"
+        params["category_id"] = category_id
+
+    query += " ORDER BY t.date DESC"
+
+    result = await db.execute(text(query), params)
+    rows = result.fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Title", "Category", "Type", "Amount", "Comment", "Budgeted"])
+
+    for row in rows:
+        writer.writerow([
+            row.date,
+            row.title,
+            row.category_name or "",
+            row.transaction_type,
+            row.amount,
+            row.comment or "",
+            "Yes" if row.is_budgeted else "No",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=transactions.csv"},
+    )
+
+
+@router.get("/upcoming-recurring", response_model=list[UpcomingRecurring])
+async def get_upcoming_recurring(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """List upcoming recurring transactions for the current month across all user budgets."""
+    from calendar import monthrange
+
+    now = datetime.now(timezone.utc)
+    year, month, current_day = now.year, now.month, now.day
+    last_day = monthrange(year, month)[1]
+    month_start = f"{year}-{month:02d}-01"
+    month_end = f"{year}-{month:02d}-{last_day}"
+
+    # Get all active recurring across user's budgets
+    result = await db.execute(
+        text("""
+            SELECT r.id, r.budget_id, r.category_id, r.title, r.amount, r.transaction_type,
+                   r.frequency, r.day, c.name as category_name, b.name as budget_name
+            FROM recurring_transactions r
+            LEFT JOIN categories c ON r.category_id = c.id
+            LEFT JOIN budgets b ON r.budget_id = b.id
+            LEFT JOIN budget_members bm ON b.id = bm.budget_id
+            WHERE r.active = 1
+            AND (b.user_id = :user_id OR bm.user_id = :user_id)
+        """),
+        {"user_id": user_id}
+    )
+    rows = result.fetchall()
+
+    upcoming = []
+    for rec in rows:
+        expected_dates = []
+
+        if rec.frequency == "monthly":
+            target_day = min(rec.day or 1, last_day)
+            expected_dates.append(f"{year}-{month:02d}-{target_day:02d}")
+        elif rec.frequency == "weekly":
+            rec_day_of_week = rec.day or 0
+            for d in range(1, last_day + 1):
+                dt = datetime(year, month, d, tzinfo=timezone.utc)
+                if dt.weekday() == rec_day_of_week:
+                    expected_dates.append(f"{year}-{month:02d}-{d:02d}")
+        elif rec.frequency == "yearly":
+            rec_created = datetime.fromisoformat(str(rec.id)[:10]) if False else None
+            # For yearly, use the day field as the target day
+            target_day = min(rec.day or 1, last_day)
+            expected_dates.append(f"{year}-{month:02d}-{target_day:02d}")
+
+        for date_str in expected_dates:
+            # Check if already processed
+            existing = await db.execute(
+                text("""
+                    SELECT id FROM transactions
+                    WHERE budget_id = :budget_id AND category_id = :category_id
+                    AND title = :title AND amount = :amount AND date = :date AND is_recurring = 1
+                """),
+                {
+                    "budget_id": rec.budget_id,
+                    "category_id": rec.category_id,
+                    "title": rec.title,
+                    "amount": rec.amount,
+                    "date": date_str,
+                }
+            )
+            is_processed = existing.fetchone() is not None
+
+            upcoming.append(UpcomingRecurring(
+                id=rec.id,
+                title=rec.title,
+                amount=rec.amount,
+                transaction_type=rec.transaction_type,
+                expected_date=date_str,
+                category_name=rec.category_name or "Unknown",
+                budget_name=rec.budget_name or "Unknown",
+                is_processed=is_processed,
+            ))
+
+    # Sort by date
+    upcoming.sort(key=lambda x: x.expected_date)
+    return upcoming
 
 
 @router.post("/budgets/{budget_id}/transactions", response_model=Transaction)

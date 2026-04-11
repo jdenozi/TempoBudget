@@ -69,6 +69,13 @@
       />
     </n-space>
 
+    <!-- Export Button -->
+    <div v-if="selectedBudgetId">
+      <n-button @click="handleExportCSV" type="info" size="small">
+        {{ t('history.exportCSV') }}
+      </n-button>
+    </div>
+
     <!-- Loading State -->
     <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
       <n-spin size="large" />
@@ -291,7 +298,7 @@ import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
 import type { Transaction, BudgetMemberWithUser } from '@/services/api'
-import { budgetMembersAPI } from '@/services/api'
+import { budgetMembersAPI, transactionsAPI } from '@/services/api'
 import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
 
 const message = useMessage()
@@ -578,6 +585,39 @@ const handleDelete = async (id: string) => {
   } catch (error) {
     console.error('Error deleting transaction:', error)
     message.error('Error deleting')
+  }
+}
+
+/**
+ * Exports filtered transactions as CSV.
+ */
+const handleExportCSV = async () => {
+  if (!selectedBudgetId.value) return
+  try {
+    const params: { start_date?: string; end_date?: string; category_id?: string } = {}
+    if (startDate.value) {
+      params.start_date = formatDateLocal(startDate.value)
+    }
+    if (endDate.value) {
+      params.end_date = formatDateLocal(endDate.value)
+    }
+    if (filterSubcategoryId.value) {
+      params.category_id = filterSubcategoryId.value
+    } else if (filterCategoryId.value) {
+      params.category_id = filterCategoryId.value
+    }
+    const blob = await transactionsAPI.exportCSV(selectedBudgetId.value, params)
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'transactions.csv')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error exporting CSV:', error)
+    message.error('Error exporting CSV')
   }
 }
 

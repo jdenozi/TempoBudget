@@ -17,6 +17,66 @@
       </n-button>
     </div>
 
+    <!-- Monthly Recap -->
+    <n-card v-if="monthlyRecap" :title="t('budget.monthlyRecap')" size="small">
+      <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+        <n-gi>
+          <n-statistic :label="t('budget.totalIncome')" :value="monthlyRecap.total_income.toFixed(2)">
+            <template #prefix>
+              <n-icon color="#18a058"><TrendingUpOutline /></n-icon>
+            </template>
+            <template #suffix>€</template>
+          </n-statistic>
+        </n-gi>
+        <n-gi>
+          <n-statistic :label="t('budget.totalExpenses')" :value="monthlyRecap.total_expenses.toFixed(2)">
+            <template #prefix>
+              <n-icon color="#d03050"><TrendingDownOutline /></n-icon>
+            </template>
+            <template #suffix>€</template>
+          </n-statistic>
+        </n-gi>
+        <n-gi>
+          <n-statistic :label="t('budget.balance')" :value="monthlyRecap.balance.toFixed(2)">
+            <template #prefix>
+              <n-icon :color="monthlyRecap.balance >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
+            </template>
+            <template #suffix>€</template>
+          </n-statistic>
+        </n-gi>
+        <n-gi>
+          <div>
+            <n-text depth="3" style="font-size: 12px;">{{ t('budget.topExpenseCategories') }}</n-text>
+            <div v-for="cat in monthlyRecap.top_expense_categories" :key="cat.name" style="font-size: 13px; margin-top: 4px;">
+              {{ cat.name }}: <strong>{{ cat.total.toFixed(2) }} €</strong>
+            </div>
+            <div v-if="monthlyRecap.top_expense_categories.length === 0" style="font-size: 13px; margin-top: 4px; color: #888;">—</div>
+          </div>
+        </n-gi>
+      </n-grid>
+    </n-card>
+
+    <!-- Upcoming Recurring -->
+    <n-card v-if="upcomingRecurring.length > 0" :title="t('recurring.upcoming')" size="small">
+      <n-space vertical size="small">
+        <div v-for="item in upcomingRecurring" :key="item.id + item.expected_date" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+          <div>
+            <strong>{{ item.title }}</strong>
+            <n-text depth="3" style="font-size: 12px; margin-left: 8px;">{{ item.budget_name }} — {{ item.category_name }}</n-text>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span :style="{ color: item.transaction_type === 'expense' ? '#d03050' : '#18a058', fontWeight: 'bold' }">
+              {{ item.transaction_type === 'expense' ? '-' : '+' }}{{ item.amount.toFixed(2) }} €
+            </span>
+            <n-text depth="3" style="font-size: 12px;">{{ item.expected_date }}</n-text>
+            <n-tag :type="item.is_processed ? 'success' : 'warning'" size="small">
+              {{ item.is_processed ? t('recurring.processed') : t('common.pending') }}
+            </n-tag>
+          </div>
+        </div>
+      </n-space>
+    </n-card>
+
     <!-- Loading State -->
     <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
       <n-spin size="large" />
@@ -156,14 +216,14 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NSpace, NButton, NGrid, NGi, NCard, NTag, NStatistic,
+  NSpace, NButton, NGrid, NGi, NCard, NTag, NStatistic, NText,
   NModal, NForm, NFormItem, NInput, NRadioGroup, NRadio,
   NIcon, NSpin, NEmpty, NProgress, useMessage
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { CashOutline, WalletOutline, TrendingUpOutline, TrendingDownOutline } from '@vicons/ionicons5'
 import { useBudgetStore } from '@/stores/budget'
-import { budgetsAPI, type BudgetSummary } from '@/services/api'
+import { budgetsAPI, recurringAPI, type BudgetSummary, type MonthlyRecap, type UpcomingRecurring } from '@/services/api'
 
 const router = useRouter()
 const message = useMessage()
@@ -184,6 +244,12 @@ const formRef = ref<any>(null)
 
 /** Budget summaries with stats */
 const summaries = ref<BudgetSummary[]>([])
+
+/** Monthly recap data */
+const monthlyRecap = ref<MonthlyRecap | null>(null)
+
+/** Upcoming recurring transactions */
+const upcomingRecurring = ref<UpcomingRecurring[]>([])
 
 /** New budget form data */
 const newBudget = ref({
@@ -211,10 +277,17 @@ onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
 
-  // Load budgets and summaries
+  // Load budgets, summaries, recap and upcoming
   try {
     await budgetStore.fetchBudgets()
-    summaries.value = await budgetsAPI.getSummaries()
+    const [sums, recap, upcoming] = await Promise.all([
+      budgetsAPI.getSummaries(),
+      budgetsAPI.getMonthlyRecap(),
+      recurringAPI.getUpcoming(),
+    ])
+    summaries.value = sums
+    monthlyRecap.value = recap
+    upcomingRecurring.value = upcoming
   } catch (error) {
     console.error('Error loading budgets:', error)
     message.error('Error loading budgets')
