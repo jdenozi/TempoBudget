@@ -129,6 +129,7 @@ export interface Transaction {
   is_recurring: number
   is_budgeted: number
   paid_by_user_id?: string
+  project_category_id?: string | null
   created_at: string
 }
 
@@ -386,6 +387,7 @@ export const transactionsAPI = {
     comment?: string
     is_budgeted?: number
     paid_by_user_id?: string
+    project_category_id?: string | null
   }) => {
     const response = await api.post<Transaction>(`/budgets/${data.budget_id}/transactions`, data)
     return response.data
@@ -406,6 +408,7 @@ export const transactionsAPI = {
     comment?: string
     is_budgeted?: number
     paid_by_user_id?: string
+    project_category_id?: string | null
   }) => {
     const response = await api.put<Transaction>(`/transactions/${id}`, data)
     return response.data
@@ -650,6 +653,99 @@ export const loansAPI = {
   },
 }
 
+export const projectsAPI = {
+  getAll: async (params?: { status?: string; mode?: string }) => {
+    const response = await api.get<Project[]>('/projects', { params })
+    return response.data
+  },
+  getSummaries: async () => {
+    const response = await api.get<ProjectSummary[]>('/projects/summaries')
+    return response.data
+  },
+  getReminders: async () => {
+    const response = await api.get<ProjectReminder[]>('/projects/reminders')
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get<Project>(`/projects/${id}`)
+    return response.data
+  },
+  create: async (data: { name: string; description?: string; target_date?: string; total_budget: number; mode: 'personal' | 'pro' }) => {
+    const response = await api.post<Project>('/projects', data)
+    return response.data
+  },
+  update: async (id: string, data: { name?: string; description?: string; target_date?: string; total_budget?: number; status?: string }) => {
+    const response = await api.put<Project>(`/projects/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/projects/${id}`)
+  },
+  getCategories: async (projectId: string) => {
+    const response = await api.get<ProjectCategoryWithSpent[]>(`/projects/${projectId}/categories`)
+    return response.data
+  },
+  createCategory: async (projectId: string, data: { name: string; planned_amount: number }) => {
+    const response = await api.post<ProjectCategory>(`/projects/${projectId}/categories`, data)
+    return response.data
+  },
+  updateCategory: async (projectId: string, categoryId: string, data: { name?: string; planned_amount?: number }) => {
+    const response = await api.put<ProjectCategory>(`/projects/${projectId}/categories/${categoryId}`, data)
+    return response.data
+  },
+  deleteCategory: async (projectId: string, categoryId: string) => {
+    await api.delete(`/projects/${projectId}/categories/${categoryId}`)
+  },
+  getPlannedExpenses: async (projectId: string) => {
+    const response = await api.get<ProjectPlannedExpense[]>(`/projects/${projectId}/planned-expenses`)
+    return response.data
+  },
+  createPlannedExpense: async (projectId: string, data: { project_category_id: string; description: string; amount: number; due_date?: string; reminder_date?: string }) => {
+    const response = await api.post<ProjectPlannedExpense>(`/projects/${projectId}/planned-expenses`, data)
+    return response.data
+  },
+  updatePlannedExpense: async (projectId: string, expenseId: string, data: {
+    project_category_id?: string; description?: string; amount?: number;
+    due_date?: string; reminder_date?: string; status?: string;
+    transaction_id?: string; pro_transaction_id?: string
+  }) => {
+    const response = await api.put<ProjectPlannedExpense>(`/projects/${projectId}/planned-expenses/${expenseId}`, data)
+    return response.data
+  },
+  deletePlannedExpense: async (projectId: string, expenseId: string) => {
+    await api.delete(`/projects/${projectId}/planned-expenses/${expenseId}`)
+  },
+  getTransactions: async (projectId: string) => {
+    const response = await api.get<ProjectTransaction[]>(`/projects/${projectId}/transactions`)
+    return response.data
+  },
+  // Members
+  getMembers: async (projectId: string) => {
+    const response = await api.get<ProjectMemberWithUser[]>(`/projects/${projectId}/members`)
+    return response.data
+  },
+  inviteMember: async (projectId: string, email: string, role: string = 'member') => {
+    const response = await api.post(`/projects/${projectId}/members`, { email, role })
+    return response.data
+  },
+  removeMember: async (projectId: string, memberId: string) => {
+    await api.delete(`/projects/${projectId}/members/${memberId}`)
+  },
+  // Invitations
+  getMyInvitations: async () => {
+    const response = await api.get<ProjectInvitationWithDetails[]>('/projects/invitations/pending')
+    return response.data
+  },
+  acceptInvitation: async (invitationId: string) => {
+    const response = await api.post(`/projects/invitations/${invitationId}/accept`)
+    return response.data
+  },
+  rejectInvitation: async (invitationId: string) => {
+    const response = await api.post(`/projects/invitations/${invitationId}/reject`)
+    return response.data
+  },
+}
+
 export const budgetsAPI = {
   /**
    * Retrieves all budgets for the current user.
@@ -782,6 +878,117 @@ export interface LoanSummary {
 }
 
 // ============================================================================
+// Project Types
+// ============================================================================
+
+export interface ProjectCategory {
+  id: string
+  project_id: string
+  name: string
+  planned_amount: number
+  created_at: string
+}
+
+export interface ProjectCategoryWithSpent extends ProjectCategory {
+  total_spent: number
+  remaining: number
+}
+
+export interface Project {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  target_date: string | null
+  total_budget: number
+  status: 'active' | 'completed' | 'abandoned'
+  mode: 'personal' | 'pro'
+  created_at: string
+  updated_at: string
+  total_spent: number
+  remaining: number
+  categories: ProjectCategoryWithSpent[]
+}
+
+export interface ProjectPlannedExpense {
+  id: string
+  project_id: string
+  project_category_id: string
+  description: string
+  amount: number
+  due_date: string | null
+  reminder_date: string | null
+  status: 'pending' | 'paid'
+  transaction_id: string | null
+  pro_transaction_id: string | null
+  created_at: string
+  updated_at: string
+  category_name: string | null
+}
+
+export interface ProjectSummary {
+  id: string
+  name: string
+  mode: string
+  status: string
+  total_budget: number
+  total_spent: number
+  remaining: number
+  percentage: number
+  category_count: number
+  planned_expense_count: number
+  pending_expense_count: number
+  target_date: string | null
+}
+
+export interface ProjectReminder {
+  id: string
+  project_id: string
+  project_name: string
+  description: string
+  amount: number
+  due_date: string | null
+  reminder_date: string
+  category_name: string | null
+}
+
+export interface ProjectTransaction {
+  id: string
+  title: string
+  amount: number
+  transaction_type: string
+  date: string
+  comment: string | null
+  project_category_id: string
+  category_name: string | null
+  project_category_name: string | null
+  source: 'personal' | 'pro'
+}
+
+export interface ProjectMemberWithUser {
+  id: string
+  project_id: string
+  user_id: string
+  role: string
+  created_at: string
+  user_name: string
+  user_email: string
+  user_avatar: string | null
+}
+
+export interface ProjectInvitationWithDetails {
+  id: string
+  project_id: string
+  project_name: string
+  inviter_id: string
+  inviter_name: string
+  invitee_email: string
+  role: string
+  status: string
+  created_at: string
+}
+
+// ============================================================================
 // Pro (Auto-Entrepreneur) Types
 // ============================================================================
 
@@ -793,6 +1000,13 @@ export interface ProProfile {
   cotisation_rate: number
   declaration_frequency: string
   revenue_threshold: number
+  is_subject_to_vat: number
+  vat_rate: number
+  vat_number: string | null
+  company_name: string | null
+  company_address: string | null
+  company_email: string | null
+  company_phone: string | null
   created_at: string
   updated_at: string
 }
@@ -854,6 +1068,8 @@ export interface ProTransaction {
   coupon_id: string | null
   gift_card_payment: number
   is_declared: number
+  invoice_id: string | null
+  project_category_id?: string | null
   created_at: string
   client_name: string | null
   category_name: string | null
@@ -964,6 +1180,8 @@ export interface ProInvoice {
   issue_date: string
   due_date: string
   subtotal: number
+  tva_rate: number
+  tva_amount: number
   total: number
   discount_type: 'percentage' | 'fixed' | null
   discount_value: number
@@ -1000,6 +1218,8 @@ export interface ProQuote {
   issue_date: string
   validity_date: string
   subtotal: number
+  tva_rate: number
+  tva_amount: number
   total: number
   discount_type: 'percentage' | 'fixed' | null
   discount_value: number
@@ -1102,6 +1322,7 @@ export const proTransactionsAPI = {
     coupon_id?: string
     gift_card_id?: string
     gift_card_amount?: number
+    project_category_id?: string | null
   }) => {
     const response = await api.post<ProTransaction>('/pro/transactions', data)
     return response.data
@@ -1115,6 +1336,7 @@ export const proTransactionsAPI = {
     date?: string
     payment_method?: string
     comment?: string
+    project_category_id?: string | null
   }) => {
     const response = await api.put<ProTransaction>(`/pro/transactions/${id}`, data)
     return response.data

@@ -178,6 +178,13 @@ CREATE TABLE IF NOT EXISTS pro_profiles (
     cotisation_rate REAL DEFAULT 21.1,
     declaration_frequency TEXT DEFAULT 'quarterly',
     revenue_threshold REAL DEFAULT 77700,
+    is_subject_to_vat INTEGER NOT NULL DEFAULT 0,
+    vat_rate REAL NOT NULL DEFAULT 20.0,
+    vat_number TEXT,
+    company_name TEXT,
+    company_address TEXT,
+    company_email TEXT,
+    company_phone TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -220,10 +227,12 @@ CREATE TABLE IF NOT EXISTS pro_transactions (
     payment_method TEXT DEFAULT 'cash',
     comment TEXT,
     is_declared INTEGER NOT NULL DEFAULT 0,
+    invoice_id TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES pro_clients(id) ON DELETE SET NULL,
-    FOREIGN KEY (category_id) REFERENCES pro_categories(id)
+    FOREIGN KEY (category_id) REFERENCES pro_categories(id),
+    FOREIGN KEY (invoice_id) REFERENCES pro_invoices(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_pro_transactions_user ON pro_transactions(user_id, date);
@@ -339,6 +348,8 @@ CREATE TABLE IF NOT EXISTS pro_invoices (
     issue_date TEXT NOT NULL,
     due_date TEXT NOT NULL,
     subtotal REAL NOT NULL DEFAULT 0,
+    tva_rate REAL NOT NULL DEFAULT 0,
+    tva_amount REAL NOT NULL DEFAULT 0,
     total REAL NOT NULL DEFAULT 0,
     discount_type TEXT CHECK(discount_type IN ('percentage', 'fixed')),
     discount_value REAL DEFAULT 0,
@@ -384,6 +395,8 @@ CREATE TABLE IF NOT EXISTS pro_quotes (
     issue_date TEXT NOT NULL,
     validity_date TEXT NOT NULL,
     subtotal REAL NOT NULL DEFAULT 0,
+    tva_rate REAL NOT NULL DEFAULT 0,
+    tva_amount REAL NOT NULL DEFAULT 0,
     total REAL NOT NULL DEFAULT 0,
     discount_type TEXT CHECK(discount_type IN ('percentage', 'fixed')),
     discount_value REAL DEFAULT 0,
@@ -415,3 +428,84 @@ CREATE TABLE IF NOT EXISTS pro_quote_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pro_quote_items ON pro_quote_items(quote_id);
+
+-- Projects
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    target_date TEXT,
+    total_budget REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','completed','abandoned')),
+    mode TEXT NOT NULL DEFAULT 'personal' CHECK(mode IN ('personal','pro')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id, status);
+
+-- Project Categories
+CREATE TABLE IF NOT EXISTS project_categories (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    planned_amount REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_categories_project ON project_categories(project_id);
+
+-- Project Planned Expenses
+CREATE TABLE IF NOT EXISTS project_planned_expenses (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    project_category_id TEXT NOT NULL,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    due_date TEXT,
+    reminder_date TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','paid')),
+    transaction_id TEXT,
+    pro_transaction_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_category_id) REFERENCES project_categories(id) ON DELETE CASCADE,
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL,
+    FOREIGN KEY (pro_transaction_id) REFERENCES pro_transactions(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_planned_project ON project_planned_expenses(project_id, status);
+CREATE INDEX IF NOT EXISTS idx_project_planned_reminder ON project_planned_expenses(reminder_date, status);
+
+-- Project Members (sharing)
+CREATE TABLE IF NOT EXISTS project_members (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('owner', 'member')),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(project_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+
+-- Project Invitations
+CREATE TABLE IF NOT EXISTS project_invitations (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    inviter_id TEXT NOT NULL,
+    invitee_email TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('owner', 'member')),
+    status TEXT NOT NULL CHECK(status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (inviter_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_invitations_email ON project_invitations(invitee_email, status);

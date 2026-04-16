@@ -133,7 +133,16 @@ const columns = computed<DataTableColumns<ProInvoice>>(() => [
   { title: t('pro.invoices.issueDate'), key: 'issue_date', width: 120 },
   { title: t('pro.invoices.dueDate'), key: 'due_date', width: 120 },
   {
-    title: t('pro.invoices.total'), key: 'total', width: 120,
+    title: t('pro.invoices.totalHT'), key: 'subtotal', width: 100,
+    render: (row) => h('span', {}, `${row.subtotal.toFixed(2)} €`),
+  },
+  ...(proStore.proProfile?.is_subject_to_vat ? [{
+    title: t('pro.invoices.tva'), key: 'tva_amount', width: 100,
+    render: (row: ProInvoice) => h('span', {}, `${row.tva_amount.toFixed(2)} €`),
+  }] : []),
+  {
+    title: proStore.proProfile?.is_subject_to_vat ? t('pro.invoices.totalTTC') : t('pro.invoices.total'),
+    key: 'total', width: 110,
     render: (row) => h('span', { style: 'font-weight: bold' }, `${row.total.toFixed(2)} €`),
   },
   {
@@ -172,18 +181,23 @@ async function handleDelete(id: string) {
 }
 
 async function handleDownloadPdf(id: string, number: string) {
-  const blob = await proStore.downloadInvoicePdf(id)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${number}.pdf`
-  a.click()
-  URL.revokeObjectURL(url)
+  try {
+    const blob = await proStore.downloadInvoicePdf(id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${number}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    message.error(t('pro.invoices.pdfError'))
+    console.error('PDF download error:', e)
+  }
 }
 
 watch([filterStatus, filterClient, filterDateRange], () => loadData())
 
 onMounted(async () => {
-  await Promise.all([loadData(), proStore.fetchClients()])
+  await Promise.all([loadData(), proStore.fetchClients(), proStore.fetchProfile()])
 })
 </script>

@@ -264,6 +264,15 @@
             <template #unchecked>{{ t('transaction.exceptional') }}</template>
           </n-switch>
         </n-form-item>
+
+        <n-form-item v-if="projectCategoryOptions.length > 0" :label="t('project.linkToProject')">
+          <n-select
+            v-model:value="editForm.project_category_id"
+            :options="projectCategoryOptions"
+            clearable
+            :placeholder="t('project.linkToProject')"
+          />
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -297,6 +306,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
 import { useBudgetStore } from '@/stores/budget'
+import { useProjectStore } from '@/stores/project'
 import type { Transaction, BudgetMemberWithUser } from '@/services/api'
 import { budgetMembersAPI, transactionsAPI } from '@/services/api'
 import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
@@ -304,6 +314,7 @@ import { formatDateLocal, parseDateToTimestamp } from '@/utils/date'
 const message = useMessage()
 const { t } = useI18n()
 const budgetStore = useBudgetStore()
+const projectStore = useProjectStore()
 
 /** Whether the viewport is mobile-sized */
 const isMobile = ref(false)
@@ -336,7 +347,8 @@ const editForm = ref({
   comment: '',
   category_id: null as string | null,
   subcategory_id: null as string | null,
-  is_budgeted: true
+  is_budgeted: true,
+  project_category_id: null as string | null,
 })
 
 /**
@@ -345,6 +357,25 @@ const editForm = ref({
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
+
+/** Project category options grouped by project for the link-to-project selector */
+const projectCategoryOptions = computed(() => {
+  const options: { type: 'group'; label: string; key: string; children: { label: string; value: string }[] }[] = []
+  for (const project of projectStore.projects.filter(p => p.status === 'active' && p.mode === 'personal')) {
+    if (project.categories.length > 0) {
+      options.push({
+        type: 'group',
+        label: project.name,
+        key: project.id,
+        children: project.categories.map(c => ({
+          label: `${c.name} (${c.remaining.toFixed(2)} € restant)`,
+          value: c.id,
+        })),
+      })
+    }
+  }
+  return options
+})
 
 onMounted(async () => {
   checkMobile()
@@ -359,6 +390,9 @@ onMounted(async () => {
   if (budgetStore.budgets.length === 0) {
     await budgetStore.fetchBudgets()
   }
+
+  // Load projects for linking
+  await projectStore.fetchProjects()
 
   // Select the first budget by default
   if (budgetStore.budgets.length > 0) {
@@ -647,7 +681,8 @@ const openEditModal = (transaction: Transaction) => {
     comment: transaction.comment || '',
     category_id: parentCategoryId,
     subcategory_id: subcategoryId,
-    is_budgeted: transaction.is_budgeted === 1
+    is_budgeted: transaction.is_budgeted === 1,
+    project_category_id: transaction.project_category_id || null,
   }
   showEditModal.value = true
 }
@@ -670,7 +705,8 @@ const handleSaveEdit = async () => {
       date: dateStr,
       comment: editForm.value.comment || undefined,
       category_id: categoryId,
-      is_budgeted: editForm.value.is_budgeted ? 1 : 0
+      is_budgeted: editForm.value.is_budgeted ? 1 : 0,
+      project_category_id: editForm.value.project_category_id,
     })
     message.success('Transaction updated')
     showEditModal.value = false

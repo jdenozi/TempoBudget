@@ -112,12 +112,18 @@
 
         <!-- Totals -->
         <div style="text-align: right; font-size: 16px;">
-          <div>{{ t('pro.quotes.subtotal') }}: <strong>{{ computedSubtotal.toFixed(2) }} €</strong></div>
+          <div>{{ t('pro.quotes.subtotal') }} HT: <strong>{{ computedSubtotal.toFixed(2) }} €</strong></div>
           <div v-if="form.discount_type" style="color: #f0a020;">
             {{ t('pro.quotes.discount') }}: -{{ computedDiscount.toFixed(2) }} €
           </div>
+          <div v-if="isVat">
+            Total HT: <strong>{{ computedTotalHT.toFixed(2) }} €</strong>
+          </div>
+          <div v-if="isVat">
+            TVA ({{ vatRate }}%): <strong>{{ computedTva.toFixed(2) }} €</strong>
+          </div>
           <div style="font-size: 20px; margin-top: 4px;">
-            {{ t('pro.quotes.total') }}: <strong>{{ computedTotal.toFixed(2) }} €</strong>
+            {{ isVat ? 'Total TTC' : t('pro.quotes.total') }}: <strong>{{ computedTotal.toFixed(2) }} €</strong>
           </div>
         </div>
 
@@ -196,7 +202,11 @@ const computedDiscount = computed(() => {
   if (form.value.discount_type === 'fixed') return form.value.discount_value || 0
   return 0
 })
-const computedTotal = computed(() => Math.max(computedSubtotal.value - computedDiscount.value, 0))
+const computedTotalHT = computed(() => Math.max(computedSubtotal.value - computedDiscount.value, 0))
+const isVat = computed(() => !!proStore.proProfile?.is_subject_to_vat)
+const vatRate = computed(() => proStore.proProfile?.vat_rate || 20)
+const computedTva = computed(() => isVat.value ? computedTotalHT.value * vatRate.value / 100 : 0)
+const computedTotal = computed(() => computedTotalHT.value + computedTva.value)
 
 function addItem() {
   form.value.items.push({ product_id: null, description: '', quantity: 1, unit_price: 0 })
@@ -258,13 +268,18 @@ async function handleConvert() {
 }
 
 async function handleDownloadPdf() {
-  const blob = await proStore.downloadQuotePdf(quote.value!.id)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${quote.value!.quote_number}.pdf`
-  a.click()
-  URL.revokeObjectURL(url)
+  try {
+    const blob = await proStore.downloadQuotePdf(quote.value!.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${quote.value!.quote_number}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    message.error(t('pro.quotes.pdfError'))
+    console.error('PDF download error:', e)
+  }
 }
 
 async function loadQuote() {
@@ -287,7 +302,7 @@ async function loadQuote() {
 }
 
 onMounted(async () => {
-  await Promise.all([proStore.fetchClients(), proStore.fetchProducts()])
+  await Promise.all([proStore.fetchClients(), proStore.fetchProducts(), proStore.fetchProfile()])
   if (!isNew.value) {
     await loadQuote()
   } else {

@@ -1,0 +1,464 @@
+<template>
+  <n-space vertical size="large">
+    <!-- Loading -->
+    <div v-if="projectStore.loading && !projectStore.currentProject" style="text-align: center; padding: 40px;">
+      <n-spin size="large" />
+    </div>
+
+    <template v-else-if="project">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <n-button text @click="router.push({ name: 'projects' })">
+            <template #icon><ArrowBackOutline /></template>
+          </n-button>
+          <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ project.name }}</h1>
+          <n-tag :type="statusTagType(project.status)" size="small">{{ t('project.' + project.status) }}</n-tag>
+          <n-tag :type="project.mode === 'pro' ? 'info' : 'default'" size="small">{{ t('project.' + project.mode) }}</n-tag>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <n-card size="small">
+        <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
+          <n-gi>
+            <n-statistic :label="t('project.totalBudget')" :value="project.total_budget.toFixed(2)">
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+          <n-gi>
+            <n-statistic :label="t('project.spent')" :value="project.total_spent.toFixed(2)">
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+          <n-gi>
+            <n-statistic :label="t('project.remaining')" :value="project.remaining.toFixed(2)">
+              <template #prefix>
+                <n-icon :color="project.remaining >= 0 ? '#18a058' : '#d03050'"><CashOutline /></n-icon>
+              </template>
+              <template #suffix>€</template>
+            </n-statistic>
+          </n-gi>
+          <n-gi v-if="project.target_date">
+            <n-statistic :label="t('project.targetDate')" :value="project.target_date" />
+          </n-gi>
+        </n-grid>
+        <div style="margin-top: 12px;">
+          <n-progress
+            :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
+            :color="project.remaining < 0 ? '#d03050' : '#2080f0'"
+            :show-indicator="true"
+          />
+        </div>
+        <div v-if="project.description" style="margin-top: 8px;">
+          <n-text depth="3">{{ project.description }}</n-text>
+        </div>
+      </n-card>
+
+      <!-- Categories -->
+      <n-card :title="t('project.categories')" size="small">
+        <template #header-extra>
+          <n-button size="small" type="primary" @click="openCategoryModal()">{{ t('project.addCategory') }}</n-button>
+        </template>
+        <template v-if="project.categories.length > 0">
+          <div v-for="cat in project.categories" :key="cat.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <strong>{{ cat.name }}</strong>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <n-text depth="3">{{ cat.total_spent.toFixed(2) }} / {{ cat.planned_amount.toFixed(2) }} €</n-text>
+                <n-button size="tiny" @click="openCategoryModal(cat)">{{ t('common.edit') }}</n-button>
+                <n-popconfirm @positive-click="handleDeleteCategory(cat.id)">
+                  <template #trigger>
+                    <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                  </template>
+                  {{ t('project.deleteCategoryConfirm') }}
+                </n-popconfirm>
+              </div>
+            </div>
+            <n-progress
+              :percentage="cat.planned_amount > 0 ? Math.min((cat.total_spent / cat.planned_amount) * 100, 100) : 0"
+              :color="cat.remaining < 0 ? '#d03050' : '#18a058'"
+              :show-indicator="false"
+              style="margin-top: 4px;"
+            />
+          </div>
+        </template>
+        <n-empty v-else :description="t('project.noCategories')" />
+      </n-card>
+
+      <!-- Planned Expenses -->
+      <n-card :title="t('project.plannedExpenses')" size="small">
+        <template #header-extra>
+          <n-button size="small" type="primary" @click="openExpenseModal()" :disabled="project.categories.length === 0">
+            {{ t('project.addPlannedExpense') }}
+          </n-button>
+        </template>
+        <template v-if="projectStore.plannedExpenses.length > 0">
+          <div v-for="expense in projectStore.plannedExpenses" :key="expense.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <strong>{{ expense.description }}</strong>
+                <n-tag size="small" :type="expense.status === 'paid' ? 'success' : 'warning'" style="margin-left: 8px;">
+                  {{ t('project.' + expense.status) }}
+                </n-tag>
+                <n-text depth="3" style="margin-left: 8px;" v-if="expense.category_name">{{ expense.category_name }}</n-text>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <strong>{{ expense.amount.toFixed(2) }} €</strong>
+                <n-text v-if="expense.due_date" depth="3">{{ expense.due_date }}</n-text>
+                <n-button v-if="expense.status === 'pending'" size="tiny" type="success" @click="handleMarkPaid(expense.id)">
+                  {{ t('project.markAsPaid') }}
+                </n-button>
+                <n-button size="tiny" @click="openExpenseModal(expense)">{{ t('common.edit') }}</n-button>
+                <n-popconfirm @positive-click="handleDeleteExpense(expense.id)">
+                  <template #trigger>
+                    <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                  </template>
+                  {{ t('project.deletePlannedExpenseConfirm') }}
+                </n-popconfirm>
+              </div>
+            </div>
+          </div>
+        </template>
+        <n-empty v-else :description="t('project.noPlannedExpenses')" />
+      </n-card>
+
+      <!-- Linked Transactions -->
+      <n-card :title="t('project.linkedTransactions')" size="small">
+        <template v-if="projectStore.projectTransactions.length > 0">
+          <div v-for="tx in projectStore.projectTransactions" :key="tx.id" style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-tag :type="tx.transaction_type === 'expense' ? 'error' : 'success'" size="small">
+                  {{ tx.transaction_type === 'expense' ? '-' : '+' }}{{ tx.amount.toFixed(2) }} €
+                </n-tag>
+                <span>{{ tx.title }}</span>
+                <n-text depth="3" v-if="tx.project_category_name">{{ tx.project_category_name }}</n-text>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
+                <n-text depth="3">{{ tx.date }}</n-text>
+              </div>
+            </div>
+          </div>
+        </template>
+        <n-empty v-else :description="t('project.noLinkedTransactions')" />
+      </n-card>
+
+      <!-- Members -->
+      <n-card :title="t('project.members')" size="small">
+        <template #header-extra>
+          <n-button v-if="isOwner" size="small" type="primary" @click="showInviteModal = true">{{ t('project.inviteMember') }}</n-button>
+        </template>
+        <template v-if="projectStore.members.length > 0">
+          <div v-for="member in projectStore.members" :key="member.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <n-avatar v-if="member.user_avatar" :src="member.user_avatar" :size="28" round />
+                <n-avatar v-else :size="28" round>{{ member.user_name.charAt(0).toUpperCase() }}</n-avatar>
+                <strong>{{ member.user_name }}</strong>
+                <n-text depth="3">{{ member.user_email }}</n-text>
+                <n-tag :type="member.role === 'owner' ? 'success' : 'default'" size="small">{{ member.role }}</n-tag>
+              </div>
+              <n-popconfirm v-if="isOwner && member.role !== 'owner'" @positive-click="handleRemoveMember(member.id)">
+                <template #trigger>
+                  <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                </template>
+                {{ t('project.removeMemberConfirm') }}
+              </n-popconfirm>
+            </div>
+          </div>
+        </template>
+        <n-empty v-else :description="t('project.noMembers')" />
+      </n-card>
+    </template>
+
+    <!-- Invite Member Modal -->
+    <n-modal v-model:show="showInviteModal" preset="card"
+      :title="t('project.inviteMember')"
+      :style="{ width: isMobile ? '90%' : '400px' }">
+      <n-form>
+        <n-form-item :label="t('project.inviteEmail')">
+          <n-input v-model:value="inviteEmail" type="text" placeholder="email@example.com" />
+        </n-form-item>
+        <n-form-item :label="t('project.memberRole')">
+          <n-radio-group v-model:value="inviteRole">
+            <n-radio-button value="member">{{ t('project.roleMember') }}</n-radio-button>
+            <n-radio-button value="owner">{{ t('project.roleOwner') }}</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showInviteModal = false">{{ t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="handleInviteMember">{{ t('project.sendInvitation') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- Category Modal -->
+    <n-modal v-model:show="showCategoryModal" preset="card"
+      :title="editingCategory ? t('project.editCategory') : t('project.addCategory')"
+      :style="{ width: isMobile ? '90%' : '400px' }">
+      <n-form>
+        <n-form-item :label="t('project.categoryName')">
+          <n-input v-model:value="categoryForm.name" />
+        </n-form-item>
+        <n-form-item :label="t('project.plannedAmount')">
+          <n-input-number v-model:value="categoryForm.planned_amount" :min="0" :precision="2" style="width: 100%">
+            <template #suffix>€</template>
+          </n-input-number>
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showCategoryModal = false">{{ t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="handleSaveCategory">{{ t('common.save') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- Planned Expense Modal -->
+    <n-modal v-model:show="showExpenseModal" preset="card"
+      :title="editingExpense ? t('project.editPlannedExpense') : t('project.addPlannedExpense')"
+      :style="{ width: isMobile ? '90%' : '500px' }">
+      <n-form>
+        <n-form-item :label="t('project.expenseDescription')">
+          <n-input v-model:value="expenseForm.description" />
+        </n-form-item>
+        <n-form-item :label="t('project.plannedAmount')">
+          <n-input-number v-model:value="expenseForm.amount" :min="0.01" :precision="2" style="width: 100%">
+            <template #suffix>€</template>
+          </n-input-number>
+        </n-form-item>
+        <n-form-item :label="t('project.categories')">
+          <n-select v-model:value="expenseForm.project_category_id" :options="categoryOptions" />
+        </n-form-item>
+        <n-form-item :label="t('project.dueDate')">
+          <n-date-picker v-model:value="expenseForm.due_date" type="date" style="width: 100%" clearable />
+        </n-form-item>
+        <n-form-item :label="t('project.reminderDate')">
+          <n-date-picker v-model:value="expenseForm.reminder_date" type="date" style="width: 100%" clearable />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showExpenseModal = false">{{ t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="handleSaveExpense">{{ t('common.save') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+  </n-space>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  NSpace, NButton, NCard, NGrid, NGi, NStatistic, NText, NTag,
+  NIcon, NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
+  NInput, NInputNumber, NDatePicker, NSelect, NAvatar,
+  NPopconfirm, NRadioGroup, NRadioButton, useMessage,
+} from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+import { ArrowBackOutline, CashOutline } from '@vicons/ionicons5'
+import { useProjectStore } from '@/stores/project'
+import { useMobileDetect } from '@/composables/useMobileDetect'
+import type { ProjectCategoryWithSpent, ProjectPlannedExpense } from '@/services/api'
+
+const { t } = useI18n()
+const message = useMessage()
+const route = useRoute()
+const router = useRouter()
+const projectStore = useProjectStore()
+const { isMobile } = useMobileDetect()
+
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const saving = ref(false)
+const showCategoryModal = ref(false)
+const showExpenseModal = ref(false)
+const showInviteModal = ref(false)
+const inviteEmail = ref('')
+const inviteRole = ref('member')
+const editingCategory = ref<ProjectCategoryWithSpent | null>(null)
+const editingExpense = ref<ProjectPlannedExpense | null>(null)
+
+const categoryForm = ref({ name: '', planned_amount: 0 as number })
+const expenseForm = ref({
+  description: '',
+  amount: 0 as number,
+  project_category_id: null as string | null,
+  due_date: null as number | null,
+  reminder_date: null as number | null,
+})
+
+const project = computed(() => projectStore.currentProject)
+
+const categoryOptions = computed(() =>
+  (project.value?.categories || []).map(c => ({ label: `${c.name} (${c.planned_amount.toFixed(2)} €)`, value: c.id }))
+)
+
+const statusTagType = (status: string) => {
+  if (status === 'completed') return 'success'
+  if (status === 'abandoned') return 'error'
+  return 'default'
+}
+
+const formatDate = (ts: number) => {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const projectId = computed(() => route.params.id as string)
+
+const isOwner = computed(() => {
+  if (!project.value || !authStore.user) return false
+  return projectStore.members.some(m => m.user_id === authStore.user!.id && m.role === 'owner')
+})
+
+const loadData = async () => {
+  await projectStore.fetchProject(projectId.value)
+  await Promise.all([
+    projectStore.fetchPlannedExpenses(projectId.value),
+    projectStore.fetchProjectTransactions(projectId.value),
+    projectStore.fetchMembers(projectId.value),
+  ])
+}
+
+onMounted(loadData)
+watch(projectId, loadData)
+
+// ── Category ──
+
+const openCategoryModal = (cat?: ProjectCategoryWithSpent) => {
+  editingCategory.value = cat || null
+  categoryForm.value = {
+    name: cat?.name || '',
+    planned_amount: cat?.planned_amount || 0,
+  }
+  showCategoryModal.value = true
+}
+
+const handleSaveCategory = async () => {
+  if (!categoryForm.value.name) return
+  saving.value = true
+  try {
+    if (editingCategory.value) {
+      await projectStore.updateCategory(projectId.value, editingCategory.value.id, categoryForm.value)
+      message.success(t('project.categoryUpdated'))
+    } else {
+      await projectStore.createCategory(projectId.value, categoryForm.value)
+      message.success(t('project.categoryAdded'))
+    }
+    showCategoryModal.value = false
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const handleDeleteCategory = async (categoryId: string) => {
+  try {
+    await projectStore.deleteCategory(projectId.value, categoryId)
+    message.success(t('project.categoryDeleted'))
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  }
+}
+
+// ── Planned Expenses ──
+
+const openExpenseModal = (expense?: ProjectPlannedExpense) => {
+  editingExpense.value = expense || null
+  expenseForm.value = {
+    description: expense?.description || '',
+    amount: expense?.amount || 0,
+    project_category_id: expense?.project_category_id || null,
+    due_date: expense?.due_date ? new Date(expense.due_date).getTime() : null,
+    reminder_date: expense?.reminder_date ? new Date(expense.reminder_date).getTime() : null,
+  }
+  showExpenseModal.value = true
+}
+
+const handleSaveExpense = async () => {
+  if (!expenseForm.value.description || !expenseForm.value.project_category_id || expenseForm.value.amount <= 0) return
+  saving.value = true
+  try {
+    const data = {
+      project_category_id: expenseForm.value.project_category_id,
+      description: expenseForm.value.description,
+      amount: expenseForm.value.amount,
+      due_date: expenseForm.value.due_date ? formatDate(expenseForm.value.due_date) : undefined,
+      reminder_date: expenseForm.value.reminder_date ? formatDate(expenseForm.value.reminder_date) : undefined,
+    }
+    if (editingExpense.value) {
+      await projectStore.updatePlannedExpense(projectId.value, editingExpense.value.id, data)
+      message.success(t('project.expenseUpdated'))
+    } else {
+      await projectStore.createPlannedExpense(projectId.value, data)
+      message.success(t('project.expenseAdded'))
+    }
+    showExpenseModal.value = false
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const handleMarkPaid = async (expenseId: string) => {
+  try {
+    await projectStore.updatePlannedExpense(projectId.value, expenseId, { status: 'paid' })
+    message.success(t('project.expenseUpdated'))
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  }
+}
+
+const handleDeleteExpense = async (expenseId: string) => {
+  try {
+    await projectStore.deletePlannedExpense(projectId.value, expenseId)
+    message.success(t('project.expenseDeleted'))
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  }
+}
+
+// ── Members ──
+
+const handleInviteMember = async () => {
+  if (!inviteEmail.value) return
+  saving.value = true
+  try {
+    await projectStore.inviteMember(projectId.value, inviteEmail.value, inviteRole.value)
+    message.success(t('project.invitationSent'))
+    showInviteModal.value = false
+    inviteEmail.value = ''
+    inviteRole.value = 'member'
+  } catch (e: unknown) {
+    const err = e as { response?: { status?: number } }
+    if (err.response?.status === 404) message.error(t('project.userNotFound'))
+    else if (err.response?.status === 409) message.error(t('project.alreadyMember'))
+    else message.error(t('errors.generic'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const handleRemoveMember = async (memberId: string) => {
+  try {
+    await projectStore.removeMember(projectId.value, memberId)
+    message.success(t('project.memberRemoved'))
+  } catch {
+    message.error(t('errors.generic'))
+  }
+}
+</script>

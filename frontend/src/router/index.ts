@@ -83,6 +83,16 @@ const router = createRouter({
           component: () => import('@/views/LoansView.vue'),
         },
         {
+          path: 'projects',
+          name: 'projects',
+          component: () => import('@/views/ProjectsView.vue'),
+        },
+        {
+          path: 'projects/:id',
+          name: 'project-detail',
+          component: () => import('@/views/ProjectDetailView.vue'),
+        },
+        {
           path: 'profile',
           name: 'profile',
           component: ProfileView,
@@ -182,8 +192,12 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Redirect to OIDC login instead of local login page
-    window.location.href = '/auth/login'
+    // In production, redirect to OIDC login; in dev, use local login page
+    if (import.meta.env.PROD) {
+      window.location.href = '/auth/login'
+    } else {
+      next('/login')
+    }
     return
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     next('/dashboard')

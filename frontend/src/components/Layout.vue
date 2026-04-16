@@ -141,7 +141,8 @@ import {
   DashboardOutlined, HistoryOutlined, BarChartOutlined,
   UserOutlined, SettingOutlined, SyncOutlined, TeamOutlined,
   ShoppingOutlined, TagOutlined, GiftOutlined, SwapOutlined,
-  FileTextOutlined, FileDoneOutlined, AppstoreOutlined, AuditOutlined
+  FileTextOutlined, FileDoneOutlined, AppstoreOutlined, AuditOutlined,
+  ProjectOutlined
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
@@ -213,6 +214,11 @@ const personalMenuOptions = computed<MenuOption[]>(() => [
     icon: () => h(SwapOutlined)
   },
   {
+    label: t('nav.projects'),
+    key: 'projects',
+    icon: () => h(ProjectOutlined)
+  },
+  {
     label: t('nav.profile'),
     key: 'profile',
     icon: () => h(UserOutlined)
@@ -265,6 +271,11 @@ const proMenuOptions = computed<MenuOption[]>(() => [
     label: t('nav.proGiftCards'),
     key: 'pro-gift-cards',
     icon: () => h(GiftOutlined)
+  },
+  {
+    label: t('nav.projects'),
+    key: 'projects',
+    icon: () => h(ProjectOutlined)
   },
   {
     label: t('nav.proHistory'),

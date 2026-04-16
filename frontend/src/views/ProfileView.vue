@@ -149,6 +149,48 @@
       </n-space>
     </n-card>
 
+    <!-- Pending Project Invitations -->
+    <n-card title="Invitations projet" v-if="projectInvitations.length > 0">
+      <n-space vertical>
+        <n-alert
+          v-for="invitation in projectInvitations"
+          :key="invitation.id"
+          type="info"
+          closable
+          @close="handleRejectProjectInvitation(invitation.id)"
+        >
+          <template #header>
+            Invitation au projet "{{ invitation.project_name }}"
+          </template>
+
+          <div style="margin-bottom: 12px;">
+            <strong>{{ invitation.inviter_name }}</strong> vous invite à rejoindre ce projet en tant que
+            <n-tag :type="invitation.role === 'owner' ? 'success' : 'default'" size="small">
+              {{ invitation.role === 'owner' ? 'Propriétaire' : 'Membre' }}
+            </n-tag>
+          </div>
+
+          <n-space>
+            <n-button
+              type="success"
+              size="small"
+              :loading="processingProjectInvitation === invitation.id"
+              @click="handleAcceptProjectInvitation(invitation.id)"
+            >
+              Accepter
+            </n-button>
+            <n-button
+              size="small"
+              :loading="processingProjectInvitation === invitation.id"
+              @click="handleRejectProjectInvitation(invitation.id)"
+            >
+              Refuser
+            </n-button>
+          </n-space>
+        </n-alert>
+      </n-space>
+    </n-card>
+
     <!-- Settings -->
     <n-card :title="t('profile.title')">
       <n-space vertical>
@@ -299,6 +341,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
 import { useSettingsStore, INACTIVITY_OPTIONS } from '@/stores/settings'
+import { useProjectStore } from '@/stores/project'
 import { authAPI, invitationsAPI, type BudgetInvitationWithDetails } from '@/services/api'
 import { SUPPORTED_LOCALES, saveLocale, type Locale } from '@/i18n'
 
@@ -307,6 +350,7 @@ const message = useMessage()
 const { locale, t } = useI18n()
 const authStore = useAuthStore()
 const budgetStore = useBudgetStore()
+const projectStore = useProjectStore()
 const settingsStore = useSettingsStore()
 
 const languageOptions = SUPPORTED_LOCALES.map(l => ({
@@ -328,6 +372,8 @@ const inactivityOptions = INACTIVITY_OPTIONS.map(opt => ({
 const isMobile = ref(false)
 const invitations = ref<BudgetInvitationWithDetails[]>([])
 const processingInvitation = ref<string | null>(null)
+const projectInvitations = computed(() => projectStore.projectInvitations)
+const processingProjectInvitation = ref<string | null>(null)
 const showChangePassword = ref(false)
 const changingPassword = ref(false)
 const passwordFormRef = ref<FormInst | null>(null)
@@ -441,6 +487,12 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error loading invitations:', error)
   }
+
+  try {
+    await projectStore.fetchProjectInvitations()
+  } catch (error) {
+    console.error('Error loading project invitations:', error)
+  }
 })
 
 onUnmounted(() => {
@@ -497,6 +549,33 @@ const handleRejectInvitation = async (id: string) => {
     message.error('Error declining invitation')
   } finally {
     processingInvitation.value = null
+  }
+}
+
+const handleAcceptProjectInvitation = async (id: string) => {
+  processingProjectInvitation.value = id
+  try {
+    await projectStore.acceptProjectInvitation(id)
+    message.success('Invitation acceptée !')
+    await projectStore.fetchProjects()
+  } catch (error) {
+    console.error('Error accepting project invitation:', error)
+    message.error('Erreur lors de l\'acceptation')
+  } finally {
+    processingProjectInvitation.value = null
+  }
+}
+
+const handleRejectProjectInvitation = async (id: string) => {
+  processingProjectInvitation.value = id
+  try {
+    await projectStore.rejectProjectInvitation(id)
+    message.success('Invitation refusée')
+  } catch (error) {
+    console.error('Error rejecting project invitation:', error)
+    message.error('Erreur')
+  } finally {
+    processingProjectInvitation.value = null
   }
 }
 

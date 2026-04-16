@@ -199,6 +199,7 @@ export const useBudgetStore = defineStore('budget', () => {
     comment?: string
     is_budgeted?: number
     paid_by_user_id?: string
+    project_category_id?: string | null
   }) {
     const updated = await transactionsAPI.update(id, data)
     const index = transactions.value.findIndex(t => t.id === id)

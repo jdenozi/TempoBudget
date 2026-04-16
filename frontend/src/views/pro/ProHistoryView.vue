@@ -76,6 +76,9 @@
           <n-tag v-if="tx.transaction_type === 'income'" size="tiny" :type="tx.is_declared ? 'success' : 'warning'">
             {{ tx.is_declared ? t('pro.declaration.declared') : t('pro.declaration.undeclared') }}
           </n-tag>
+          <n-tag v-if="tx.invoice_id" size="tiny" type="info" style="cursor: pointer;" @click.stop="$router.push({ name: 'pro-invoice-detail', params: { id: tx.invoice_id } })">
+            {{ t('pro.transactions.fromInvoice') }}
+          </n-tag>
         </n-space>
         <div v-if="tx.items && tx.items.length > 0" style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">
           <span v-for="(item, idx) in tx.items" :key="item.id">
@@ -84,13 +87,18 @@
         </div>
         <template #action>
           <n-space size="small">
-            <n-button size="tiny" @click="openEditModal(tx)">{{ t('common.edit') }}</n-button>
-            <n-popconfirm @positive-click="handleDelete(tx.id)">
-              <template #trigger>
-                <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
-              </template>
-              {{ t('transaction.deleteTransactionConfirm') }}
-            </n-popconfirm>
+            <template v-if="tx.invoice_id">
+              <n-button size="tiny" type="info" @click="$router.push({ name: 'pro-invoice-detail', params: { id: tx.invoice_id } })">{{ t('pro.transactions.viewInvoice') }}</n-button>
+            </template>
+            <template v-else>
+              <n-button size="tiny" @click="openEditModal(tx)">{{ t('common.edit') }}</n-button>
+              <n-popconfirm @positive-click="handleDelete(tx.id)">
+                <template #trigger>
+                  <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                </template>
+                {{ t('transaction.deleteTransactionConfirm') }}
+              </n-popconfirm>
+            </template>
           </n-space>
         </template>
       </n-card>
@@ -235,6 +243,15 @@
           </div>
         </n-card>
 
+        <n-form-item v-if="projectCategoryOptions.length > 0" :label="t('project.linkToProject')">
+          <n-select
+            v-model:value="txForm.project_category_id"
+            :options="projectCategoryOptions"
+            clearable
+            :placeholder="t('project.linkToProject')"
+          />
+        </n-form-item>
+
         <n-form-item :label="t('transaction.comment')">
           <n-input v-model:value="txForm.comment" type="textarea" :rows="2" />
         </n-form-item>
@@ -246,7 +263,7 @@
 
 <script setup lang="ts">
 import { ref, computed, h, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NSpace, NCard, NGrid, NGi, NStatistic, NButton, NDataTable,
   NDatePicker, NSelect, NTag, NEmpty, NModal, NForm, NFormItem,
@@ -256,12 +273,15 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
+import { useProjectStore } from '@/stores/project'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import type { ProTransaction } from '@/services/api'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const proStore = useProStore()
+const projectStore = useProjectStore()
 const message = useMessage()
 const { isMobile } = useMobileDetect()
 
@@ -297,6 +317,7 @@ const txForm = ref({
   coupon_id: null as string | null,
   gift_card_id: null as string | null,
   gift_card_amount: null as number | null,
+  project_category_id: null as string | null,
 })
 
 const clientOptions = computed(() =>
@@ -347,6 +368,24 @@ const activeGiftCardOptions = computed(() =>
       value: gc.id,
     }))
 )
+
+const projectCategoryOptions = computed(() => {
+  const options: { type: 'group'; label: string; key: string; children: { label: string; value: string }[] }[] = []
+  for (const project of projectStore.projects.filter(p => p.status === 'active' && p.mode === 'pro')) {
+    if (project.categories.length > 0) {
+      options.push({
+        type: 'group',
+        label: project.name,
+        key: project.id,
+        children: project.categories.map(c => ({
+          label: `${c.name} (${c.remaining.toFixed(2)} € restant)`,
+          value: c.id,
+        })),
+      })
+    }
+  }
+  return options
+})
 
 const selectedGiftCardBalance = computed(() => {
   if (!txForm.value.gift_card_id) return 0
@@ -463,7 +502,27 @@ const balance = computed(() => totalIncome.value - totalExpenses.value)
 
 const columns: DataTableColumns<ProTransaction> = [
   { title: () => t('transaction.date'), key: 'date', width: 110 },
-  { title: () => t('transaction.transactionTitle'), key: 'title' },
+  {
+    title: () => t('transaction.transactionTitle'),
+    key: 'title',
+    render(row) {
+      const children = [h('span', {}, row.title)]
+      if (row.invoice_id) {
+        children.push(
+          h(NTag, {
+            size: 'tiny',
+            type: 'info',
+            style: 'margin-left: 8px; cursor: pointer;',
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              router.push({ name: 'pro-invoice-detail', params: { id: row.invoice_id! } })
+            },
+          }, () => t('pro.transactions.fromInvoice'))
+        )
+      }
+      return h('span', { style: 'display: flex; align-items: center;' }, children)
+    },
+  },
   { title: () => t('category.title'), key: 'category_name' },
   { title: () => t('pro.transactions.client'), key: 'client_name' },
   {
@@ -490,6 +549,13 @@ const columns: DataTableColumns<ProTransaction> = [
     key: 'actions',
     width: 150,
     render(row) {
+      if (row.invoice_id) {
+        return h(NButton, {
+          size: 'small',
+          type: 'info',
+          onClick: () => router.push({ name: 'pro-invoice-detail', params: { id: row.invoice_id! } }),
+        }, () => t('pro.transactions.viewInvoice'))
+      }
       return h(NSpace, { size: 'small' }, () => [
         h(NButton, { size: 'small', onClick: () => openEditModal(row) }, () => t('common.edit')),
         h(NPopconfirm, { onPositiveClick: () => handleDelete(row.id) }, {
@@ -525,6 +591,7 @@ function openCreateModal() {
     coupon_id: null,
     gift_card_id: null,
     gift_card_amount: null,
+    project_category_id: null,
   }
   showModal.value = true
 }
@@ -548,6 +615,7 @@ function openEditModal(tx: ProTransaction) {
     coupon_id: null,
     gift_card_id: null,
     gift_card_amount: null,
+    project_category_id: tx.project_category_id || null,
   }
   showModal.value = true
 }
@@ -571,6 +639,7 @@ async function handleSubmit() {
       date: formatDate(txForm.value.date),
       payment_method: txForm.value.payment_method,
       comment: txForm.value.comment || undefined,
+      project_category_id: txForm.value.project_category_id,
     })
     message.success(t('transaction.transactionUpdated'))
   } else {
@@ -583,6 +652,7 @@ async function handleSubmit() {
       date: formatDate(txForm.value.date),
       payment_method: txForm.value.payment_method,
       comment: txForm.value.comment || undefined,
+      project_category_id: txForm.value.project_category_id,
     }
     if (hasItems) {
       data.items = txForm.value.items.map(i => ({
@@ -625,6 +695,7 @@ onMounted(async () => {
     proStore.fetchProducts(),
     proStore.fetchCoupons(),
     proStore.fetchGiftCards(),
+    projectStore.fetchProjects(),
   ])
 
   // Pre-fill client filter from query param

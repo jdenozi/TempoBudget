@@ -17,6 +17,13 @@ class ProProfile(BaseModel):
     cotisation_rate: float = Field(21.1, description="Cotisation rate (%)")
     declaration_frequency: str = Field("quarterly", description="Declaration frequency")
     revenue_threshold: float = Field(77700, description="Annual revenue threshold")
+    is_subject_to_vat: int = Field(0, description="Whether subject to VAT (0/1)")
+    vat_rate: float = Field(20.0, description="VAT rate (%)")
+    vat_number: str | None = Field(None, description="VAT intra-community number")
+    company_name: str | None = Field(None, description="Company/business name")
+    company_address: str | None = Field(None, description="Company address")
+    company_email: str | None = Field(None, description="Company email")
+    company_phone: str | None = Field(None, description="Company phone")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
 
@@ -35,6 +42,13 @@ class UpdateProProfile(BaseModel):
     cotisation_rate: float | None = Field(None, gt=0, le=100)
     declaration_frequency: Literal["monthly", "quarterly"] | None = None
     revenue_threshold: float | None = Field(None, gt=0)
+    is_subject_to_vat: int | None = Field(None, ge=0, le=1)
+    vat_rate: float | None = Field(None, gt=0, le=100)
+    vat_number: str | None = None
+    company_name: str | None = None
+    company_address: str | None = None
+    company_email: str | None = None
+    company_phone: str | None = None
 
 
 class ProClient(BaseModel):
@@ -112,6 +126,8 @@ class ProTransaction(BaseModel):
     coupon_id: str | None = Field(None, description="Coupon ID if applied")
     gift_card_payment: float = Field(0, description="Amount paid by gift card")
     is_declared: int = Field(0, description="Whether declared to URSSAF (0/1)")
+    invoice_id: str | None = Field(None, description="Linked invoice ID (auto-created from paid invoice)")
+    project_category_id: str | None = Field(None, description="Linked project category ID")
     created_at: str = Field(..., description="Creation timestamp")
     client_name: str | None = Field(None, description="Client name (joined)")
     category_name: str | None = Field(None, description="Category name (joined)")
@@ -137,6 +153,7 @@ class CreateProTransaction(BaseModel):
     coupon_id: str | None = None
     gift_card_id: str | None = None
     gift_card_amount: float | None = None
+    project_category_id: str | None = None
 
 
 class UpdateProTransaction(BaseModel):
@@ -149,6 +166,7 @@ class UpdateProTransaction(BaseModel):
     date: str | None = None
     payment_method: str | None = None
     comment: str | None = None
+    project_category_id: str | None = None
 
 
 class ProProduct(BaseModel):
@@ -396,6 +414,8 @@ class ProInvoice(BaseModel):
     issue_date: str
     due_date: str
     subtotal: float = 0
+    tva_rate: float = 0
+    tva_amount: float = 0
     total: float = 0
     discount_type: str | None = None
     discount_value: float = 0
@@ -483,6 +503,8 @@ class ProQuote(BaseModel):
     issue_date: str
     validity_date: str
     subtotal: float = 0
+    tva_rate: float = 0
+    tva_amount: float = 0
     total: float = 0
     discount_type: str | None = None
     discount_value: float = 0

@@ -63,12 +63,21 @@ async def get_or_create_profile(
     row = result.fetchone()
 
     if row:
+        r = row._mapping
         return ProProfile(
-            id=row.id, user_id=row.user_id, siret=row.siret,
-            activity_type=row.activity_type, cotisation_rate=row.cotisation_rate,
-            declaration_frequency=row.declaration_frequency,
-            revenue_threshold=row.revenue_threshold,
-            created_at=row.created_at, updated_at=row.updated_at,
+            id=r["id"], user_id=r["user_id"], siret=r.get("siret"),
+            activity_type=r.get("activity_type", "services"),
+            cotisation_rate=r.get("cotisation_rate", 21.1),
+            declaration_frequency=r.get("declaration_frequency", "quarterly"),
+            revenue_threshold=r.get("revenue_threshold", 77700),
+            is_subject_to_vat=r.get("is_subject_to_vat", 0),
+            vat_rate=r.get("vat_rate", 20.0),
+            vat_number=r.get("vat_number"),
+            company_name=r.get("company_name"),
+            company_address=r.get("company_address"),
+            company_email=r.get("company_email"),
+            company_phone=r.get("company_phone"),
+            created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
     # Create profile
@@ -100,6 +109,9 @@ async def get_or_create_profile(
         id=profile_id, user_id=user_id, siret=None,
         activity_type="services", cotisation_rate=21.1,
         declaration_frequency="quarterly", revenue_threshold=77700,
+        is_subject_to_vat=0, vat_rate=20.0, vat_number=None,
+        company_name=None, company_address=None,
+        company_email=None, company_phone=None,
         created_at=now, updated_at=now,
     )
 
@@ -114,7 +126,9 @@ async def update_profile(
     updates = []
     params: dict = {"user_id": user_id, "updated_at": datetime.now(timezone.utc).isoformat()}
 
-    for field in ("siret", "activity_type", "cotisation_rate", "declaration_frequency", "revenue_threshold"):
+    for field in ("siret", "activity_type", "cotisation_rate", "declaration_frequency", "revenue_threshold",
+                   "is_subject_to_vat", "vat_rate", "vat_number",
+                   "company_name", "company_address", "company_email", "company_phone"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -133,12 +147,21 @@ async def update_profile(
         {"user_id": user_id},
     )
     row = result.fetchone()
+    r = row._mapping
     return ProProfile(
-        id=row.id, user_id=row.user_id, siret=row.siret,
-        activity_type=row.activity_type, cotisation_rate=row.cotisation_rate,
-        declaration_frequency=row.declaration_frequency,
-        revenue_threshold=row.revenue_threshold,
-        created_at=row.created_at, updated_at=row.updated_at,
+        id=r["id"], user_id=r["user_id"], siret=r.get("siret"),
+        activity_type=r.get("activity_type", "services"),
+        cotisation_rate=r.get("cotisation_rate", 21.1),
+        declaration_frequency=r.get("declaration_frequency", "quarterly"),
+        revenue_threshold=r.get("revenue_threshold", 77700),
+        is_subject_to_vat=r.get("is_subject_to_vat", 0),
+        vat_rate=r.get("vat_rate", 20.0),
+        vat_number=r.get("vat_number"),
+        company_name=r.get("company_name"),
+        company_address=r.get("company_address"),
+        company_email=r.get("company_email"),
+        company_phone=r.get("company_phone"),
+        created_at=r["created_at"], updated_at=r["updated_at"],
     )
 
 
@@ -806,6 +829,8 @@ async def get_transactions(
             discount_type=r.discount_type, discount_value=r.discount_value,
             coupon_id=r.coupon_id, gift_card_payment=r.gift_card_payment or 0,
             is_declared=r.is_declared if hasattr(r, 'is_declared') else 0,
+            invoice_id=r.invoice_id if hasattr(r, 'invoice_id') else None,
+            project_category_id=r.project_category_id if hasattr(r, 'project_category_id') else None,
             created_at=r.created_at, client_name=r.client_name,
             category_name=r.category_name, items=items,
         ))
@@ -931,10 +956,10 @@ async def create_transaction(
         text("""
             INSERT INTO pro_transactions (id, user_id, client_id, category_id, title,
                                           amount, transaction_type, date, payment_method, comment,
-                                          discount_type, discount_value, coupon_id, gift_card_payment, created_at)
+                                          discount_type, discount_value, coupon_id, gift_card_payment, project_category_id, created_at)
             VALUES (:id, :user_id, :client_id, :category_id, :title,
                     :amount, :transaction_type, :date, :payment_method, :comment,
-                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :created_at)
+                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id, :created_at)
         """),
         {
             "id": tx_id, "user_id": user_id,
@@ -944,6 +969,7 @@ async def create_transaction(
             "payment_method": payload.payment_method, "comment": payload.comment,
             "discount_type": discount_type, "discount_value": discount_value,
             "coupon_id": coupon_id, "gift_card_payment": round(gift_card_payment, 2),
+            "project_category_id": payload.project_category_id,
             "created_at": now,
         },
     )
@@ -1013,6 +1039,7 @@ async def create_transaction(
         payment_method=r.payment_method, comment=r.comment,
         discount_type=r.discount_type, discount_value=r.discount_value,
         coupon_id=r.coupon_id, gift_card_payment=r.gift_card_payment or 0,
+        project_category_id=r.project_category_id if hasattr(r, 'project_category_id') else None,
         created_at=r.created_at, client_name=r.client_name,
         category_name=r.category_name, items=items,
     )
@@ -1058,7 +1085,7 @@ async def update_transaction(
 
     updates = []
     params: dict = {"id": transaction_id, "user_id": user_id}
-    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment"):
+    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -1087,6 +1114,7 @@ async def update_transaction(
         payment_method=r.payment_method, comment=r.comment,
         discount_type=r.discount_type, discount_value=r.discount_value,
         coupon_id=r.coupon_id, gift_card_payment=r.gift_card_payment or 0,
+        project_category_id=r.project_category_id if hasattr(r, 'project_category_id') else None,
         created_at=r.created_at, client_name=r.client_name,
         category_name=r.category_name,
     )
@@ -1299,21 +1327,40 @@ async def _generate_number(db: AsyncSession, user_id: str, doc_type: str) -> str
     return f"{prefix}-{year}-{seq:03d}"
 
 
-def _calc_totals(items: list, discount_type: str | None, discount_value: float) -> tuple[float, float]:
-    """Calculate subtotal and total from items and discount."""
+async def _get_vat_rate(db: AsyncSession, user_id: str) -> float:
+    """Get the VAT rate for a user (0 if not subject to VAT)."""
+    result = await db.execute(
+        text("SELECT is_subject_to_vat, vat_rate FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    row = result.fetchone()
+    if row and row.is_subject_to_vat:
+        return row.vat_rate or 20.0
+    return 0
+
+
+def _calc_totals(items: list, discount_type: str | None, discount_value: float, tva_rate: float = 0) -> tuple[float, float, float, float]:
+    """Calculate subtotal HT, tva_amount, and total TTC from items, discount and TVA rate.
+    Returns (subtotal_ht, tva_amount, total_ttc, tva_rate)."""
     subtotal = sum(i.quantity * i.unit_price for i in items)
-    total = subtotal
+    total_ht = subtotal
     if discount_type == "percentage" and discount_value:
-        total = subtotal * (1 - discount_value / 100)
+        total_ht = subtotal * (1 - discount_value / 100)
     elif discount_type == "fixed" and discount_value:
-        total = subtotal - discount_value
-    return round(subtotal, 2), round(max(total, 0), 2)
+        total_ht = subtotal - discount_value
+    total_ht = round(max(total_ht, 0), 2)
+    subtotal = round(subtotal, 2)
+    tva_amount = round(total_ht * tva_rate / 100, 2) if tva_rate else 0
+    total_ttc = round(total_ht + tva_amount, 2)
+    return subtotal, tva_amount, total_ttc, tva_rate
 
 
 async def _get_profile_for_pdf(db: AsyncSession, user_id: str) -> dict:
-    """Get profile + user info for PDF generation."""
+    """Get profile + user info for PDF generation. Company fields override user fields."""
     result = await db.execute(
-        text("""SELECT u.name, u.email, u.phone, p.siret
+        text("""SELECT u.name, u.email, u.phone, p.siret,
+                       p.is_subject_to_vat, p.vat_rate, p.vat_number,
+                       p.company_name, p.company_address, p.company_email, p.company_phone
                 FROM users u LEFT JOIN pro_profiles p ON p.user_id = u.id
                 WHERE u.id = :user_id"""),
         {"user_id": user_id},
@@ -1321,7 +1368,13 @@ async def _get_profile_for_pdf(db: AsyncSession, user_id: str) -> dict:
     row = result.fetchone()
     if not row:
         return {}
-    return dict(row._mapping)
+    d = dict(row._mapping)
+    # Use company info if available, fallback to user info
+    d["name"] = d.get("company_name") or d.get("name", "")
+    d["email"] = d.get("company_email") or d.get("email")
+    d["phone"] = d.get("company_phone") or d.get("phone")
+    d["address"] = d.get("company_address")
+    return d
 
 
 async def _get_client_dict(db: AsyncSession, client_id: str) -> dict:
@@ -1455,20 +1508,22 @@ async def create_invoice(
 ):
     """Create a new invoice with auto-numbered ID."""
     invoice_number = await _generate_number(db, user_id, "invoice")
-    subtotal, total = _calc_totals(payload.items, payload.discount_type, payload.discount_value)
+    vat_rate = await _get_vat_rate(db, user_id)
+    subtotal, tva_amount, total, tva_rate = _calc_totals(payload.items, payload.discount_type, payload.discount_value, vat_rate)
     now = datetime.now(timezone.utc).isoformat()
     invoice_id = str(uuid4())
 
     await db.execute(
         text("""INSERT INTO pro_invoices
                 (id, user_id, client_id, invoice_number, status, issue_date, due_date,
-                 subtotal, total, discount_type, discount_value, notes, created_at, updated_at)
+                 subtotal, tva_rate, tva_amount, total, discount_type, discount_value, notes, created_at, updated_at)
                 VALUES (:id, :user_id, :client_id, :invoice_number, 'draft', :issue_date, :due_date,
-                        :subtotal, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
+                        :subtotal, :tva_rate, :tva_amount, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
         {
             "id": invoice_id, "user_id": user_id, "client_id": payload.client_id,
             "invoice_number": invoice_number, "issue_date": payload.issue_date,
-            "due_date": payload.due_date, "subtotal": subtotal, "total": total,
+            "due_date": payload.due_date, "subtotal": subtotal, "tva_rate": tva_rate,
+            "tva_amount": tva_amount, "total": total,
             "discount_type": payload.discount_type, "discount_value": payload.discount_value,
             "notes": payload.notes, "now": now,
         },
@@ -1513,12 +1568,16 @@ async def update_invoice(
 
     # If items are provided, recalculate totals
     if payload.items is not None:
-        subtotal, total = _calc_totals(
+        vat_rate = await _get_vat_rate(db, user_id)
+        subtotal, tva_amount, total, tva_rate = _calc_totals(
             payload.items,
             payload.discount_type or updates.get("discount_type"),
             payload.discount_value if payload.discount_value is not None else 0,
+            vat_rate,
         )
         updates["subtotal"] = subtotal
+        updates["tva_rate"] = tva_rate
+        updates["tva_amount"] = tva_amount
         updates["total"] = total
 
         # Replace items
@@ -1581,14 +1640,15 @@ async def update_invoice_status(
 ):
     """Update invoice status with transition validation."""
     result = await db.execute(
-        text("SELECT status FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        text("SELECT * FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
         {"id": invoice_id, "user_id": user_id},
     )
     row = result.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice = dict(row._mapping)
 
-    current = row.status
+    current = invoice["status"]
     new = payload.status
     valid_transitions = {
         "draft": ["sent", "cancelled"],
@@ -1610,6 +1670,58 @@ async def update_invoice_status(
         text(f"UPDATE pro_invoices SET status = :status, updated_at = :now{extra_set} WHERE id = :id"),
         params,
     )
+
+    # Create linked pro_transaction when invoice is paid
+    if new == "paid":
+        # Find default income category for this user
+        cat_result = await db.execute(
+            text("""SELECT id FROM pro_categories
+                    WHERE user_id = :user_id AND type = 'income' AND is_default = 1
+                    ORDER BY name LIMIT 1"""),
+            {"user_id": user_id},
+        )
+        cat_row = cat_result.fetchone()
+        if not cat_row:
+            # Fallback: any income category
+            cat_result = await db.execute(
+                text("SELECT id FROM pro_categories WHERE user_id = :user_id AND type = 'income' LIMIT 1"),
+                {"user_id": user_id},
+            )
+            cat_row = cat_result.fetchone()
+        if not cat_row:
+            raise HTTPException(status_code=400, detail="No income category found — create one first")
+
+        paid_date = payload.paid_date or now[:10]
+        payment_method = payload.payment_method or "transfer"
+        await db.execute(
+            text("""INSERT INTO pro_transactions
+                    (id, user_id, client_id, category_id, title, amount, transaction_type,
+                     date, payment_method, comment, is_declared, invoice_id, created_at)
+                    VALUES (:id, :user_id, :client_id, :category_id, :title, :amount, 'income',
+                            :date, :payment_method, :comment, 0, :invoice_id, :now)"""),
+            {
+                "id": str(uuid4()),
+                "user_id": user_id,
+                "client_id": invoice["client_id"],
+                "category_id": cat_row.id,
+                "title": f"Facture {invoice['invoice_number']}",
+                "amount": invoice["total"],
+                "date": paid_date,
+                "payment_method": payment_method,
+                "comment": f"Transaction auto-créée depuis la facture {invoice['invoice_number']}",
+                "is_declared": 0,
+                "invoice_id": invoice_id,
+                "now": now,
+            },
+        )
+
+    # If going to cancelled from paid, remove the linked transaction
+    if new == "cancelled" and current == "paid":
+        await db.execute(
+            text("DELETE FROM pro_transactions WHERE invoice_id = :invoice_id AND user_id = :user_id"),
+            {"invoice_id": invoice_id, "user_id": user_id},
+        )
+
     await db.commit()
     return await get_invoice(invoice_id, user_id, db)
 
@@ -1750,20 +1862,22 @@ async def create_quote(
 ):
     """Create a new quote."""
     quote_number = await _generate_number(db, user_id, "quote")
-    subtotal, total = _calc_totals(payload.items, payload.discount_type, payload.discount_value)
+    vat_rate = await _get_vat_rate(db, user_id)
+    subtotal, tva_amount, total, tva_rate = _calc_totals(payload.items, payload.discount_type, payload.discount_value, vat_rate)
     now = datetime.now(timezone.utc).isoformat()
     quote_id = str(uuid4())
 
     await db.execute(
         text("""INSERT INTO pro_quotes
                 (id, user_id, client_id, quote_number, status, issue_date, validity_date,
-                 subtotal, total, discount_type, discount_value, notes, created_at, updated_at)
+                 subtotal, tva_rate, tva_amount, total, discount_type, discount_value, notes, created_at, updated_at)
                 VALUES (:id, :user_id, :client_id, :quote_number, 'draft', :issue_date, :validity_date,
-                        :subtotal, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
+                        :subtotal, :tva_rate, :tva_amount, :total, :discount_type, :discount_value, :notes, :now, :now)"""),
         {
             "id": quote_id, "user_id": user_id, "client_id": payload.client_id,
             "quote_number": quote_number, "issue_date": payload.issue_date,
-            "validity_date": payload.validity_date, "subtotal": subtotal, "total": total,
+            "validity_date": payload.validity_date, "subtotal": subtotal, "tva_rate": tva_rate,
+            "tva_amount": tva_amount, "total": total,
             "discount_type": payload.discount_type, "discount_value": payload.discount_value,
             "notes": payload.notes, "now": now,
         },
@@ -1807,12 +1921,16 @@ async def update_quote(
     now = datetime.now(timezone.utc).isoformat()
 
     if payload.items is not None:
-        subtotal, total = _calc_totals(
+        vat_rate = await _get_vat_rate(db, user_id)
+        subtotal, tva_amount, total, tva_rate = _calc_totals(
             payload.items,
             payload.discount_type or updates.get("discount_type"),
             payload.discount_value if payload.discount_value is not None else 0,
+            vat_rate,
         )
         updates["subtotal"] = subtotal
+        updates["tva_rate"] = tva_rate
+        updates["tva_amount"] = tva_amount
         updates["total"] = total
 
         await db.execute(
@@ -1851,16 +1969,14 @@ async def delete_quote(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a draft quote."""
+    """Delete a quote."""
     result = await db.execute(
-        text("SELECT status FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
+        text("SELECT id FROM pro_quotes WHERE id = :id AND user_id = :user_id"),
         {"id": quote_id, "user_id": user_id},
     )
     row = result.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Quote not found")
-    if row.status != "draft":
-        raise HTTPException(status_code=400, detail="Only draft quotes can be deleted")
     await db.execute(text("DELETE FROM pro_quotes WHERE id = :id"), {"id": quote_id})
     await db.commit()
 

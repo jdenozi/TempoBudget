@@ -206,9 +206,9 @@ async def create_transaction(
     await db.execute(
         text("""
             INSERT INTO transactions (id, budget_id, category_id, title, amount,
-                                       transaction_type, date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at)
+                                       transaction_type, date, comment, is_recurring, is_budgeted, paid_by_user_id, project_category_id, created_at)
             VALUES (:id, :budget_id, :category_id, :title, :amount,
-                    :transaction_type, :date, :comment, 0, :is_budgeted, :paid_by_user_id, :created_at)
+                    :transaction_type, :date, :comment, 0, :is_budgeted, :paid_by_user_id, :project_category_id, :created_at)
         """),
         {
             "id": transaction_id,
@@ -221,6 +221,7 @@ async def create_transaction(
             "comment": payload.comment,
             "is_budgeted": payload.is_budgeted,
             "paid_by_user_id": payload.paid_by_user_id,
+            "project_category_id": payload.project_category_id,
             "created_at": now,
         }
     )
@@ -229,7 +230,7 @@ async def create_transaction(
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id, project_category_id, created_at
             FROM transactions WHERE id = :id
         """),
         {"id": transaction_id}
@@ -247,6 +248,7 @@ async def create_transaction(
         is_recurring=row.is_recurring,
         is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
+        project_category_id=row.project_category_id,
         created_at=row.created_at,
     )
 
@@ -301,6 +303,9 @@ async def update_transaction(
     if payload.paid_by_user_id is not None:
         updates.append("paid_by_user_id = :paid_by_user_id")
         params["paid_by_user_id"] = payload.paid_by_user_id
+    if payload.project_category_id is not None:
+        updates.append("project_category_id = :project_category_id")
+        params["project_category_id"] = payload.project_category_id
 
     if updates:
         query = f"UPDATE transactions SET {', '.join(updates)} WHERE id = :id"
@@ -311,7 +316,7 @@ async def update_transaction(
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id, project_category_id, created_at
             FROM transactions WHERE id = :id
         """),
         {"id": transaction_id}
@@ -329,6 +334,7 @@ async def update_transaction(
         is_recurring=row.is_recurring,
         is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
+        project_category_id=row.project_category_id,
         created_at=row.created_at,
     )
 

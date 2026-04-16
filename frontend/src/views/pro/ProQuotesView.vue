@@ -135,7 +135,16 @@ const columns = computed<DataTableColumns<ProQuote>>(() => [
   { title: t('pro.quotes.issueDate'), key: 'issue_date', width: 120 },
   { title: t('pro.quotes.validityDate'), key: 'validity_date', width: 120 },
   {
-    title: t('pro.quotes.total'), key: 'total', width: 120,
+    title: t('pro.quotes.totalHT'), key: 'subtotal', width: 100,
+    render: (row) => h('span', {}, `${row.subtotal.toFixed(2)} €`),
+  },
+  ...(proStore.proProfile?.is_subject_to_vat ? [{
+    title: t('pro.quotes.tva'), key: 'tva_amount', width: 100,
+    render: (row: ProQuote) => h('span', {}, `${row.tva_amount.toFixed(2)} €`),
+  }] : []),
+  {
+    title: proStore.proProfile?.is_subject_to_vat ? t('pro.quotes.totalTTC') : t('pro.quotes.total'),
+    key: 'total', width: 110,
     render: (row) => h('span', { style: 'font-weight: bold' }, `${row.total.toFixed(2)} €`),
   },
   {
@@ -150,12 +159,10 @@ const columns = computed<DataTableColumns<ProQuote>>(() => [
       ...(!row.invoice_id && (row.status === 'accepted' || row.status === 'sent') ? [
         h(NButton, { size: 'small', type: 'primary', onClick: () => handleConvert(row.id) }, () => t('pro.quotes.convertToInvoice')),
       ] : []),
-      ...(row.status === 'draft' ? [
-        h(NPopconfirm, { onPositiveClick: () => handleDelete(row.id) }, {
-          trigger: () => h(NButton, { size: 'small', type: 'error' }, () => t('common.delete')),
-          default: () => t('pro.quotes.deleteConfirm'),
-        }),
-      ] : []),
+      h(NPopconfirm, { onPositiveClick: () => handleDelete(row.id) }, {
+        trigger: () => h(NButton, { size: 'small', type: 'error' }, () => t('common.delete')),
+        default: () => t('pro.quotes.deleteConfirm'),
+      }),
     ]),
   },
 ])
@@ -177,18 +184,23 @@ async function handleDelete(id: string) {
 }
 
 async function handleDownloadPdf(id: string, number: string) {
-  const blob = await proStore.downloadQuotePdf(id)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${number}.pdf`
-  a.click()
-  URL.revokeObjectURL(url)
+  try {
+    const blob = await proStore.downloadQuotePdf(id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${number}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    message.error(t('pro.quotes.pdfError'))
+    console.error('PDF download error:', e)
+  }
 }
 
 watch([filterStatus, filterClient, filterDateRange], () => loadData())
 
 onMounted(async () => {
-  await Promise.all([loadData(), proStore.fetchClients()])
+  await Promise.all([loadData(), proStore.fetchClients(), proStore.fetchProfile()])
 })
 </script>

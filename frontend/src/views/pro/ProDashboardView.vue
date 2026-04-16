@@ -1,6 +1,9 @@
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('pro.dashboard.title') }}</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('pro.dashboard.title') }}</h1>
+      <n-button @click="showProfileModal = true">{{ t('pro.profile.title') }}</n-button>
+    </div>
 
     <!-- Loading State -->
     <div v-if="proStore.loading" style="text-align: center; padding: 40px;">
@@ -117,11 +120,28 @@
     </template>
 
     <!-- Profile Modal -->
-    <n-modal v-model:show="showProfileModal" preset="card" :title="t('pro.profile.title')" style="max-width: 500px;">
+    <n-modal v-model:show="showProfileModal" preset="card" :title="t('pro.profile.title')" style="max-width: 550px; max-height: 85vh; overflow-y: auto;">
       <n-form>
+        <!-- Company Info -->
+        <n-divider style="margin: 0 0 16px;">{{ t('pro.profile.companySection') }}</n-divider>
+        <n-form-item :label="t('pro.profile.companyName')">
+          <n-input v-model:value="profileForm.company_name" :placeholder="t('pro.profile.companyNamePlaceholder')" />
+        </n-form-item>
+        <n-form-item :label="t('pro.profile.companyAddress')">
+          <n-input v-model:value="profileForm.company_address" type="textarea" :rows="2" :placeholder="t('pro.profile.companyAddressPlaceholder')" />
+        </n-form-item>
+        <n-form-item :label="t('pro.profile.companyEmail')">
+          <n-input v-model:value="profileForm.company_email" placeholder="contact@entreprise.fr" />
+        </n-form-item>
+        <n-form-item :label="t('pro.profile.companyPhone')">
+          <n-input v-model:value="profileForm.company_phone" placeholder="06 12 34 56 78" />
+        </n-form-item>
         <n-form-item :label="t('pro.profile.siret')">
           <n-input v-model:value="profileForm.siret" :placeholder="t('pro.profile.siret')" />
         </n-form-item>
+
+        <!-- Activity & Cotisations -->
+        <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.activitySection') }}</n-divider>
         <n-form-item :label="t('pro.profile.activityType')">
           <n-select :value="profileForm.activity_type" :options="activityTypeOptions" @update:value="onActivityTypeChange" />
         </n-form-item>
@@ -136,7 +156,24 @@
             <template #suffix>€</template>
           </n-input-number>
         </n-form-item>
-        <n-button type="primary" block @click="saveProfile">{{ t('common.save') }}</n-button>
+
+        <!-- TVA -->
+        <n-divider style="margin: 8px 0 16px;">TVA</n-divider>
+        <n-form-item :label="t('pro.profile.isSubjectToVat')">
+          <n-switch :value="profileForm.is_subject_to_vat === 1" @update:value="(v: boolean) => profileForm.is_subject_to_vat = v ? 1 : 0" />
+        </n-form-item>
+        <template v-if="profileForm.is_subject_to_vat === 1">
+          <n-form-item :label="t('pro.profile.vatRate')">
+            <n-input-number v-model:value="profileForm.vat_rate" :min="0" :max="100" :precision="1" style="width: 100%;">
+              <template #suffix>%</template>
+            </n-input-number>
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.vatNumber')">
+            <n-input v-model:value="profileForm.vat_number" placeholder="FR XX XXXXXXXXX" />
+          </n-form-item>
+        </template>
+
+        <n-button type="primary" block @click="saveProfile" style="margin-top: 16px;">{{ t('common.save') }}</n-button>
       </n-form>
     </n-modal>
   </n-space>
@@ -147,7 +184,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   NSpace, NCard, NGrid, NGi, NStatistic, NIcon, NProgress,
   NList, NListItem, NThing, NTag, NEmpty, NAlert, NButton,
-  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSpin
+  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch, NDivider, NSpin
 } from 'naive-ui'
 import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } from '@vicons/ionicons5'
 import { useI18n } from 'vue-i18n'
@@ -166,6 +203,13 @@ const profileForm = ref({
   cotisation_rate: 21.1,
   declaration_frequency: 'quarterly',
   revenue_threshold: 77700,
+  is_subject_to_vat: 0 as number,
+  vat_rate: 20.0,
+  vat_number: '',
+  company_name: '',
+  company_address: '',
+  company_email: '',
+  company_phone: '',
 })
 
 /** Activity types with their default cotisation rates and thresholds */
@@ -234,6 +278,13 @@ onMounted(async () => {
       cotisation_rate: proStore.proProfile.cotisation_rate,
       declaration_frequency: proStore.proProfile.declaration_frequency,
       revenue_threshold: proStore.proProfile.revenue_threshold,
+      is_subject_to_vat: proStore.proProfile.is_subject_to_vat || 0,
+      vat_rate: proStore.proProfile.vat_rate || 20.0,
+      vat_number: proStore.proProfile.vat_number || '',
+      company_name: proStore.proProfile.company_name || '',
+      company_address: proStore.proProfile.company_address || '',
+      company_email: proStore.proProfile.company_email || '',
+      company_phone: proStore.proProfile.company_phone || '',
     }
   }
 })

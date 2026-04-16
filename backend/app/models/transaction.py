@@ -19,6 +19,7 @@ class Transaction(BaseModel):
     is_recurring: int = Field(..., description="Whether from recurring template (0/1)")
     is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
+    project_category_id: str | None = Field(None, description="Linked project category ID")
     created_at: str = Field(..., description="Creation timestamp")
 
     class Config:
@@ -35,6 +36,7 @@ class CreateTransaction(BaseModel):
     comment: str | None = Field(None, description="Optional comment")
     is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
+    project_category_id: str | None = Field(None, description="Linked project category ID")
 
 
 class RecurringTransaction(BaseModel):
@@ -64,6 +66,7 @@ class UpdateTransaction(BaseModel):
     comment: str | None = Field(None, description="Optional comment")
     is_budgeted: int | None = Field(None, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
+    project_category_id: str | None = Field(None, description="Linked project category ID")
 
 
 class CreateRecurringTransaction(BaseModel):
