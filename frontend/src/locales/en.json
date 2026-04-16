@@ -25,7 +25,8 @@
     "from": "From",
     "to": "To",
     "startDate": "Start date",
-    "endDate": "End date"
+    "endDate": "End date",
+    "total": "Total"
   },
   "nav": {
     "dashboard": "Dashboard",

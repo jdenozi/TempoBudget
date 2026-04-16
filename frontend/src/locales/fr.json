@@ -25,7 +25,8 @@
     "from": "Du",
     "to": "Au",
     "startDate": "Date début",
-    "endDate": "Date fin"
+    "endDate": "Date fin",
+    "total": "Total"
   },
   "nav": {
     "dashboard": "Tableau de bord",

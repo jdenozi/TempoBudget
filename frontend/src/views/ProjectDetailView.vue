@@ -82,6 +82,10 @@
               style="margin-top: 4px;"
             />
           </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.12); font-weight: 600;">
+            <span>{{ t('common.total') }}</span>
+            <span>{{ categoriesSpentTotal.toFixed(2) }} / {{ categoriesPlannedTotal.toFixed(2) }} €</span>
+          </div>
         </template>
         <n-empty v-else :description="t('project.noCategories')" />
       </n-card>
@@ -298,6 +302,14 @@ const project = computed(() => projectStore.currentProject)
 
 const categoryOptions = computed(() =>
   (project.value?.categories || []).map(c => ({ label: `${c.name} (${c.planned_amount.toFixed(2)} €)`, value: c.id }))
+)
+
+const categoriesPlannedTotal = computed(() =>
+  (project.value?.categories || []).reduce((sum, c) => sum + c.planned_amount, 0)
+)
+
+const categoriesSpentTotal = computed(() =>
+  (project.value?.categories || []).reduce((sum, c) => sum + c.total_spent, 0)
 )
 
 const statusTagType = (status: string) => {
