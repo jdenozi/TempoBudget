@@ -1,11 +1,11 @@
 <template>
   <n-space vertical size="large">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('project.title') }}</h1>
+    <n-flex justify="space-between" align="center" :wrap="true" :size="[16, 12]">
+      <h1 class="page-title">{{ t('project.title') }}</h1>
       <n-button type="primary" @click="openAddModal">
         {{ t('project.addProject') }}
       </n-button>
-    </div>
+    </n-flex>
 
     <!-- Filters -->
     <n-space>
@@ -19,16 +19,16 @@
     </n-space>
 
     <!-- Loading -->
-    <div v-if="projectStore.loading" style="text-align: center; padding: 40px;">
+    <n-flex v-if="projectStore.loading" justify="center" style="padding: 40px;">
       <n-spin size="large" />
-    </div>
+    </n-flex>
 
     <!-- Project List -->
     <template v-else-if="filteredProjects.length > 0">
-      <n-card v-for="project in filteredProjects" :key="project.id" size="small" hoverable style="cursor: pointer;" @click="goToDetail(project.id)">
+      <n-card v-for="project in filteredProjects" :key="project.id" size="small" hoverable class="project-card" @click="goToDetail(project.id)">
         <template #header>
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <n-flex justify="space-between" align="center" :wrap="true" :size="8">
+            <n-flex align="center" :size="8">
               <strong>{{ project.name }}</strong>
               <n-tag :type="statusTagType(project.status)" size="small">
                 {{ t('project.' + project.status) }}
@@ -36,8 +36,8 @@
               <n-tag :type="project.mode === 'pro' ? 'info' : 'default'" size="small">
                 {{ t('project.' + project.mode) }}
               </n-tag>
-            </div>
-            <div style="display: flex; gap: 8px;" @click.stop>
+            </n-flex>
+            <n-flex :size="8" @click.stop>
               <n-button size="small" type="info" @click="openEditModal(project)">{{ t('common.edit') }}</n-button>
               <n-popconfirm @positive-click="handleDelete(project.id)">
                 <template #trigger>
@@ -45,8 +45,8 @@
                 </template>
                 {{ t('project.deleteProjectConfirm') }}
               </n-popconfirm>
-            </div>
-          </div>
+            </n-flex>
+          </n-flex>
         </template>
 
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="8">
@@ -58,7 +58,7 @@
           </n-gi>
           <n-gi>
             <n-text depth="3">{{ t('project.remaining') }}:</n-text>
-            <strong :style="{ color: project.remaining < 0 ? '#d03050' : '#18a058' }">{{ project.remaining.toFixed(2) }} €</strong>
+            <strong :class="project.remaining < 0 ? 'amount-negative' : 'amount-positive'">{{ project.remaining.toFixed(2) }} €</strong>
           </n-gi>
           <n-gi v-if="project.target_date">
             <n-text depth="3">{{ t('project.targetDate') }}:</n-text> {{ project.target_date }}
@@ -66,11 +66,11 @@
         </n-grid>
 
         <!-- Progress bar -->
-        <div style="margin-top: 12px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+        <div class="progress-container">
+          <n-flex justify="space-between" class="progress-label">
             <span>{{ t('project.progress') }}</span>
             <span>{{ project.total_budget > 0 ? ((project.total_spent / project.total_budget) * 100).toFixed(1) : 0 }}%</span>
-          </div>
+          </n-flex>
           <n-progress
             :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
             :color="project.status === 'completed' ? '#18a058' : project.remaining < 0 ? '#d03050' : '#2080f0'"
@@ -78,14 +78,12 @@
           />
         </div>
 
-        <div v-if="project.description" style="margin-top: 8px;">
-          <n-text depth="3">{{ project.description }}</n-text>
-        </div>
+        <n-text v-if="project.description" depth="3" class="project-description">{{ project.description }}</n-text>
       </n-card>
     </template>
 
     <!-- Empty state -->
-    <n-empty v-else-if="!projectStore.loading" :description="t('project.noProjects')" style="margin-top: 40px;">
+    <n-empty v-else-if="!projectStore.loading" :description="t('project.noProjects')" class="empty-state">
       <template #extra>
         <n-button @click="openAddModal" type="primary">{{ t('project.addProject') }}</n-button>
       </template>
@@ -135,7 +133,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  NSpace, NButton, NCard, NGrid, NGi, NText, NTag,
+  NSpace, NFlex, NButton, NCard, NGrid, NGi, NText, NTag,
   NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
   NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
   NPopconfirm, NDivider, useMessage,
@@ -272,3 +270,37 @@ const handleDelete = async (id: string) => {
   }
 }
 </script>
+
+<style scoped>
+.page-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 28px);
+}
+.project-card {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.project-card:hover {
+  transform: translateY(-1px);
+}
+.progress-container {
+  margin-top: 12px;
+}
+.progress-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.project-description {
+  display: block;
+  margin-top: 8px;
+}
+.empty-state {
+  margin-top: 40px;
+}
+.amount-positive {
+  color: var(--color-success, #18a058);
+}
+.amount-negative {
+  color: var(--color-error, #d03050);
+}
+</style>

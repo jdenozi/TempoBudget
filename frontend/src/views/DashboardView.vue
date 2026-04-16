@@ -10,12 +10,12 @@
 
 <template>
   <n-space vertical size="large">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('budget.budgets') }}</h1>
+    <n-flex justify="space-between" align="center" :wrap="true" :size="[16, 12]">
+      <h1 class="page-title">{{ t('budget.budgets') }}</h1>
       <n-button type="primary" @click="showModal = true">
         {{ t('budget.createBudget') }}
       </n-button>
-    </div>
+    </n-flex>
 
     <!-- Monthly Recap -->
     <n-card v-if="monthlyRecap" :title="t('budget.monthlyRecap')" size="small">
@@ -45,58 +45,56 @@
           </n-statistic>
         </n-gi>
         <n-gi>
-          <div>
-            <n-text depth="3" style="font-size: 12px;">{{ t('budget.topExpenseCategories') }}</n-text>
-            <div v-for="cat in monthlyRecap.top_expense_categories" :key="cat.name" style="font-size: 13px; margin-top: 4px;">
-              {{ cat.name }}: <strong>{{ cat.total.toFixed(2) }} €</strong>
-            </div>
-            <div v-if="monthlyRecap.top_expense_categories.length === 0" style="font-size: 13px; margin-top: 4px; color: #888;">—</div>
+          <n-text depth="3" class="top-categories-label">{{ t('budget.topExpenseCategories') }}</n-text>
+          <div v-for="cat in monthlyRecap.top_expense_categories" :key="cat.name" class="top-category-row">
+            {{ cat.name }}: <strong>{{ cat.total.toFixed(2) }} €</strong>
           </div>
+          <div v-if="monthlyRecap.top_expense_categories.length === 0" class="top-category-row top-category-row--muted">—</div>
         </n-gi>
       </n-grid>
     </n-card>
 
     <!-- Upcoming Recurring -->
     <n-card v-if="upcomingRecurring.length > 0" :title="t('recurring.upcoming')" size="small">
-      <n-space vertical size="small">
-        <div v-for="item in upcomingRecurring" :key="item.id + item.expected_date" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-          <div>
+      <div v-for="item in upcomingRecurring" :key="item.id + item.expected_date" class="upcoming-row">
+        <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+          <n-flex align="center" :size="8">
             <strong>{{ item.title }}</strong>
-            <n-text depth="3" style="font-size: 12px; margin-left: 8px;">{{ item.budget_name }} — {{ item.category_name }}</n-text>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span :style="{ color: item.transaction_type === 'expense' ? '#d03050' : '#18a058', fontWeight: 'bold' }">
+            <n-text depth="3" class="meta-label">{{ item.budget_name }} — {{ item.category_name }}</n-text>
+          </n-flex>
+          <n-flex align="center" :size="8">
+            <span :class="item.transaction_type === 'expense' ? 'amount-expense' : 'amount-income'">
               {{ item.transaction_type === 'expense' ? '-' : '+' }}{{ item.amount.toFixed(2) }} €
             </span>
-            <n-text depth="3" style="font-size: 12px;">{{ item.expected_date }}</n-text>
+            <n-text depth="3" class="meta-label">{{ item.expected_date }}</n-text>
             <n-tag :type="item.is_processed ? 'success' : 'warning'" size="small">
               {{ item.is_processed ? t('recurring.processed') : t('common.pending') }}
             </n-tag>
-          </div>
-        </div>
-      </n-space>
+          </n-flex>
+        </n-flex>
+      </div>
     </n-card>
 
     <!-- Loading State -->
-    <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
+    <n-flex v-if="budgetStore.loading" justify="center" style="padding: 40px;">
       <n-spin size="large" />
-    </div>
+    </n-flex>
 
     <!-- Budget List -->
     <n-grid v-else :cols="isMobile ? 1 : 2" :x-gap="16" :y-gap="16">
       <n-gi v-for="budget in budgetStore.budgets" :key="budget.id">
         <n-card
           hoverable
-          style="cursor: pointer;"
+          class="budget-card"
           @click="goToBudget(budget.id)"
         >
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <n-flex justify="space-between" align="center">
               <strong>{{ budget.name }}</strong>
               <n-tag :type="budget.budget_type === 'personal' ? 'info' : 'success'" size="small">
                 {{ budget.budget_type === 'personal' ? t('budget.personal') : t('budget.shared') }}
               </n-tag>
-            </div>
+            </n-flex>
           </template>
 
           <!-- Stats Grid -->
@@ -136,11 +134,11 @@
           </n-grid>
 
           <!-- Progress Bar -->
-          <div style="margin-top: 16px;">
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <div class="progress-container">
+            <n-flex justify="space-between" class="progress-label">
               <span>{{ (getSummary(budget.id)?.percentage || 0).toFixed(1) }}% {{ t('budget.spent').toLowerCase() }}</span>
-              <span style="color: #888;">{{ getSummary(budget.id)?.transaction_count || 0 }} {{ t('transaction.transactions').toLowerCase() }}</span>
-            </div>
+              <n-text depth="3">{{ getSummary(budget.id)?.transaction_count || 0 }} {{ t('transaction.transactions').toLowerCase() }}</n-text>
+            </n-flex>
             <n-progress
               :percentage="Math.min(getSummary(budget.id)?.percentage || 0, 100)"
               :color="(getSummary(budget.id)?.percentage || 0) > 100 ? '#d03050' : '#18a058'"
@@ -155,7 +153,7 @@
     <n-empty
       v-if="!budgetStore.loading && budgetStore.budgets.length === 0"
       :description="t('budget.noBudgets')"
-      style="margin-top: 40px;"
+      class="empty-state"
     >
       <template #extra>
         <n-button @click="showModal = true" type="primary">
@@ -216,7 +214,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NSpace, NButton, NGrid, NGi, NCard, NTag, NStatistic, NText,
+  NSpace, NFlex, NButton, NGrid, NGi, NCard, NTag, NStatistic, NText,
   NModal, NForm, NFormItem, NInput, NRadioGroup, NRadio,
   NIcon, NSpin, NEmpty, NProgress, useMessage
 } from 'naive-ui'
@@ -336,3 +334,55 @@ const handleCreate = () => {
   })
 }
 </script>
+
+<style scoped>
+.page-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 28px);
+}
+.top-categories-label {
+  font-size: 12px;
+}
+.top-category-row {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.top-category-row--muted {
+  color: var(--n-text-color-3, #888);
+}
+.upcoming-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--n-border-color);
+}
+.upcoming-row:last-child {
+  border-bottom: none;
+}
+.meta-label {
+  font-size: 12px;
+}
+.amount-expense {
+  color: var(--color-error, #d03050);
+  font-weight: 600;
+}
+.amount-income {
+  color: var(--color-success, #18a058);
+  font-weight: 600;
+}
+.budget-card {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.budget-card:hover {
+  transform: translateY(-1px);
+}
+.progress-container {
+  margin-top: 16px;
+}
+.progress-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.empty-state {
+  margin-top: 40px;
+}
+</style>

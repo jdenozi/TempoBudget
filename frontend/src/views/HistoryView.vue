@@ -77,9 +77,9 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
+    <n-flex v-if="budgetStore.loading" justify="center" style="padding: 40px;">
       <n-spin size="large" />
-    </div>
+    </n-flex>
 
     <template v-else-if="selectedBudgetId">
       <!-- Summary Statistics -->
@@ -109,7 +109,7 @@
       <!-- Expenses by Person (shared budgets only) -->
       <n-card v-if="isSharedBudget && expensesByPerson.length > 0" size="small">
         <template #header>
-          <span style="font-size: 14px; font-weight: 600;">{{ t('history.expensesByPerson') }}</span>
+          <span class="card-header-label">{{ t('history.expensesByPerson') }}</span>
         </template>
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
           <n-gi v-for="person in expensesByPerson" :key="person.name">
@@ -298,7 +298,7 @@
 
 import { ref, h, computed, onMounted, onUnmounted } from 'vue'
 import {
-  NSpace, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
+  NSpace, NFlex, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
   NSelect, NGrid, NGi, NStatistic, NSpin, NEmpty, NModal, NForm,
   NFormItem, NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
   NSwitch, useMessage
@@ -824,3 +824,10 @@ const columns = computed<DataTableColumns<Transaction>>(() => [
   },
 ])
 </script>
+
+<style scoped>
+.card-header-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+</style>

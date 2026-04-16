@@ -5,12 +5,12 @@
 <template>
   <n-space vertical size="large">
     <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <n-flex justify="space-between" align="center" :wrap="true" :size="[16, 12]">
       <div>
-        <n-button text @click="router.back()" style="margin-bottom: 8px;">
+        <n-button text @click="router.back()" class="back-button">
           ← {{ t('common.back') }}
         </n-button>
-        <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">
+        <h1 class="page-title">
           {{ budgetStore.currentBudget?.name || 'Budget' }}
         </h1>
       </div>
@@ -29,12 +29,12 @@
           {{ t('budget.deleteBudgetConfirm') }}
         </n-popconfirm>
       </n-space>
-    </div>
+    </n-flex>
 
     <!-- Loading -->
-    <div v-if="budgetStore.loading" style="text-align: center; padding: 40px;">
+    <n-flex v-if="budgetStore.loading" justify="center" style="padding: 40px;">
       <n-spin size="large" />
-    </div>
+    </n-flex>
 
     <template v-else>
       <!-- Summary -->
@@ -169,7 +169,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  NSpace, NButton, NDatePicker, NCard, NEmpty, NSpin, NPopconfirm, useMessage
+  NSpace, NFlex, NButton, NDatePicker, NCard, NEmpty, NSpin, NPopconfirm, useMessage
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
@@ -603,3 +603,13 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
 })
 </script>
+
+<style scoped>
+.back-button {
+  margin-bottom: 8px;
+}
+.page-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 28px);
+}
+</style>

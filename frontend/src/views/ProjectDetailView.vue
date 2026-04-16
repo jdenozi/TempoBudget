@@ -1,22 +1,22 @@
 <template>
   <n-space vertical size="large">
     <!-- Loading -->
-    <div v-if="projectStore.loading && !projectStore.currentProject" style="text-align: center; padding: 40px;">
+    <n-flex v-if="projectStore.loading && !projectStore.currentProject" justify="center" style="padding: 40px;">
       <n-spin size="large" />
-    </div>
+    </n-flex>
 
     <template v-else-if="project">
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
+      <n-flex justify="space-between" align="center" :wrap="true" :size="[16, 12]">
+        <n-flex align="center" :size="12">
           <n-button text @click="router.push({ name: 'projects' })">
             <template #icon><ArrowBackOutline /></template>
           </n-button>
-          <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ project.name }}</h1>
+          <h1 class="project-title">{{ project.name }}</h1>
           <n-tag :type="statusTagType(project.status)" size="small">{{ t('project.' + project.status) }}</n-tag>
           <n-tag :type="project.mode === 'pro' ? 'info' : 'default'" size="small">{{ t('project.' + project.mode) }}</n-tag>
-        </div>
-      </div>
+        </n-flex>
+      </n-flex>
 
       <!-- Summary -->
       <n-card size="small">
@@ -43,16 +43,15 @@
             <n-statistic :label="t('project.targetDate')" :value="project.target_date" />
           </n-gi>
         </n-grid>
-        <div style="margin-top: 12px;">
-          <n-progress
-            :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
-            :color="project.remaining < 0 ? '#d03050' : '#2080f0'"
-            :show-indicator="true"
-          />
-        </div>
-        <div v-if="project.description" style="margin-top: 8px;">
-          <n-text depth="3">{{ project.description }}</n-text>
-        </div>
+        <n-progress
+          class="summary-progress"
+          :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
+          :color="project.remaining < 0 ? '#d03050' : '#2080f0'"
+          :show-indicator="true"
+        />
+        <n-text v-if="project.description" depth="3" class="summary-description">
+          {{ project.description }}
+        </n-text>
       </n-card>
 
       <!-- Categories -->
@@ -61,21 +60,16 @@
           <n-button size="small" type="primary" @click="openCategoryModal()">{{ t('project.addCategory') }}</n-button>
         </template>
         <template v-if="project.categories.length > 0">
-          <div v-for="cat in project.categories" :key="cat.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; cursor: pointer;"
-              @click="toggleCategory(cat.id)"
-            >
-              <div style="display: flex; align-items: center; gap: 6px;">
+          <div v-for="cat in project.categories" :key="cat.id" class="list-row">
+            <div class="list-row-header list-row-header--clickable" @click="toggleCategory(cat.id)">
+              <n-flex align="center" :size="6">
                 <n-icon :component="expandedCategoryId === cat.id ? ChevronDownOutline : ChevronForwardOutline" />
                 <strong>{{ cat.name }}</strong>
                 <n-text depth="3">({{ categoryTransactions(cat.id).length }})</n-text>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center;" @click.stop>
+              </n-flex>
+              <n-flex align="center" :size="8" @click.stop>
                 <n-text depth="3">
-                  {{ cat.total_spent.toFixed(2) }}
-                  <span v-if="pendingPlannedAmount(cat.id) > 0" style="color: #f0a020;"> + {{ pendingPlannedAmount(cat.id).toFixed(2) }}</span>
-                  / {{ cat.planned_amount.toFixed(2) }} €
+                  {{ cat.total_spent.toFixed(2) }}<span v-if="pendingPlannedAmount(cat.id) > 0" class="text-pending"> + {{ pendingPlannedAmount(cat.id).toFixed(2) }}</span> / {{ cat.planned_amount.toFixed(2) }} €
                 </n-text>
                 <n-button size="tiny" @click="openCategoryModal(cat)">{{ t('common.edit') }}</n-button>
                 <n-popconfirm @positive-click="handleDeleteCategory(cat.id)">
@@ -84,57 +78,35 @@
                   </template>
                   {{ t('project.deleteCategoryConfirm') }}
                 </n-popconfirm>
-              </div>
+              </n-flex>
             </div>
-            <div style="position: relative; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-top: 6px; display: flex;">
-              <div
-                :style="{
-                  width: categoryBar(cat).spentPct + '%',
-                  background: categoryBar(cat).overBudget ? '#d03050' : '#18a058',
-                  transition: 'width 0.3s',
-                }"
-              />
-              <div
-                :style="{
-                  width: categoryBar(cat).pendingPct + '%',
-                  background: '#f0a020',
-                  transition: 'width 0.3s',
-                }"
-              />
-              <div
-                v-if="categoryBar(cat).showBudgetMark"
-                :style="{
-                  position: 'absolute',
-                  left: categoryBar(cat).budgetMarkPct + '%',
-                  top: 0,
-                  bottom: 0,
-                  width: '2px',
-                  background: 'rgba(255,255,255,0.8)',
-                }"
-              />
+            <div class="multi-progress">
+              <div class="multi-progress-segment" :style="{ width: categoryBar(cat).spentPct + '%', background: categoryBar(cat).overBudget ? 'var(--color-error)' : 'var(--color-success)' }" />
+              <div class="multi-progress-segment" :style="{ width: categoryBar(cat).pendingPct + '%', background: 'var(--color-pending)' }" />
+              <div v-if="categoryBar(cat).showBudgetMark" class="multi-progress-mark" :style="{ left: categoryBar(cat).budgetMarkPct + '%' }" />
             </div>
-            <div v-if="expandedCategoryId === cat.id" style="margin-top: 8px; padding-left: 20px;">
+            <div v-if="expandedCategoryId === cat.id" class="category-tx-list">
               <template v-if="categoryTransactions(cat.id).length > 0">
-                <div v-for="tx in categoryTransactions(cat.id)" :key="tx.id" style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                <div v-for="tx in categoryTransactions(cat.id)" :key="tx.id" class="sub-row">
+                  <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+                    <n-flex align="center" :size="8">
                       <n-tag :type="tx.transaction_type === 'expense' ? 'error' : 'success'" size="small">
                         {{ tx.transaction_type === 'expense' ? '-' : '+' }}{{ tx.amount.toFixed(2) }} €
                       </n-tag>
                       <span>{{ tx.title }}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    </n-flex>
+                    <n-flex align="center" :size="8">
                       <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                       <n-text depth="3">{{ tx.date }}</n-text>
                       <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
-                    </div>
-                  </div>
+                    </n-flex>
+                  </n-flex>
                 </div>
               </template>
               <n-empty v-else :description="t('project.noLinkedTransactions')" size="small" />
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.12); font-weight: 600;">
+          <div class="list-total">
             <span>{{ t('common.total') }}</span>
             <span>{{ categoriesSpentTotal.toFixed(2) }} / {{ categoriesPlannedTotal.toFixed(2) }} €</span>
           </div>
@@ -150,16 +122,16 @@
           </n-button>
         </template>
         <template v-if="projectStore.plannedExpenses.length > 0">
-          <div v-for="expense in projectStore.plannedExpenses" :key="expense.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div>
+          <div v-for="expense in projectStore.plannedExpenses" :key="expense.id" class="list-row">
+            <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+              <n-flex align="center" :size="8">
                 <strong>{{ expense.description }}</strong>
-                <n-tag size="small" :type="expense.status === 'paid' ? 'success' : 'warning'" style="margin-left: 8px;">
+                <n-tag size="small" :type="expense.status === 'paid' ? 'success' : 'warning'">
                   {{ t('project.' + expense.status) }}
                 </n-tag>
-                <n-text depth="3" style="margin-left: 8px;" v-if="expense.category_name">{{ expense.category_name }}</n-text>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center;">
+                <n-text depth="3" v-if="expense.category_name">{{ expense.category_name }}</n-text>
+              </n-flex>
+              <n-flex align="center" :size="8">
                 <strong>{{ expense.amount.toFixed(2) }} €</strong>
                 <n-text v-if="expense.due_date" depth="3">{{ expense.due_date }}</n-text>
                 <n-button v-if="expense.status === 'pending'" size="tiny" type="success" @click="handleMarkPaid(expense.id)">
@@ -172,8 +144,8 @@
                   </template>
                   {{ t('project.deletePlannedExpenseConfirm') }}
                 </n-popconfirm>
-              </div>
-            </div>
+              </n-flex>
+            </n-flex>
           </div>
         </template>
         <n-empty v-else :description="t('project.noPlannedExpenses')" />
@@ -182,21 +154,21 @@
       <!-- Linked Transactions -->
       <n-card :title="t('project.linkedTransactions')" size="small">
         <template v-if="projectStore.projectTransactions.length > 0">
-          <div v-for="tx in projectStore.projectTransactions" :key="tx.id" style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 8px;">
+          <div v-for="tx in projectStore.projectTransactions" :key="tx.id" class="list-row list-row--compact">
+            <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+              <n-flex align="center" :size="8">
                 <n-tag :type="tx.transaction_type === 'expense' ? 'error' : 'success'" size="small">
                   {{ tx.transaction_type === 'expense' ? '-' : '+' }}{{ tx.amount.toFixed(2) }} €
                 </n-tag>
                 <span>{{ tx.title }}</span>
                 <n-text depth="3" v-if="tx.project_category_name">{{ tx.project_category_name }}</n-text>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
+              </n-flex>
+              <n-flex align="center" :size="8">
                 <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                 <n-text depth="3">{{ tx.date }}</n-text>
                 <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
-              </div>
-            </div>
+              </n-flex>
+            </n-flex>
           </div>
         </template>
         <n-empty v-else :description="t('project.noLinkedTransactions')" />
@@ -208,22 +180,22 @@
           <n-button v-if="isOwner" size="small" type="primary" @click="showInviteModal = true">{{ t('project.inviteMember') }}</n-button>
         </template>
         <template v-if="projectStore.members.length > 0">
-          <div v-for="member in projectStore.members" :key="member.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
+          <div v-for="member in projectStore.members" :key="member.id" class="list-row">
+            <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+              <n-flex align="center" :size="8">
                 <n-avatar v-if="member.user_avatar" :src="member.user_avatar" :size="28" round />
                 <n-avatar v-else :size="28" round>{{ member.user_name.charAt(0).toUpperCase() }}</n-avatar>
                 <strong>{{ member.user_name }}</strong>
                 <n-text depth="3">{{ member.user_email }}</n-text>
                 <n-tag :type="member.role === 'owner' ? 'success' : 'default'" size="small">{{ member.role }}</n-tag>
-              </div>
+              </n-flex>
               <n-popconfirm v-if="isOwner && member.role !== 'owner'" @positive-click="handleRemoveMember(member.id)">
                 <template #trigger>
                   <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
                 </template>
                 {{ t('project.removeMemberConfirm') }}
               </n-popconfirm>
-            </div>
+            </n-flex>
           </div>
         </template>
         <n-empty v-else :description="t('project.noMembers')" />
@@ -346,7 +318,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  NSpace, NButton, NCard, NGrid, NGi, NStatistic, NText, NTag,
+  NSpace, NFlex, NButton, NCard, NGrid, NGi, NStatistic, NText, NTag,
   NIcon, NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
   NInput, NInputNumber, NDatePicker, NSelect, NAvatar,
   NPopconfirm, NRadioGroup, NRadioButton, useMessage,
@@ -640,3 +612,96 @@ const handleRemoveMember = async (memberId: string) => {
   }
 }
 </script>
+
+<style scoped>
+.project-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 28px);
+}
+.summary-progress {
+  margin-top: 12px;
+}
+.summary-description {
+  margin-top: 8px;
+  display: block;
+}
+.list-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--n-border-color);
+}
+.list-row--compact {
+  padding: 8px 0;
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+.list-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.list-row-header--clickable {
+  cursor: pointer;
+  margin: -4px -8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+.list-row-header--clickable:hover {
+  background-color: var(--n-color-hover, rgba(255, 255, 255, 0.04));
+}
+.list-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--n-border-color);
+  font-weight: 600;
+}
+.multi-progress {
+  position: relative;
+  display: flex;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 4px;
+  background: var(--n-rail-color, rgba(255, 255, 255, 0.08));
+  overflow: hidden;
+}
+.multi-progress-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.multi-progress-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.85);
+}
+.category-tx-list {
+  margin-top: 8px;
+  padding-left: 20px;
+  border-left: 2px solid var(--n-border-color);
+}
+.sub-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--n-border-color);
+}
+.sub-row:last-child {
+  border-bottom: none;
+}
+.text-pending {
+  color: var(--color-pending, #f0a020);
+}
+</style>
+
+<style>
+:root {
+  --color-success: #18a058;
+  --color-error: #d03050;
+  --color-pending: #f0a020;
+}
+</style>
