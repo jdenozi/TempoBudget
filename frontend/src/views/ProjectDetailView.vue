@@ -126,6 +126,7 @@
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                       <n-text depth="3">{{ tx.date }}</n-text>
+                      <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
                     </div>
                   </div>
                 </div>
@@ -193,6 +194,7 @@
               <div style="display: flex; align-items: center; gap: 8px;">
                 <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                 <n-text depth="3">{{ tx.date }}</n-text>
+                <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
               </div>
             </div>
           </div>
@@ -273,6 +275,40 @@
       </template>
     </n-modal>
 
+    <!-- Transaction Edit Modal -->
+    <n-modal v-model:show="showTxEditModal" preset="card"
+      :title="t('transaction.editTransaction')"
+      :style="{ width: isMobile ? '90%' : '500px' }">
+      <n-form>
+        <n-form-item :label="t('transaction.transactionTitle')">
+          <n-input v-model:value="txForm.title" />
+        </n-form-item>
+        <n-form-item :label="t('transaction.type')">
+          <n-radio-group v-model:value="txForm.transaction_type">
+            <n-radio-button value="expense">{{ t('transaction.expense') }}</n-radio-button>
+            <n-radio-button value="income">{{ t('transaction.income') }}</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+        <n-form-item :label="t('transaction.amount')">
+          <n-input-number v-model:value="txForm.amount" :min="0.01" :precision="2" style="width: 100%">
+            <template #suffix>€</template>
+          </n-input-number>
+        </n-form-item>
+        <n-form-item :label="t('transaction.date')">
+          <n-date-picker v-model:value="txForm.date" type="date" style="width: 100%" />
+        </n-form-item>
+        <n-form-item :label="t('transaction.comment')">
+          <n-input v-model:value="txForm.comment" type="textarea" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showTxEditModal = false">{{ t('common.cancel') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="handleSaveTx">{{ t('common.save') }}</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
     <!-- Planned Expense Modal -->
     <n-modal v-model:show="showExpenseModal" preset="card"
       :title="editingExpense ? t('project.editPlannedExpense') : t('project.addPlannedExpense')"
@@ -319,7 +355,8 @@ import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline, CashOutline, ChevronDownOutline, ChevronForwardOutline } from '@vicons/ionicons5'
 import { useProjectStore } from '@/stores/project'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import type { ProjectCategoryWithSpent, ProjectPlannedExpense } from '@/services/api'
+import { transactionsAPI, proTransactionsAPI } from '@/services/api'
+import type { ProjectCategoryWithSpent, ProjectPlannedExpense, ProjectTransaction } from '@/services/api'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -339,7 +376,17 @@ const inviteEmail = ref('')
 const inviteRole = ref('member')
 const editingCategory = ref<ProjectCategoryWithSpent | null>(null)
 const editingExpense = ref<ProjectPlannedExpense | null>(null)
+const editingTx = ref<ProjectTransaction | null>(null)
+const showTxEditModal = ref(false)
 const expandedCategoryId = ref<string | null>(null)
+
+const txForm = ref({
+  title: '',
+  amount: 0 as number,
+  transaction_type: 'expense' as 'expense' | 'income',
+  date: null as number | null,
+  comment: '',
+})
 
 const toggleCategory = (id: string) => {
   expandedCategoryId.value = expandedCategoryId.value === id ? null : id
@@ -519,6 +566,47 @@ const handleDeleteExpense = async (expenseId: string) => {
     await loadData()
   } catch {
     message.error(t('errors.generic'))
+  }
+}
+
+// ── Transaction edit ──
+
+const openTxEditModal = (tx: ProjectTransaction) => {
+  editingTx.value = tx
+  txForm.value = {
+    title: tx.title,
+    amount: tx.amount,
+    transaction_type: (tx.transaction_type === 'income' ? 'income' : 'expense'),
+    date: new Date(tx.date).getTime(),
+    comment: tx.comment || '',
+  }
+  showTxEditModal.value = true
+}
+
+const handleSaveTx = async () => {
+  if (!editingTx.value || !txForm.value.date || !txForm.value.title) return
+  saving.value = true
+  try {
+    const data = {
+      title: txForm.value.title,
+      amount: txForm.value.amount,
+      transaction_type: txForm.value.transaction_type,
+      date: formatDate(txForm.value.date),
+      comment: txForm.value.comment || undefined,
+    }
+    if (editingTx.value.source === 'pro') {
+      await proTransactionsAPI.update(editingTx.value.id, data)
+    } else {
+      await transactionsAPI.update(editingTx.value.id, data)
+    }
+    message.success(t('transaction.transactionUpdated'))
+    showTxEditModal.value = false
+    editingTx.value = null
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  } finally {
+    saving.value = false
   }
 }
 
