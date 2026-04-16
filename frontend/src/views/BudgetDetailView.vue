@@ -89,6 +89,12 @@
             @add-subcategory="openAddSubcategory"
           />
         </n-space>
+
+        <template #footer>
+          <div style="display: flex; justify-content: flex-end; font-weight: 600;">
+            {{ t('budget.totalIncome') }}: {{ totalIncome.toFixed(2) }} €
+          </div>
+        </template>
       </n-card>
 
       <!-- Expense Categories -->
@@ -116,9 +122,14 @@
         </n-space>
 
         <template #footer>
-          <n-button @click="showAddCategory = true" type="primary" size="small">
-            {{ t('category.addCategory') }}
-          </n-button>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <n-button @click="showAddCategory = true" type="primary" size="small">
+              {{ t('category.addCategory') }}
+            </n-button>
+            <div style="font-weight: 600;">
+              {{ t('budget.totalBudget') }}: {{ totalBudget.toFixed(2) }} €
+            </div>
+          </div>
         </template>
       </n-card>
 
