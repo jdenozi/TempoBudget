@@ -358,6 +358,16 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
+/** Returns the project name linked to a transaction via project_category_id, or null */
+const getProjectForCategory = (projectCategoryId?: string | null) => {
+  if (!projectCategoryId) return null
+  for (const project of projectStore.projects) {
+    const cat = project.categories.find(c => c.id === projectCategoryId)
+    if (cat) return { projectName: project.name, categoryName: cat.name }
+  }
+  return null
+}
+
 /** Project category options grouped by project for the link-to-project selector */
 const projectCategoryOptions = computed(() => {
   const options: { type: 'group'; label: string; key: string; children: { label: string; value: string }[] }[] = []
@@ -766,6 +776,20 @@ const columns = computed<DataTableColumns<Transaction>>(() => [
       )
     },
     sorter: (a, b) => a.amount - b.amount,
+  },
+  {
+    title: t('transaction.project'),
+    key: 'project_category_id',
+    render: (row) => {
+      const link = getProjectForCategory(row.project_category_id)
+      if (!link) return h('span', { style: { color: '#999' } }, '—')
+      return h(NTag, { type: 'info', size: 'small' }, {
+        default: () => `${link.projectName} / ${link.categoryName}`,
+      })
+    },
+    ellipsis: {
+      tooltip: true,
+    },
   },
   {
     title: 'Comment',

@@ -138,7 +138,8 @@
     "transactionAdded": "Transaction ajoutée",
     "budgeted": "Budgétisée",
     "exceptional": "Exceptionnelle",
-    "isBudgeted": "Dépense budgétisée"
+    "isBudgeted": "Dépense budgétisée",
+    "project": "Projet"
   },
   "recurring": {
     "title": "Transactions récurrentes",

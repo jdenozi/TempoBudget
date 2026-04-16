@@ -62,10 +62,21 @@
         </template>
         <template v-if="project.categories.length > 0">
           <div v-for="cat in project.categories" :key="cat.id" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <strong>{{ cat.name }}</strong>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <n-text depth="3">{{ cat.total_spent.toFixed(2) }} / {{ cat.planned_amount.toFixed(2) }} €</n-text>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; cursor: pointer;"
+              @click="toggleCategory(cat.id)"
+            >
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <n-icon :component="expandedCategoryId === cat.id ? ChevronDownOutline : ChevronForwardOutline" />
+                <strong>{{ cat.name }}</strong>
+                <n-text depth="3">({{ categoryTransactions(cat.id).length }})</n-text>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;" @click.stop>
+                <n-text depth="3">
+                  {{ cat.total_spent.toFixed(2) }}
+                  <span v-if="pendingPlannedAmount(cat.id) > 0" style="color: #f0a020;"> + {{ pendingPlannedAmount(cat.id).toFixed(2) }}</span>
+                  / {{ cat.planned_amount.toFixed(2) }} €
+                </n-text>
                 <n-button size="tiny" @click="openCategoryModal(cat)">{{ t('common.edit') }}</n-button>
                 <n-popconfirm @positive-click="handleDeleteCategory(cat.id)">
                   <template #trigger>
@@ -75,12 +86,52 @@
                 </n-popconfirm>
               </div>
             </div>
-            <n-progress
-              :percentage="cat.planned_amount > 0 ? Math.min((cat.total_spent / cat.planned_amount) * 100, 100) : 0"
-              :color="cat.remaining < 0 ? '#d03050' : '#18a058'"
-              :show-indicator="false"
-              style="margin-top: 4px;"
-            />
+            <div style="position: relative; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-top: 6px; display: flex;">
+              <div
+                :style="{
+                  width: categoryBar(cat).spentPct + '%',
+                  background: categoryBar(cat).overBudget ? '#d03050' : '#18a058',
+                  transition: 'width 0.3s',
+                }"
+              />
+              <div
+                :style="{
+                  width: categoryBar(cat).pendingPct + '%',
+                  background: '#f0a020',
+                  transition: 'width 0.3s',
+                }"
+              />
+              <div
+                v-if="categoryBar(cat).showBudgetMark"
+                :style="{
+                  position: 'absolute',
+                  left: categoryBar(cat).budgetMarkPct + '%',
+                  top: 0,
+                  bottom: 0,
+                  width: '2px',
+                  background: 'rgba(255,255,255,0.8)',
+                }"
+              />
+            </div>
+            <div v-if="expandedCategoryId === cat.id" style="margin-top: 8px; padding-left: 20px;">
+              <template v-if="categoryTransactions(cat.id).length > 0">
+                <div v-for="tx in categoryTransactions(cat.id)" :key="tx.id" style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <n-tag :type="tx.transaction_type === 'expense' ? 'error' : 'success'" size="small">
+                        {{ tx.transaction_type === 'expense' ? '-' : '+' }}{{ tx.amount.toFixed(2) }} €
+                      </n-tag>
+                      <span>{{ tx.title }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
+                      <n-text depth="3">{{ tx.date }}</n-text>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <n-empty v-else :description="t('project.noLinkedTransactions')" size="small" />
+            </div>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.12); font-weight: 600;">
             <span>{{ t('common.total') }}</span>
@@ -265,7 +316,7 @@ import {
   NPopconfirm, NRadioGroup, NRadioButton, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { ArrowBackOutline, CashOutline } from '@vicons/ionicons5'
+import { ArrowBackOutline, CashOutline, ChevronDownOutline, ChevronForwardOutline } from '@vicons/ionicons5'
 import { useProjectStore } from '@/stores/project'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import type { ProjectCategoryWithSpent, ProjectPlannedExpense } from '@/services/api'
@@ -288,6 +339,33 @@ const inviteEmail = ref('')
 const inviteRole = ref('member')
 const editingCategory = ref<ProjectCategoryWithSpent | null>(null)
 const editingExpense = ref<ProjectPlannedExpense | null>(null)
+const expandedCategoryId = ref<string | null>(null)
+
+const toggleCategory = (id: string) => {
+  expandedCategoryId.value = expandedCategoryId.value === id ? null : id
+}
+
+const categoryTransactions = (categoryId: string) =>
+  projectStore.projectTransactions.filter(tx => tx.project_category_id === categoryId)
+
+const pendingPlannedAmount = (categoryId: string) =>
+  projectStore.plannedExpenses
+    .filter(e => e.project_category_id === categoryId && e.status === 'pending')
+    .reduce((sum, e) => sum + e.amount, 0)
+
+const categoryBar = (cat: ProjectCategoryWithSpent) => {
+  const spent = cat.total_spent
+  const pending = pendingPlannedAmount(cat.id)
+  const planned = cat.planned_amount
+  const total = spent + pending
+  const denominator = Math.max(planned, total, 0.0001)
+  const spentPct = (spent / denominator) * 100
+  const pendingPct = (pending / denominator) * 100
+  const overBudget = total > planned && planned > 0
+  const showBudgetMark = overBudget && planned > 0
+  const budgetMarkPct = showBudgetMark ? (planned / denominator) * 100 : 0
+  return { spentPct, pendingPct, overBudget, showBudgetMark, budgetMarkPct }
+}
 
 const categoryForm = ref({ name: '', planned_amount: 0 as number })
 const expenseForm = ref({
