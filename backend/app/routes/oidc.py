@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from starlette.config import Config
 
-from ..database import get_db
+from ..database import async_session
 from ..auth import create_token
 from sqlalchemy import text
 
@@ -67,7 +67,7 @@ async def auth_callback(request: Request):
             )
 
         # Find or create user in database
-        async with get_db() as db:
+        async with async_session() as db:
             # Check if user exists
             result = await db.execute(
                 text("SELECT id, email, name, avatar, phone, created_at, updated_at FROM users WHERE email = :email"),
