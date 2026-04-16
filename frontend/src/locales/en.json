@@ -26,7 +26,10 @@
     "to": "To",
     "startDate": "Start date",
     "endDate": "End date",
-    "total": "Total"
+    "total": "Total",
+    "releaseNotes": "Release notes",
+    "releaseNotesEmpty": "No release notes available",
+    "releaseNotesError": "Could not load release notes"
   },
   "nav": {
     "dashboard": "Dashboard",

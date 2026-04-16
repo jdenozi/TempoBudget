@@ -37,7 +37,9 @@
           style="flex: 1;"
         />
         <div class="version-info" :class="{ collapsed }">
-          <span class="version">{{ appVersion }}</span>
+          <button type="button" class="version" @click="showReleaseNotes = true" :title="t('common.releaseNotes')">
+            {{ appVersion }}
+          </button>
           <span v-if="!collapsed" class="date">{{ buildDate }}</span>
         </div>
       </n-layout-sider>
@@ -97,7 +99,9 @@
             style="flex: 1;"
           />
           <div class="version-info">
-            <span class="version">{{ appVersion }}</span>
+            <button type="button" class="version" @click="showReleaseNotes = true" :title="t('common.releaseNotes')">
+              {{ appVersion }}
+            </button>
             <span class="date">{{ buildDate }}</span>
           </div>
         </n-drawer-content>
@@ -113,6 +117,9 @@
           <AddTransactionForm @success="handleTransactionSuccess" />
         </n-drawer-content>
       </n-drawer>
+
+      <!-- Release Notes Modal -->
+      <ReleaseNotesModal v-model:show="showReleaseNotes" />
     </n-layout>
   </n-config-provider>
     </n-message-provider>
@@ -146,6 +153,7 @@ import {
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
+import ReleaseNotesModal from './modals/ReleaseNotesModal.vue'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { useProStore } from '@/stores/pro'
 
@@ -164,6 +172,7 @@ const showDrawer = ref(false)
 
 /** Transaction form drawer visibility */
 const showTransactionDrawer = ref(false)
+const showReleaseNotes = ref(false)
 
 const { isMobile } = useMobileDetect()
 
@@ -352,6 +361,19 @@ const buildDate = __BUILD_DATE__
 
 .version-info .version {
   font-weight: 500;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s ease;
+}
+
+.version-info .version:hover {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: underline;
 }
 
 .version-info .date {
