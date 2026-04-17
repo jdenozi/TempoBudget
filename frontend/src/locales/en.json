@@ -691,6 +691,7 @@
     "projectDeleted": "Project deleted",
     "categories": "Project categories",
     "noCategories": "No categories",
+    "budgetByCategory": "Budget by category",
     "addCategory": "Add category",
     "editCategory": "Edit category",
     "deleteCategory": "Delete category",

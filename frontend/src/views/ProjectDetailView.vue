@@ -22,7 +22,27 @@
       <n-card size="small">
         <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
           <n-gi>
-            <n-statistic :label="t('project.totalBudget')" :value="project.total_budget.toFixed(2)">
+            <n-popover v-if="project.categories.length > 0" trigger="hover" placement="bottom-start" :show-arrow="false">
+              <template #trigger>
+                <div class="stat-with-breakdown">
+                  <n-statistic :label="t('project.totalBudget')" :value="project.total_budget.toFixed(2)">
+                    <template #suffix>€</template>
+                  </n-statistic>
+                </div>
+              </template>
+              <div class="budget-breakdown">
+                <div class="budget-breakdown-title">{{ t('project.budgetByCategory') }}</div>
+                <div v-for="cat in project.categories" :key="cat.id" class="budget-breakdown-row">
+                  <span>{{ cat.name }}</span>
+                  <strong>{{ cat.planned_amount.toFixed(2) }} €</strong>
+                </div>
+                <div class="budget-breakdown-total">
+                  <span>{{ t('common.total') }}</span>
+                  <strong>{{ categoriesPlannedTotal.toFixed(2) }} €</strong>
+                </div>
+              </div>
+            </n-popover>
+            <n-statistic v-else :label="t('project.totalBudget')" :value="project.total_budget.toFixed(2)">
               <template #suffix>€</template>
             </n-statistic>
           </n-gi>
@@ -40,15 +60,23 @@
             </n-statistic>
           </n-gi>
           <n-gi v-if="project.target_date">
-            <n-statistic :label="t('project.targetDate')" :value="project.target_date" />
+            <div class="target-date-block">
+              <div class="target-date-label">{{ t('project.targetDate') }}</div>
+              <div class="target-date-value">{{ project.target_date }}</div>
+            </div>
           </n-gi>
         </n-grid>
-        <n-progress
-          class="summary-progress"
-          :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
-          :color="project.remaining < 0 ? '#d03050' : '#2080f0'"
-          :show-indicator="true"
-        />
+        <div class="summary-progress-wrapper">
+          <n-flex justify="space-between" class="summary-progress-label">
+            <span>{{ t('project.progress') }}</span>
+            <strong>{{ project.total_budget > 0 ? ((project.total_spent / project.total_budget) * 100).toFixed(1) : '0.0' }}%</strong>
+          </n-flex>
+          <n-progress
+            :percentage="project.total_budget > 0 ? Math.min((project.total_spent / project.total_budget) * 100, 100) : 0"
+            :color="project.remaining < 0 ? '#d03050' : '#2080f0'"
+            :show-indicator="false"
+          />
+        </div>
         <n-text v-if="project.description" depth="3" class="summary-description">
           {{ project.description }}
         </n-text>
@@ -321,7 +349,7 @@ import {
   NSpace, NFlex, NButton, NCard, NGrid, NGi, NStatistic, NText, NTag,
   NIcon, NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
   NInput, NInputNumber, NDatePicker, NSelect, NAvatar,
-  NPopconfirm, NRadioGroup, NRadioButton, useMessage,
+  NPopconfirm, NPopover, NRadioGroup, NRadioButton, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline, CashOutline, ChevronDownOutline, ChevronForwardOutline } from '@vicons/ionicons5'
@@ -618,8 +646,57 @@ const handleRemoveMember = async (memberId: string) => {
   margin: 0;
   font-size: clamp(20px, 5vw, 28px);
 }
-.summary-progress {
-  margin-top: 12px;
+.summary-progress-wrapper {
+  margin-top: 16px;
+}
+.summary-progress-label {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.stat-with-breakdown {
+  cursor: help;
+  display: inline-block;
+}
+.stat-with-breakdown :deep(.n-statistic-value__content) {
+  border-bottom: 1px dashed var(--n-border-color, rgba(255, 255, 255, 0.25));
+}
+.target-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.target-date-label {
+  color: var(--n-text-color-3, rgba(255, 255, 255, 0.5));
+  font-size: 14px;
+}
+.target-date-value {
+  font-size: 18px;
+  font-weight: 500;
+}
+.budget-breakdown {
+  min-width: 220px;
+}
+.budget-breakdown-title {
+  font-size: 12px;
+  color: var(--n-text-color-3, rgba(255, 255, 255, 0.5));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.budget-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+.budget-breakdown-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--n-border-color);
+  font-weight: 600;
 }
 .summary-description {
   margin-top: 8px;
