@@ -54,27 +54,6 @@
       </n-grid>
     </n-card>
 
-    <!-- Upcoming Recurring -->
-    <n-card v-if="upcomingRecurring.length > 0" :title="t('recurring.upcoming')" size="small">
-      <div v-for="item in upcomingRecurring" :key="item.id + item.expected_date" class="upcoming-row">
-        <n-flex justify="space-between" align="center" :size="8" :wrap="true">
-          <n-flex align="center" :size="8">
-            <strong>{{ item.title }}</strong>
-            <n-text depth="3" class="meta-label">{{ item.budget_name }} — {{ item.category_name }}</n-text>
-          </n-flex>
-          <n-flex align="center" :size="8">
-            <span :class="item.transaction_type === 'expense' ? 'amount-expense' : 'amount-income'">
-              {{ item.transaction_type === 'expense' ? '-' : '+' }}{{ item.amount.toFixed(2) }} €
-            </span>
-            <n-text depth="3" class="meta-label">{{ item.expected_date }}</n-text>
-            <n-tag :type="item.is_processed ? 'success' : 'warning'" size="small">
-              {{ item.is_processed ? t('recurring.processed') : t('common.pending') }}
-            </n-tag>
-          </n-flex>
-        </n-flex>
-      </div>
-    </n-card>
-
     <!-- Loading State -->
     <n-flex v-if="budgetStore.loading" justify="center" style="padding: 40px;">
       <n-spin size="large" />
@@ -161,6 +140,27 @@
         </n-button>
       </template>
     </n-empty>
+
+    <!-- Upcoming Recurring (below budgets) -->
+    <n-card v-if="upcomingRecurring.length > 0" :title="t('recurring.upcoming')" size="small">
+      <div v-for="item in upcomingRecurring" :key="item.id + item.expected_date" class="upcoming-row">
+        <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+          <n-flex align="center" :size="8">
+            <strong>{{ item.title }}</strong>
+            <n-text depth="3" class="meta-label">{{ item.budget_name }} — {{ item.category_name }}</n-text>
+          </n-flex>
+          <n-flex align="center" :size="8">
+            <span :class="item.transaction_type === 'expense' ? 'amount-expense' : 'amount-income'">
+              {{ item.transaction_type === 'expense' ? '-' : '+' }}{{ item.amount.toFixed(2) }} €
+            </span>
+            <n-text depth="3" class="meta-label">{{ item.expected_date }}</n-text>
+            <n-tag :type="item.is_processed ? 'success' : 'warning'" size="small">
+              {{ item.is_processed ? t('recurring.processed') : t('common.pending') }}
+            </n-tag>
+          </n-flex>
+        </n-flex>
+      </div>
+    </n-card>
 
     <!-- Create Budget Modal -->
     <n-modal v-model:show="showModal">
