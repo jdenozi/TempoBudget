@@ -10,7 +10,7 @@
 -->
 
 <template>
-  <n-config-provider>
+  <n-config-provider :theme-overrides="themeOverrides">
     <n-message-provider>
       <router-view />
 
@@ -45,6 +45,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { NConfigProvider, NMessageProvider, NModal, NButton } from 'naive-ui'
 import { useInactivityTimer } from '@/composables/useInactivityTimer'
+import { themeOverrides } from '@/theme'
 
 const {
   showWarning,
@@ -64,15 +65,7 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* Global CSS Reset */
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
-}
-
-/* Base body styles */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 </style>

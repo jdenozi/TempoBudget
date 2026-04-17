@@ -13,7 +13,7 @@
 
 <template>
   <n-message-provider>
-  <n-config-provider :theme="darkTheme">
+  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
     <n-layout has-sider style="height: 100vh">
       <!-- Desktop Sidebar -->
       <n-layout-sider
@@ -46,20 +46,20 @@
 
       <n-layout>
         <!-- Header with add transaction button -->
-        <n-layout-header bordered style="height: 64px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 99; background: #18181c;">
-          <div style="display: flex; align-items: center; gap: 16px;">
+        <n-layout-header bordered class="app-header">
+          <n-flex align="center" :size="16">
             <n-button
               v-if="isMobile"
               text
               @click="showDrawer = true"
-              style="font-size: 20px;"
+              class="mobile-menu-btn"
             >
               ☰
             </n-button>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <img src="@/assets/logo.png" alt="Tempo Finance" style="width: 36px; height: 36px; border-radius: 8px;" />
-              <h2 v-if="!isMobile" style="margin: 0;">Tempo Finance</h2>
-            </div>
+            <n-flex align="center" :size="12">
+              <img src="@/assets/logo.png" alt="Tempo Finance" class="app-logo" />
+              <h2 v-if="!isMobile" class="app-title">Tempo Finance</h2>
+            </n-flex>
 
             <div class="pro-toggle">
               <n-switch
@@ -71,7 +71,7 @@
                 <template #unchecked>Pro</template>
               </n-switch>
             </div>
-          </div>
+          </n-flex>
 
           <n-button
             v-if="!proStore.isProMode"
@@ -138,7 +138,7 @@
 
 import {
   NConfigProvider, NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NDrawer, NDrawerContent, NMessageProvider, NSwitch,
+  NMenu, NButton, NFlex, NDrawer, NDrawerContent, NMessageProvider, NSwitch,
   darkTheme, lightTheme
 } from 'naive-ui'
 import { ref, h, computed, onMounted } from 'vue'
@@ -154,6 +154,7 @@ import {
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
 import ReleaseNotesModal from './modals/ReleaseNotesModal.vue'
+import { themeOverrides } from '@/theme'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { useProStore } from '@/stores/pro'
 
@@ -383,5 +384,38 @@ const buildDate = __BUILD_DATE__
 
 .pro-toggle {
   margin-left: 8px;
+}
+
+.mobile-menu-btn {
+  font-size: 20px;
+}
+.app-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+.app-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #f3f4f6 0%, #d1d5db 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.app-header {
+  height: 64px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  background: linear-gradient(180deg, rgba(24, 26, 32, 0.92), rgba(18, 20, 25, 0.78));
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
 }
 </style>

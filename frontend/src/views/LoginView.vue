@@ -9,7 +9,7 @@
 -->
 
 <template>
-  <n-config-provider :theme="lightTheme">
+  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
       <LoginContent />
     </n-message-provider>
@@ -22,6 +22,7 @@
  * Provides theme configuration and message provider context.
  */
 
-import { NConfigProvider, NMessageProvider, darkTheme, lightTheme} from 'naive-ui'
+import { NConfigProvider, NMessageProvider, darkTheme } from 'naive-ui'
 import LoginContent from './LoginContent.vue'
+import { themeOverrides } from '@/theme'
 </script>

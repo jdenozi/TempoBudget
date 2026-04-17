@@ -16,6 +16,7 @@ import i18n from './i18n'
 import { useAuthStore } from './stores/auth'
 import { useSettingsStore } from './stores/settings'
 import { setupApiInterceptors } from './services/api'
+import './styles/global.css'
 
 const app = createApp(App)
 const pinia = createPinia()
