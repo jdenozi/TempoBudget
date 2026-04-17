@@ -15,7 +15,7 @@
 
 <template>
   <n-space vertical size="large">
-    <h1 style="margin: 0; font-size: clamp(20px, 5vw, 28px);">{{ t('profile.title') }}</h1>
+    <h1 class="page-title">{{ t('profile.title') }}</h1>
 
     <!-- User Information -->
     <n-card :title="t('profile.personalInfo')">
@@ -37,14 +37,19 @@
 
       <n-space vertical size="large">
         <!-- Avatar -->
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div style="position: relative; cursor: pointer;" @click="triggerAvatarUpload">
+        <n-flex align="center" :size="16">
+          <div class="avatar-wrapper" @click="triggerAvatarUpload">
             <n-avatar
               :size="isMobile ? 80 : 100"
               round
-              :src="authStore.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authStore.user?.name}`"
-            />
-            <n-spin v-if="uploadingAvatar" :size="20" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" />
+              :src="avatarSrc || undefined"
+            >
+              <template v-if="!avatarSrc">{{ userInitials }}</template>
+            </n-avatar>
+            <div class="avatar-overlay">
+              <n-icon :component="CameraOutline" :size="22" />
+            </div>
+            <n-spin v-if="uploadingAvatar" :size="20" class="avatar-spinner" />
           </div>
           <n-button size="small" :loading="uploadingAvatar" @click="triggerAvatarUpload">
             {{ t('profile.changePhoto') }}
@@ -53,10 +58,10 @@
             ref="fileInputRef"
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            style="display: none;"
+            class="file-input"
             @change="handleAvatarChange"
           />
-        </div>
+        </n-flex>
 
         <!-- User Details -->
         <n-descriptions v-if="!editing" :column="1" bordered>
@@ -90,25 +95,25 @@
     </n-card>
 
     <!-- Statistics -->
-    <n-card title="My Statistics">
+    <n-card :title="t('profile.statistics')">
       <n-grid :cols="isMobile ? 2 : 4" :x-gap="12" :y-gap="12">
         <n-gi>
-          <n-statistic label="Active Budgets" :value="budgetStore.budgets.length" />
+          <n-statistic :label="t('profile.activeBudgets')" :value="budgetStore.budgets.length" />
         </n-gi>
         <n-gi>
-          <n-statistic label="Transactions this month" :value="transactionsThisMonth" />
+          <n-statistic :label="t('profile.transactionsThisMonth')" :value="transactionsThisMonth" />
         </n-gi>
         <n-gi>
-          <n-statistic label="Categories" :value="totalCategories" />
+          <n-statistic :label="t('profile.categories')" :value="totalCategories" />
         </n-gi>
         <n-gi>
-          <n-statistic label="Recurring" :value="totalRecurring" />
+          <n-statistic :label="t('profile.recurringCount')" :value="totalRecurring" />
         </n-gi>
       </n-grid>
     </n-card>
 
-    <!-- Pending Invitations -->
-    <n-card title="Pending Invitations" v-if="invitations.length > 0">
+    <!-- Pending Budget Invitations -->
+    <n-card :title="t('profile.pendingInvitations')" v-if="invitations.length > 0">
       <n-space vertical>
         <n-alert
           v-for="invitation in invitations"
@@ -118,15 +123,15 @@
           @close="handleRejectInvitation(invitation.id)"
         >
           <template #header>
-            Invitation to budget "{{ invitation.budget_name }}"
+            {{ t('profile.invitationToBudget', { name: invitation.budget_name }) }}
           </template>
 
-          <div style="margin-bottom: 12px;">
-            <strong>{{ invitation.inviter_name }}</strong> invites you to join this budget as
+          <p class="invitation-body">
+            {{ t('profile.inviterInvitesAs', { name: invitation.inviter_name }) }}
             <n-tag :type="invitation.role === 'owner' ? 'success' : 'default'" size="small">
-              {{ invitation.role === 'owner' ? 'Owner' : 'Member' }}
+              {{ invitation.role === 'owner' ? t('profile.roleOwner') : t('profile.roleMember') }}
             </n-tag>
-          </div>
+          </p>
 
           <n-space>
             <n-button
@@ -135,14 +140,14 @@
               :loading="processingInvitation === invitation.id"
               @click="handleAcceptInvitation(invitation.id)"
             >
-              Accept
+              {{ t('profile.accept') }}
             </n-button>
             <n-button
               size="small"
               :loading="processingInvitation === invitation.id"
               @click="handleRejectInvitation(invitation.id)"
             >
-              Decline
+              {{ t('profile.decline') }}
             </n-button>
           </n-space>
         </n-alert>
@@ -150,7 +155,7 @@
     </n-card>
 
     <!-- Pending Project Invitations -->
-    <n-card title="Invitations projet" v-if="projectInvitations.length > 0">
+    <n-card :title="t('profile.projectInvitations')" v-if="projectInvitations.length > 0">
       <n-space vertical>
         <n-alert
           v-for="invitation in projectInvitations"
@@ -160,15 +165,15 @@
           @close="handleRejectProjectInvitation(invitation.id)"
         >
           <template #header>
-            Invitation au projet "{{ invitation.project_name }}"
+            {{ t('profile.projectInvitationTo', { name: invitation.project_name }) }}
           </template>
 
-          <div style="margin-bottom: 12px;">
-            <strong>{{ invitation.inviter_name }}</strong> vous invite à rejoindre ce projet en tant que
+          <p class="invitation-body">
+            {{ t('profile.projectInviterInvitesAs', { name: invitation.inviter_name }) }}
             <n-tag :type="invitation.role === 'owner' ? 'success' : 'default'" size="small">
-              {{ invitation.role === 'owner' ? 'Propriétaire' : 'Membre' }}
+              {{ invitation.role === 'owner' ? t('profile.roleOwner') : t('profile.roleMember') }}
             </n-tag>
-          </div>
+          </p>
 
           <n-space>
             <n-button
@@ -177,14 +182,14 @@
               :loading="processingProjectInvitation === invitation.id"
               @click="handleAcceptProjectInvitation(invitation.id)"
             >
-              Accepter
+              {{ t('profile.accept') }}
             </n-button>
             <n-button
               size="small"
               :loading="processingProjectInvitation === invitation.id"
               @click="handleRejectProjectInvitation(invitation.id)"
             >
-              Refuser
+              {{ t('profile.decline') }}
             </n-button>
           </n-space>
         </n-alert>
@@ -192,73 +197,85 @@
     </n-card>
 
     <!-- Settings -->
-    <n-card :title="t('profile.title')">
-      <n-space vertical>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <n-card :title="t('profile.settings')">
+      <div class="settings-row">
+        <n-flex align="center" :size="12">
+          <n-icon :component="LanguageOutline" :size="20" class="settings-icon" />
           <div>
-            <div style="font-weight: 500;">{{ t('profile.language') }}</div>
-            <n-text depth="3">{{ t('common.filter') }}</n-text>
+            <div class="settings-label">{{ t('profile.language') }}</div>
+            <n-text depth="3">{{ t('profile.languageDesc') }}</n-text>
           </div>
-          <n-select
-            :value="locale"
-            :options="languageOptions"
-            style="width: 150px;"
-            @update:value="handleLanguageChange"
-          />
-        </div>
+        </n-flex>
+        <n-select
+          :value="locale"
+          :options="languageOptions"
+          class="settings-control"
+          @update:value="handleLanguageChange"
+        />
+      </div>
 
-        <n-divider />
+      <n-divider />
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div class="settings-row">
+        <n-flex align="center" :size="12">
+          <n-icon :component="TimeOutline" :size="20" class="settings-icon" />
           <div>
-            <div style="font-weight: 500;">Auto Logout</div>
-            <n-text depth="3">Automatically log out after inactivity</n-text>
+            <div class="settings-label">{{ t('profile.autoLogout') }}</div>
+            <n-text depth="3">{{ t('profile.autoLogoutDesc') }}</n-text>
           </div>
-          <n-select
-            :value="settingsStore.inactivityTimeout"
-            :options="inactivityOptions"
-            style="width: 150px;"
-            @update:value="settingsStore.setInactivityTimeout"
-          />
-        </div>
+        </n-flex>
+        <n-select
+          :value="settingsStore.inactivityTimeout"
+          :options="inactivityOptions"
+          class="settings-control"
+          @update:value="settingsStore.setInactivityTimeout"
+        />
+      </div>
 
-        <n-divider />
+      <n-divider />
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div class="settings-row">
+        <n-flex align="center" :size="12">
+          <n-icon :component="LockClosedOutline" :size="20" class="settings-icon" />
           <div>
-            <div style="font-weight: 500;">Password</div>
-            <n-text depth="3">Manage your password</n-text>
+            <div class="settings-label">{{ t('profile.password') }}</div>
+            <n-text depth="3">{{ t('profile.passwordDesc') }}</n-text>
           </div>
-          <n-button size="small" @click="showChangePassword = true">Change Password</n-button>
-        </div>
+        </n-flex>
+        <n-button size="small" @click="showChangePassword = true">
+          {{ t('profile.changePassword') }}
+        </n-button>
+      </div>
 
-        <n-divider />
+      <n-divider />
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div class="settings-row">
+        <n-flex align="center" :size="12">
+          <n-icon :component="ShieldCheckmarkOutline" :size="20" class="settings-icon" />
           <div>
-            <div style="font-weight: 500;">Two-Factor Authentication</div>
-            <n-text depth="3">Enhance your account security</n-text>
+            <div class="settings-label">{{ t('profile.twoFactor') }}</div>
+            <n-text depth="3">{{ t('profile.twoFactorDesc') }}</n-text>
           </div>
-          <n-button size="small" disabled>Enable</n-button>
-        </div>
-      </n-space>
+        </n-flex>
+        <n-button size="small" disabled>{{ t('profile.enable') }}</n-button>
+      </div>
     </n-card>
 
     <!-- Danger Zone -->
-    <n-card title="Danger Zone">
+    <n-card :title="t('profile.dangerZone')" class="danger-zone">
       <n-space vertical>
-        <n-alert type="warning" title="Irreversible Actions">
-          The actions below are permanent and cannot be undone.
+        <n-alert type="warning" :title="t('profile.dangerZoneWarning')">
+          {{ t('profile.dangerZoneDesc') }}
         </n-alert>
 
         <n-space :vertical="isMobile">
-          <n-button disabled>Export My Data</n-button>
+          <n-button disabled>{{ t('profile.exportData') }}</n-button>
 
           <n-popconfirm @positive-click="handleDeleteAccount">
             <template #trigger>
-              <n-button type="error" disabled>Delete My Account</n-button>
+              <n-button type="error" disabled>{{ t('profile.deleteAccount') }}</n-button>
             </template>
-            Are you sure you want to delete your account? This action is irreversible.
+            {{ t('profile.deleteAccountConfirm') }}
           </n-popconfirm>
         </n-space>
       </n-space>
@@ -271,55 +288,58 @@
       @click="handleLogout"
       :block="isMobile"
     >
-      Sign Out
+      <template #icon>
+        <n-icon :component="LogOutOutline" />
+      </template>
+      {{ t('profile.signOut') }}
     </n-button>
 
     <!-- Change Password Modal -->
     <n-modal v-model:show="showChangePassword">
       <n-card
-        title="Change Password"
+        :title="t('profile.changePassword')"
         :bordered="false"
         size="huge"
-        style="width: 400px; max-width: 95vw;"
+        class="password-modal"
       >
         <n-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules">
-          <n-form-item label="Current Password" path="currentPassword">
+          <n-form-item :label="t('profile.currentPassword')" path="currentPassword">
             <n-input
               v-model:value="passwordForm.currentPassword"
               type="password"
               show-password-on="click"
-              placeholder="Enter your current password"
+              :placeholder="t('profile.currentPasswordPlaceholder')"
             />
           </n-form-item>
 
-          <n-form-item label="New Password" path="newPassword">
+          <n-form-item :label="t('profile.newPassword')" path="newPassword">
             <n-input
               v-model:value="passwordForm.newPassword"
               type="password"
               show-password-on="click"
-              placeholder="Enter your new password"
+              :placeholder="t('profile.newPasswordPlaceholder')"
             />
           </n-form-item>
 
-          <n-form-item label="Confirm New Password" path="confirmPassword">
+          <n-form-item :label="t('profile.confirmNewPassword')" path="confirmPassword">
             <n-input
               v-model:value="passwordForm.confirmPassword"
               type="password"
               show-password-on="click"
-              placeholder="Confirm your new password"
+              :placeholder="t('profile.confirmPasswordPlaceholder')"
             />
           </n-form-item>
         </n-form>
 
         <template #footer>
           <n-space justify="end">
-            <n-button @click="showChangePassword = false">Cancel</n-button>
+            <n-button @click="showChangePassword = false">{{ t('common.cancel') }}</n-button>
             <n-button
               type="primary"
               :loading="changingPassword"
               @click="handleChangePassword"
             >
-              Change Password
+              {{ t('profile.changePassword') }}
             </n-button>
           </n-space>
         </template>
@@ -332,11 +352,15 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NSpace, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
+  NSpace, NFlex, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
   NGrid, NGi, NStatistic, NText, NDivider, NAlert, NPopconfirm,
-  NTag, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
+  NTag, NModal, NForm, NFormItem, NInput, NSelect, NSpin, NIcon, useMessage,
   type FormInst, type FormRules
 } from 'naive-ui'
+import {
+  CameraOutline, LanguageOutline, TimeOutline, LockClosedOutline,
+  ShieldCheckmarkOutline, LogOutOutline,
+} from '@vicons/ionicons5'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
@@ -424,7 +448,7 @@ const handleAvatarChange = async (event: Event) => {
   if (!file) return
 
   if (file.size > 2 * 1024 * 1024) {
-    message.error('File too large (max 2 MB)')
+    message.error(t('profile.avatarTooLarge'))
     return
   }
 
@@ -447,24 +471,24 @@ const passwordForm = ref({
   confirmPassword: '',
 })
 
-const passwordRules: FormRules = {
+const passwordRules = computed<FormRules>(() => ({
   currentPassword: [
-    { required: true, message: 'Current password is required' }
+    { required: true, message: t('profile.currentPasswordRequired') }
   ],
   newPassword: [
-    { required: true, message: 'New password is required' },
-    { min: 6, message: 'Password must be at least 6 characters' }
+    { required: true, message: t('profile.newPasswordRequired') },
+    { min: 6, message: t('profile.passwordMinLength') }
   ],
   confirmPassword: [
-    { required: true, message: 'Please confirm your new password' },
+    { required: true, message: t('profile.confirmPasswordRequired') },
     {
       validator: (_rule, value) => {
         return value === passwordForm.value.newPassword
       },
-      message: 'Passwords do not match'
+      message: t('profile.passwordsDoNotMatch')
     }
   ]
-}
+}))
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
@@ -500,9 +524,9 @@ onUnmounted(() => {
 })
 
 const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'N/A'
+  if (!dateString) return '—'
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
@@ -523,16 +547,32 @@ const transactionsThisMonth = computed(() => {
 const totalCategories = computed(() => budgetStore.categories.length)
 const totalRecurring = computed(() => budgetStore.recurringTransactions.length)
 
+const avatarSrc = computed(() => {
+  const user = authStore.user
+  if (!user?.avatar) return ''
+  const separator = user.avatar.includes('?') ? '&' : '?'
+  return `${user.avatar}${separator}v=${encodeURIComponent(user.updated_at || '')}`
+})
+
+const userInitials = computed(() => {
+  const name = authStore.user?.name || authStore.user?.email || '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+  return name.slice(0, 2).toUpperCase()
+})
+
 const handleAcceptInvitation = async (id: string) => {
   processingInvitation.value = id
   try {
     await invitationsAPI.acceptInvitation(id)
-    message.success('Invitation accepted!')
+    message.success(t('profile.invitationAccepted'))
     invitations.value = invitations.value.filter(inv => inv.id !== id)
     await budgetStore.fetchBudgets()
   } catch (error) {
     console.error('Error accepting invitation:', error)
-    message.error('Error accepting invitation')
+    message.error(t('profile.invitationAcceptError'))
   } finally {
     processingInvitation.value = null
   }
@@ -542,11 +582,11 @@ const handleRejectInvitation = async (id: string) => {
   processingInvitation.value = id
   try {
     await invitationsAPI.rejectInvitation(id)
-    message.success('Invitation declined')
+    message.success(t('profile.invitationDeclined'))
     invitations.value = invitations.value.filter(inv => inv.id !== id)
   } catch (error) {
     console.error('Error rejecting invitation:', error)
-    message.error('Error declining invitation')
+    message.error(t('profile.invitationDeclineError'))
   } finally {
     processingInvitation.value = null
   }
@@ -556,11 +596,11 @@ const handleAcceptProjectInvitation = async (id: string) => {
   processingProjectInvitation.value = id
   try {
     await projectStore.acceptProjectInvitation(id)
-    message.success('Invitation acceptée !')
+    message.success(t('profile.invitationAccepted'))
     await projectStore.fetchProjects()
   } catch (error) {
     console.error('Error accepting project invitation:', error)
-    message.error('Erreur lors de l\'acceptation')
+    message.error(t('profile.invitationAcceptError'))
   } finally {
     processingProjectInvitation.value = null
   }
@@ -570,10 +610,10 @@ const handleRejectProjectInvitation = async (id: string) => {
   processingProjectInvitation.value = id
   try {
     await projectStore.rejectProjectInvitation(id)
-    message.success('Invitation refusée')
+    message.success(t('profile.invitationDeclined'))
   } catch (error) {
     console.error('Error rejecting project invitation:', error)
-    message.error('Erreur')
+    message.error(t('profile.invitationDeclineError'))
   } finally {
     processingProjectInvitation.value = null
   }
@@ -581,12 +621,12 @@ const handleRejectProjectInvitation = async (id: string) => {
 
 const handleLogout = () => {
   authStore.logout()
-  message.info('Signed out successfully')
+  message.info(t('auth.logoutSuccess'))
   router.push('/login')
 }
 
 const handleDeleteAccount = () => {
-  message.error('Feature not implemented')
+  message.error(t('profile.featureNotImplemented'))
 }
 
 const handleChangePassword = async () => {
@@ -602,7 +642,7 @@ const handleChangePassword = async () => {
       passwordForm.value.currentPassword,
       passwordForm.value.newPassword
     )
-    message.success('Password changed successfully')
+    message.success(t('profile.passwordChanged'))
     showChangePassword.value = false
     passwordForm.value = {
       currentPassword: '',
@@ -612,12 +652,83 @@ const handleChangePassword = async () => {
   } catch (error: any) {
     console.error('Error changing password:', error)
     if (error.response?.status === 400) {
-      message.error('Current password is incorrect')
+      message.error(t('profile.currentPasswordIncorrect'))
     } else {
-      message.error('Error changing password')
+      message.error(t('profile.passwordChangeError'))
     }
   } finally {
     changingPassword.value = false
   }
 }
 </script>
+
+<style scoped>
+.page-title {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 28px);
+}
+.avatar-wrapper {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  line-height: 0;
+}
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  border-radius: 50%;
+}
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+.avatar-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.file-input {
+  display: none;
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0;
+}
+.settings-icon {
+  color: var(--n-text-color-3, rgba(255, 255, 255, 0.5));
+}
+.settings-label {
+  font-weight: 500;
+}
+.settings-control {
+  width: 180px;
+  max-width: 100%;
+}
+.invitation-body {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.password-modal {
+  width: 420px;
+  max-width: 95vw;
+}
+.danger-zone :deep(.n-card-header) {
+  color: var(--color-error, #ef4444);
+}
+</style>
