@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.7.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.8.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -68,13 +68,9 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.7.0)
+## Recent Changes (v2.8.0)
 
-* Project summary: hover the Total Budget to see a per-category breakdown; fixed the Target Date formatting and moved the progress percentage above the bar
-* Profile view overhaul: full i18n coverage, icons on every settings row, avatar initials fallback
-* Dashboard: "upcoming this month" card moved below the budget grid
-* Refined dark theme: emerald accent, Inter typography, softer shadows and translucent header
-* In-app release notes modal (click the version number in the sidebar)
+* Project summary: paid-by breakdown showing how much each person contributed (amount + percentage of the total spent), with avatars; payer is also displayed inline on each linked transaction
 
 ## License
 
