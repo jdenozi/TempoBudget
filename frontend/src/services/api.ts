@@ -963,6 +963,10 @@ export interface ProjectTransaction {
   category_name: string | null
   project_category_name: string | null
   source: 'personal' | 'pro'
+  payer_user_id: string | null
+  payer_name: string | null
+  payer_email: string | null
+  payer_avatar: string | null
 }
 
 export interface ProjectMemberWithUser {

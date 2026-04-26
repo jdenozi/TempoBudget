@@ -77,6 +77,28 @@
             :show-indicator="false"
           />
         </div>
+
+        <div v-if="paidByBreakdown.length > 0" class="paid-by-section">
+          <div class="paid-by-title">{{ t('project.paidByBreakdown') }}</div>
+          <div class="paid-by-list">
+            <div
+              v-for="payer in paidByBreakdown"
+              :key="payer.user_id || 'unknown'"
+              class="paid-by-row"
+            >
+              <div class="paid-by-identity">
+                <n-avatar v-if="payer.avatar" :src="payer.avatar" :size="24" round />
+                <n-avatar v-else :size="24" round>{{ (payer.name || '?').charAt(0).toUpperCase() }}</n-avatar>
+                <span class="paid-by-name">{{ payer.name || t('project.unknownPayer') }}</span>
+              </div>
+              <div class="paid-by-amounts">
+                <strong>{{ payer.total.toFixed(2) }} €</strong>
+                <n-text depth="3" class="paid-by-pct">{{ payerPercentage(payer.total).toFixed(1) }}%</n-text>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <n-text v-if="project.description" depth="3" class="summary-description">
           {{ project.description }}
         </n-text>
@@ -192,6 +214,11 @@
                 <n-text depth="3" v-if="tx.project_category_name">{{ tx.project_category_name }}</n-text>
               </n-flex>
               <n-flex align="center" :size="8">
+                <n-flex v-if="tx.payer_name" align="center" :size="4" class="payer-inline">
+                  <n-avatar v-if="tx.payer_avatar" :src="tx.payer_avatar" :size="20" round />
+                  <n-avatar v-else :size="20" round>{{ tx.payer_name.charAt(0).toUpperCase() }}</n-avatar>
+                  <n-text depth="3">{{ tx.payer_name }}</n-text>
+                </n-flex>
                 <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                 <n-text depth="3">{{ tx.date }}</n-text>
                 <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
@@ -436,6 +463,42 @@ const categoriesPlannedTotal = computed(() =>
 const categoriesSpentTotal = computed(() =>
   (project.value?.categories || []).reduce((sum, c) => sum + c.total_spent, 0)
 )
+
+interface PayerSummary {
+  user_id: string | null
+  name: string | null
+  avatar: string | null
+  total: number
+}
+
+const paidByBreakdown = computed<PayerSummary[]>(() => {
+  const map = new Map<string, PayerSummary>()
+  for (const tx of projectStore.projectTransactions) {
+    if (tx.transaction_type !== 'expense') continue
+    const key = tx.payer_user_id || '__unknown__'
+    const existing = map.get(key)
+    if (existing) {
+      existing.total += tx.amount
+    } else {
+      map.set(key, {
+        user_id: tx.payer_user_id,
+        name: tx.payer_name,
+        avatar: tx.payer_avatar,
+        total: tx.amount,
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.total - a.total)
+})
+
+const paidByTotal = computed(() =>
+  paidByBreakdown.value.reduce((sum, p) => sum + p.total, 0)
+)
+
+const payerPercentage = (amount: number) => {
+  const total = paidByTotal.value
+  return total > 0 ? (amount / total) * 100 : 0
+}
 
 const statusTagType = (status: string) => {
   if (status === 'completed') return 'success'
@@ -772,6 +835,54 @@ const handleRemoveMember = async (memberId: string) => {
 }
 .text-pending {
   color: var(--color-pending, #f0a020);
+}
+.payer-inline {
+  flex-wrap: nowrap;
+}
+.paid-by-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--n-border-color);
+}
+.paid-by-title {
+  font-size: 12px;
+  color: var(--n-text-color-3, rgba(255, 255, 255, 0.5));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.paid-by-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.paid-by-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.paid-by-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.paid-by-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.paid-by-amounts {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.paid-by-pct {
+  font-size: 12px;
+  min-width: 48px;
+  text-align: right;
 }
 </style>
 

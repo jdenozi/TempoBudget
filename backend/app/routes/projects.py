@@ -733,30 +733,38 @@ async def get_project_transactions(
     placeholders = ", ".join(f":cid{i}" for i in range(len(cat_ids)))
     params = {f"cid{i}": cid for i, cid in enumerate(cat_ids)}
 
-    # Personal transactions
+    # Personal transactions — payer is paid_by_user_id when set (group budget),
+    # otherwise the budget owner.
     personal_result = await db.execute(
         text(f"""
             SELECT t.id, t.title, t.amount, t.transaction_type, t.date, t.comment,
                    t.project_category_id, c.name as category_name,
-                   pc.name as project_category_name, 'personal' as source
+                   pc.name as project_category_name, 'personal' as source,
+                   COALESCE(t.paid_by_user_id, b.user_id) as payer_user_id,
+                   u.name as payer_name, u.email as payer_email, u.avatar as payer_avatar
             FROM transactions t
             LEFT JOIN categories c ON t.category_id = c.id
             LEFT JOIN project_categories pc ON t.project_category_id = pc.id
+            LEFT JOIN budgets b ON t.budget_id = b.id
+            LEFT JOIN users u ON COALESCE(t.paid_by_user_id, b.user_id) = u.id
             WHERE t.project_category_id IN ({placeholders})
         """),
         params
     )
     personal = [dict(row._mapping) for row in personal_result.fetchall()]
 
-    # Pro transactions
+    # Pro transactions — payer is always the pro account owner.
     pro_result = await db.execute(
         text(f"""
             SELECT t.id, t.title, t.amount, t.transaction_type, t.date, t.comment,
                    t.project_category_id, pc2.name as category_name,
-                   pc.name as project_category_name, 'pro' as source
+                   pc.name as project_category_name, 'pro' as source,
+                   t.user_id as payer_user_id,
+                   u.name as payer_name, u.email as payer_email, u.avatar as payer_avatar
             FROM pro_transactions t
             LEFT JOIN pro_categories pc2 ON t.category_id = pc2.id
             LEFT JOIN project_categories pc ON t.project_category_id = pc.id
+            LEFT JOIN users u ON t.user_id = u.id
             WHERE t.project_category_id IN ({placeholders})
         """),
         params
