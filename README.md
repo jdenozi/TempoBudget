@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.9.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.10.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -36,7 +36,10 @@
 
 ### Pro Mode (self-employed / auto-entrepreneur)
 * **Multi-regime support**: Pick your legal form — Micro-entrepreneur, Sole proprietorship (real), EURL (with IR/IS option), SASU, SAS — each with its own tax engine
-* **Estimated taxes breakdown** on the dashboard: URSSAF contributions, CFP, income tax (withholding or marginal-rate estimate), corporate tax (IS), dividend flat tax, total levies, and net-after-taxes — switchable between monthly, quarterly, and yearly views
+* **Estimated taxes breakdown** on the dashboard: URSSAF contributions, CFP, income tax (withholding or marginal-rate estimate), corporate tax (IS), dividend flat tax, total levies, *Net to you* and net-after-taxes — switchable between monthly, quarterly, and yearly views, with a year picker for historical reviews
+* **Compare regimes side-by-side**: a one-click modal that runs every regime (Micro / EI réel / EURL IR-IS / SASU / SAS) on your current activity and ranks them by personal take-home. An inline hint on the dashboard surfaces the optimal regime when it differs from your current one
+* **Tracked limits dashboard**: one progress bar per user-defined revenue threshold (Prime d'activité, micro-ceilings, custom goals…), period-aware (monthly / quarterly / yearly) with green / orange / red colour coding
+* **Tax-deductible flag on expenses**: mark which charges enter the bénéfice computation for EI / EURL / SASU / SAS regimes (defaults to deductible; non-deductible entries get a warning chip in the history)
 * **Adaptive transaction form**: irrelevant fields (products, discounts, gift cards, project link) are hidden for expenses; the client field is relabelled to *supplier* for expenses; required-field validation is enforced
 * **Add transaction from anywhere**: the header `+` button now opens a Pro-specific drawer from any Pro view, not just the history
 * **Subscriptions / recurring**: dedicated *Subscriptions* view to manage recurring revenue and fixed costs (monthly / weekly / yearly), one-click materialisation of due transactions
@@ -79,19 +82,15 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.9.0)
+## Recent Changes (v2.10.0)
 
-* Pro mode: multi-regime tax engine (Micro-entrepreneur fully implemented; EI au réel, EURL IR/IS, SASU, SAS supported)
-* Pro mode: dashboard "Estimated taxes" card with monthly/quarterly/yearly breakdown of URSSAF, CFP, IR, IS, dividend tax, total levies, and net-after-taxes
-* Pro mode: dedicated *Subscriptions* view for recurring revenue and fixed costs, with one-click materialisation of due transactions
-* Pro mode: the header `+` button now opens a Pro-specific drawer from any Pro view (dashboard, clients, charts…), not only from the history
-* Pro mode: transaction form adapts to expense vs income — products, discounts, gift cards, project link are hidden for expenses; client label becomes *supplier*; required-field validation enforced
-* Pro mode: create-time "Accounted" toggle on income transactions (no need to bulk-toggle afterwards)
-* Pro mode: customisable revenue limits with horizontal annotations on the revenue chart, with automatic scale conversion between monthly and quarterly views
-* Pro mode: monthly / quarterly toggle on the revenue chart and the dashboard tax breakdown
-* Pro mode: wording softened — *Declared / Undeclared* renamed to *Accounted / To account*, *URSSAF Declaration* page renamed to *Accounting*
-* Pro mode: chart and dashboard cards now consistently say *Turnover* instead of generic *Revenue*
-* Projects: the *Projects* view now filters automatically by the current Pro/Personal mode (the manual filter buttons were removed)
+* Pro mode: *Compare regimes* modal — runs every regime (Micro / EI réel / EURL IR-IS / SASU / SAS) on your current activity, ranks by personal take-home, highlights the optimal regime
+* Pro mode: inline "switch regime" hint on the dashboard tax breakdown — clickable when a different regime would let you net more for the period
+* Pro mode: dashboard *Tracked limits* card with a progress bar per user-defined threshold (period-aware, colour-coded by proximity)
+* Pro mode: tax breakdown now exposes *Net to you* (= net salary − personal IR + dividends after flat tax for incorporated regimes; equals net-after-taxes for non-incorporated)
+* Pro mode: tax-deductible flag on expense transactions, surfaced as a switch in the form and a warning chip in history; only deductible charges enter the bénéfice computation for EI / EURL / SASU / SAS
+* Pro mode: dashboard "Estimated contributions" card now uses the active regime's engine instead of the micro formula (correct figures for SASU / SAS / EURL)
+* Pro mode: year selector on the dashboard tax breakdown and the regime comparison modal — review past-year totals when filing taxes
 
 ## License
 
