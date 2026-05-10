@@ -470,7 +470,9 @@
       "viewInvoice": "Voir la facture",
       "clientRequired": "Le client est obligatoire",
       "supplierRequired": "Le fournisseur est obligatoire",
-      "paymentMethodRequired": "Le moyen de paiement est obligatoire"
+      "paymentMethodRequired": "Le moyen de paiement est obligatoire",
+      "deductible": "Charge déductible",
+      "notDeductible": "Non déductible"
     },
     "categories": {
       "title": "Catégories pro",

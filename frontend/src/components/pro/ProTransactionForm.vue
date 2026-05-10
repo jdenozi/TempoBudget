@@ -184,6 +184,14 @@
       </n-switch>
     </n-form-item>
 
+    <!-- Deductible toggle (expense only, only meaningful for non-micro regimes) -->
+    <n-form-item v-if="isExpense && showDeductibleToggle" :label="t('pro.transactions.deductible')">
+      <n-switch v-model:value="txForm.is_deductible">
+        <template #checked>{{ t('pro.transactions.deductible') }}</template>
+        <template #unchecked>{{ t('pro.transactions.notDeductible') }}</template>
+      </n-switch>
+    </n-form-item>
+
     <n-form-item :label="t('transaction.comment')">
       <n-input v-model:value="txForm.comment" type="textarea" :rows="2" />
     </n-form-item>
@@ -249,7 +257,10 @@ const txForm = ref({
   gift_card_amount: null as number | null,
   project_category_id: null as string | null,
   is_declared: false,
+  is_deductible: true,
 })
+
+const showDeductibleToggle = computed(() => (proStore.proProfile?.legal_form ?? 'micro') !== 'micro')
 
 const isExpense = computed(() => txForm.value.transaction_type === 'expense')
 
@@ -460,6 +471,7 @@ function resetForm() {
     gift_card_amount: null,
     project_category_id: null,
     is_declared: false,
+    is_deductible: true,
   }
 }
 
@@ -483,6 +495,7 @@ function loadFromTx(tx: ProTransaction) {
     gift_card_amount: null,
     project_category_id: tx.project_category_id || null,
     is_declared: tx.is_declared === 1,
+    is_deductible: tx.is_deductible !== 0,
   }
 }
 
@@ -524,6 +537,7 @@ async function handleSubmit() {
         comment: txForm.value.comment || undefined,
         project_category_id: txForm.value.project_category_id,
         is_declared: !isExpense.value ? (txForm.value.is_declared ? 1 : 0) : undefined,
+        is_deductible: isExpense.value ? (txForm.value.is_deductible ? 1 : 0) : undefined,
       })
       message.success(t('transaction.transactionUpdated'))
     } else {
@@ -538,6 +552,7 @@ async function handleSubmit() {
         comment: txForm.value.comment || undefined,
         project_category_id: txForm.value.project_category_id,
         is_declared: !isExpense.value && txForm.value.is_declared ? 1 : 0,
+        is_deductible: isExpense.value ? (txForm.value.is_deductible ? 1 : 0) : 1,
       }
       if (hasItems) {
         data.items = txForm.value.items.map(i => ({

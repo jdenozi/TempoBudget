@@ -957,10 +957,12 @@ async def create_transaction(
         text("""
             INSERT INTO pro_transactions (id, user_id, client_id, category_id, title,
                                           amount, transaction_type, date, payment_method, comment,
-                                          discount_type, discount_value, coupon_id, gift_card_payment, project_category_id, is_declared, created_at)
+                                          discount_type, discount_value, coupon_id, gift_card_payment, project_category_id,
+                                          is_declared, is_deductible, created_at)
             VALUES (:id, :user_id, :client_id, :category_id, :title,
                     :amount, :transaction_type, :date, :payment_method, :comment,
-                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id, :is_declared, :created_at)
+                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id,
+                    :is_declared, :is_deductible, :created_at)
         """),
         {
             "id": tx_id, "user_id": user_id,
@@ -972,6 +974,7 @@ async def create_transaction(
             "coupon_id": coupon_id, "gift_card_payment": round(gift_card_payment, 2),
             "project_category_id": payload.project_category_id,
             "is_declared": payload.is_declared if payload.transaction_type == "income" else 0,
+            "is_deductible": payload.is_deductible if payload.transaction_type == "expense" else 1,
             "created_at": now,
         },
     )
@@ -1087,7 +1090,7 @@ async def update_transaction(
 
     updates = []
     params: dict = {"id": transaction_id, "user_id": user_id}
-    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id", "is_declared"):
+    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id", "is_declared", "is_deductible"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -1160,7 +1163,8 @@ async def get_dashboard(
                 COALESCE(SUM(CASE WHEN transaction_type = 'income' AND date >= :year_start THEN amount END), 0) as ca_year,
                 COALESCE(SUM(CASE WHEN transaction_type = 'expense' AND date >= :month_start THEN amount END), 0) as expenses_month,
                 COALESCE(SUM(CASE WHEN transaction_type = 'expense' AND date >= :quarter_start THEN amount END), 0) as expenses_quarter,
-                COALESCE(SUM(CASE WHEN transaction_type = 'expense' AND date >= :year_start THEN amount END), 0) as expenses_year
+                COALESCE(SUM(CASE WHEN transaction_type = 'expense' AND date >= :year_start THEN amount END), 0) as expenses_year,
+                COALESCE(SUM(CASE WHEN transaction_type = 'expense' AND is_deductible = 1 AND date >= :year_start THEN amount END), 0) as expenses_year_deductible
             FROM pro_transactions
             WHERE user_id = :user_id AND date >= :year_start
         """),
@@ -1201,7 +1205,7 @@ async def get_dashboard(
         PeriodInput(
             turnover=float(ca_year),
             declared_turnover=declared_year,
-            expenses=float(row.expenses_year),
+            expenses=float(row.expenses_year_deductible),
             period="year",
         ),
         profile_dict,
@@ -2571,7 +2575,7 @@ async def tax_breakdown(
             SELECT
               COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE 0 END), 0) AS turnover,
               COALESCE(SUM(CASE WHEN transaction_type='income' AND is_declared=1 THEN amount ELSE 0 END), 0) AS declared_turnover,
-              COALESCE(SUM(CASE WHEN transaction_type='expense' THEN amount ELSE 0 END), 0) AS expenses
+              COALESCE(SUM(CASE WHEN transaction_type='expense' AND is_deductible=1 THEN amount ELSE 0 END), 0) AS expenses
             FROM pro_transactions
             WHERE user_id = :user_id AND date >= :start AND date < :end
         """),
@@ -2668,7 +2672,7 @@ async def regime_comparison(
             SELECT
               COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE 0 END), 0) AS turnover,
               COALESCE(SUM(CASE WHEN transaction_type='income' AND is_declared=1 THEN amount ELSE 0 END), 0) AS declared_turnover,
-              COALESCE(SUM(CASE WHEN transaction_type='expense' THEN amount ELSE 0 END), 0) AS expenses
+              COALESCE(SUM(CASE WHEN transaction_type='expense' AND is_deductible=1 THEN amount ELSE 0 END), 0) AS expenses
             FROM pro_transactions
             WHERE user_id = :user_id AND date >= :start AND date < :end
         """),

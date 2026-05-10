@@ -1104,6 +1104,7 @@ export interface ProTransaction {
   coupon_id: string | null
   gift_card_payment: number
   is_declared: number
+  is_deductible: number
   invoice_id: string | null
   project_category_id?: string | null
   created_at: string
@@ -1373,6 +1374,7 @@ export const proTransactionsAPI = {
     gift_card_amount?: number
     project_category_id?: string | null
     is_declared?: number
+    is_deductible?: number
   }) => {
     const response = await api.post<ProTransaction>('/pro/transactions', data)
     return response.data
@@ -1388,6 +1390,7 @@ export const proTransactionsAPI = {
     comment?: string
     project_category_id?: string | null
     is_declared?: number
+    is_deductible?: number
   }) => {
     const response = await api.put<ProTransaction>(`/pro/transactions/${id}`, data)
     return response.data

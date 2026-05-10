@@ -249,6 +249,7 @@ export const useProStore = defineStore('pro', () => {
     gift_card_amount?: number
     project_category_id?: string | null
     is_declared?: number
+    is_deductible?: number
   }) {
     const tx = await proTransactionsAPI.create(data)
     proTransactions.value.unshift(tx)
@@ -266,6 +267,7 @@ export const useProStore = defineStore('pro', () => {
     comment?: string
     project_category_id?: string | null
     is_declared?: number
+    is_deductible?: number
   }) {
     const updated = await proTransactionsAPI.update(id, data)
     const idx = proTransactions.value.findIndex(t => t.id === id)

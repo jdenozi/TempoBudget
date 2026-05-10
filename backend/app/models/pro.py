@@ -146,6 +146,7 @@ class ProTransaction(BaseModel):
     coupon_id: str | None = Field(None, description="Coupon ID if applied")
     gift_card_payment: float = Field(0, description="Amount paid by gift card")
     is_declared: int = Field(0, description="Whether declared to URSSAF (0/1)")
+    is_deductible: int = Field(1, description="Whether the expense is tax-deductible (0/1) — only meaningful for expenses on non-micro regimes")
     invoice_id: str | None = Field(None, description="Linked invoice ID (auto-created from paid invoice)")
     project_category_id: str | None = Field(None, description="Linked project category ID")
     created_at: str = Field(..., description="Creation timestamp")
@@ -175,6 +176,7 @@ class CreateProTransaction(BaseModel):
     gift_card_amount: float | None = None
     project_category_id: str | None = None
     is_declared: int = Field(0, ge=0, le=1, description="Whether to mark as accounted (0/1) — income only")
+    is_deductible: int = Field(1, ge=0, le=1, description="Whether the expense is tax-deductible (0/1) — expense only")
 
 
 class UpdateProTransaction(BaseModel):
@@ -189,6 +191,7 @@ class UpdateProTransaction(BaseModel):
     comment: str | None = None
     project_category_id: str | None = None
     is_declared: int | None = Field(None, ge=0, le=1)
+    is_deductible: int | None = Field(None, ge=0, le=1)
 
 
 class ProProduct(BaseModel):

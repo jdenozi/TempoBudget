@@ -470,7 +470,9 @@
       "viewInvoice": "View invoice",
       "clientRequired": "Client is required",
       "supplierRequired": "Supplier is required",
-      "paymentMethodRequired": "Payment method is required"
+      "paymentMethodRequired": "Payment method is required",
+      "deductible": "Tax-deductible",
+      "notDeductible": "Not deductible"
     },
     "categories": {
       "title": "Pro categories",

@@ -76,6 +76,9 @@
           <n-tag v-if="tx.transaction_type === 'income'" size="tiny" :type="tx.is_declared ? 'success' : 'warning'">
             {{ tx.is_declared ? t('pro.declaration.declared') : t('pro.declaration.undeclared') }}
           </n-tag>
+          <n-tag v-if="tx.transaction_type === 'expense' && tx.is_deductible === 0" size="tiny" type="warning">
+            {{ t('pro.transactions.notDeductible') }}
+          </n-tag>
           <n-tag v-if="tx.invoice_id" size="tiny" type="info" style="cursor: pointer;" @click.stop="$router.push({ name: 'pro-invoice-detail', params: { id: tx.invoice_id } })">
             {{ t('pro.transactions.fromInvoice') }}
           </n-tag>
