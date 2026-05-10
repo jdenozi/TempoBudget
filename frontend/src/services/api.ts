@@ -1283,12 +1283,12 @@ export const proProfileAPI = {
     const response = await api.put<ProProfile>('/pro/profile', data)
     return response.data
   },
-  getTaxBreakdown: async (period: 'month' | 'quarter' | 'year') => {
-    const response = await api.get<TaxBreakdown>('/pro/tax-breakdown', { params: { period } })
+  getTaxBreakdown: async (period: 'month' | 'quarter' | 'year', year?: number) => {
+    const response = await api.get<TaxBreakdown>('/pro/tax-breakdown', { params: { period, year } })
     return response.data
   },
-  getRegimeComparison: async (period: 'month' | 'quarter' | 'year') => {
-    const response = await api.get<RegimeComparisonRow[]>('/pro/regime-comparison', { params: { period } })
+  getRegimeComparison: async (period: 'month' | 'quarter' | 'year', year?: number) => {
+    const response = await api.get<RegimeComparisonRow[]>('/pro/regime-comparison', { params: { period, year } })
     return response.data
   },
 }

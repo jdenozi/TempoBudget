@@ -2525,13 +2525,15 @@ async def delete_threshold(
 @router.get("/tax-breakdown", response_model=TaxBreakdown)
 async def tax_breakdown(
     period: str = "month",
+    year: int | None = None,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return a tax breakdown for the current month/quarter/year using the user's regime.
+    """Return a tax breakdown for the requested period using the user's regime.
 
-    The regime (legal_form) is read from pro_profile and determines which engine
-    is invoked. Period values: 'month' | 'quarter' | 'year'.
+    Period: 'month' | 'quarter' | 'year'. The optional `year` param lets the
+    caller scope the result to a past year (only meaningful for period='year';
+    monthly/quarterly views always use the current month/quarter for now).
     """
     if period not in ("month", "quarter", "year"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid period")
@@ -2549,25 +2551,25 @@ async def tax_breakdown(
 
     # Resolve period start/end
     now = datetime.now(timezone.utc)
-    year = now.year
+    target_year = year if (year is not None and period == "year") else now.year
     if period == "month":
-        start = f"{year}-{now.month:02d}-01"
+        start = f"{target_year}-{now.month:02d}-01"
         next_month = now.month % 12 + 1
-        next_year = year + 1 if now.month == 12 else year
+        next_year = target_year + 1 if now.month == 12 else target_year
         end = f"{next_year}-{next_month:02d}-01"
-        period_label = f"{year}-{now.month:02d}"
+        period_label = f"{target_year}-{now.month:02d}"
     elif period == "quarter":
         q_start_month = ((now.month - 1) // 3) * 3 + 1
-        start = f"{year}-{q_start_month:02d}-01"
+        start = f"{target_year}-{q_start_month:02d}-01"
         end_month = q_start_month + 3
-        end_year = year + 1 if end_month > 12 else year
+        end_year = target_year + 1 if end_month > 12 else target_year
         end_month = end_month if end_month <= 12 else end_month - 12
         end = f"{end_year}-{end_month:02d}-01"
-        period_label = f"Q{(q_start_month - 1) // 3 + 1} {year}"
+        period_label = f"Q{(q_start_month - 1) // 3 + 1} {target_year}"
     else:  # year
-        start = f"{year}-01-01"
-        end = f"{year + 1}-01-01"
-        period_label = str(year)
+        start = f"{target_year}-01-01"
+        end = f"{target_year + 1}-01-01"
+        period_label = str(target_year)
 
     # Aggregate turnover and expenses for the period
     sums = await db.execute(
@@ -2627,6 +2629,7 @@ _REGIME_COMPARISON_SPEC: list[tuple[str, dict]] = [
 @router.get("/regime-comparison", response_model=list[RegimeComparisonRow])
 async def regime_comparison(
     period: str = "year",
+    year: int | None = None,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2647,25 +2650,25 @@ async def regime_comparison(
     base_profile = dict(prow._mapping)
 
     now = datetime.now(timezone.utc)
-    year = now.year
+    target_year = year if (year is not None and period == "year") else now.year
     if period == "month":
-        start = f"{year}-{now.month:02d}-01"
+        start = f"{target_year}-{now.month:02d}-01"
         next_month = now.month % 12 + 1
-        next_year = year + 1 if now.month == 12 else year
+        next_year = target_year + 1 if now.month == 12 else target_year
         end = f"{next_year}-{next_month:02d}-01"
-        period_label = f"{year}-{now.month:02d}"
+        period_label = f"{target_year}-{now.month:02d}"
     elif period == "quarter":
         q_start_month = ((now.month - 1) // 3) * 3 + 1
-        start = f"{year}-{q_start_month:02d}-01"
+        start = f"{target_year}-{q_start_month:02d}-01"
         end_month = q_start_month + 3
-        end_year = year + 1 if end_month > 12 else year
+        end_year = target_year + 1 if end_month > 12 else target_year
         end_month = end_month if end_month <= 12 else end_month - 12
         end = f"{end_year}-{end_month:02d}-01"
-        period_label = f"Q{(q_start_month - 1) // 3 + 1} {year}"
+        period_label = f"Q{(q_start_month - 1) // 3 + 1} {target_year}"
     else:
-        start = f"{year}-01-01"
-        end = f"{year + 1}-01-01"
-        period_label = str(year)
+        start = f"{target_year}-01-01"
+        end = f"{target_year + 1}-01-01"
+        period_label = str(target_year)
 
     sums = await db.execute(
         text("""

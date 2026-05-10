@@ -121,6 +121,13 @@
               <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
               <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
             </n-radio-group>
+            <n-select
+              v-if="breakdownPeriod === 'year'"
+              v-model:value="breakdownYear"
+              :options="yearOptions"
+              size="small"
+              style="width: 100px;"
+            />
             <n-button size="small" @click="openCompareModal">{{ t('pro.tax.compareRegimes') }}</n-button>
           </n-space>
         </template>
@@ -376,11 +383,20 @@
     <!-- Regime Comparison Modal -->
     <n-modal v-model:show="showCompareModal" preset="card" :title="t('pro.tax.compareRegimes')" style="max-width: 900px;">
       <n-space vertical>
-        <n-radio-group v-model:value="comparePeriod" size="small">
-          <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
-          <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
-          <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
-        </n-radio-group>
+        <n-space size="small">
+          <n-radio-group v-model:value="comparePeriod" size="small">
+            <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
+            <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
+            <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
+          </n-radio-group>
+          <n-select
+            v-if="comparePeriod === 'year'"
+            v-model:value="compareYear"
+            :options="yearOptions"
+            size="small"
+            style="width: 100px;"
+          />
+        </n-space>
 
         <div v-if="comparisonRows.length === 0" style="opacity: 0.6; padding: 16px 0;">{{ t('pro.tax.loading') }}</div>
 
@@ -677,11 +693,18 @@ async function saveProfile() {
 // ── Tax breakdown ──
 
 const breakdownPeriod = ref<'month' | 'quarter' | 'year'>('month')
+const breakdownYear = ref<number>(new Date().getFullYear())
 const breakdown = ref<TaxBreakdown | null>(null)
+
+const yearOptions = computed(() => {
+  const current = new Date().getFullYear()
+  return [0, 1, 2, 3, 4].map(offset => ({ label: String(current - offset), value: current - offset }))
+})
 
 async function loadBreakdown() {
   try {
-    breakdown.value = await proProfileAPI.getTaxBreakdown(breakdownPeriod.value)
+    const year = breakdownPeriod.value === 'year' ? breakdownYear.value : undefined
+    breakdown.value = await proProfileAPI.getTaxBreakdown(breakdownPeriod.value, year)
   } catch {
     breakdown.value = null
   }
@@ -692,7 +715,8 @@ async function loadBreakdown() {
 const comparisonForHint = ref<RegimeComparisonRow[]>([])
 async function loadComparisonForHint() {
   try {
-    comparisonForHint.value = await proProfileAPI.getRegimeComparison(breakdownPeriod.value)
+    const year = breakdownPeriod.value === 'year' ? breakdownYear.value : undefined
+    comparisonForHint.value = await proProfileAPI.getRegimeComparison(breakdownPeriod.value, year)
   } catch {
     comparisonForHint.value = []
   }
@@ -716,16 +740,19 @@ const regimeHint = computed<string | null>(() => {
 })
 
 watch(breakdownPeriod, loadBreakdown)
+watch(breakdownYear, loadBreakdown)
 
 // ── Regime comparison ──
 
 const showCompareModal = ref(false)
 const comparePeriod = ref<'month' | 'quarter' | 'year'>('year')
+const compareYear = ref<number>(new Date().getFullYear())
 const comparisonRows = ref<RegimeComparisonRow[]>([])
 
 async function loadComparison() {
   try {
-    comparisonRows.value = await proProfileAPI.getRegimeComparison(comparePeriod.value)
+    const year = comparePeriod.value === 'year' ? compareYear.value : undefined
+    comparisonRows.value = await proProfileAPI.getRegimeComparison(comparePeriod.value, year)
   } catch {
     comparisonRows.value = []
   }
@@ -737,7 +764,7 @@ async function openCompareModal() {
   await loadComparison()
 }
 
-watch(comparePeriod, () => {
+watch([comparePeriod, compareYear], () => {
   if (showCompareModal.value) loadComparison()
 })
 
