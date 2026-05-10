@@ -206,6 +206,12 @@
               {{ breakdown.net_after_taxes.toFixed(2) }} €
             </strong>
           </div>
+          <div class="tax-row" style="font-size: 15px; padding-top: 6px;">
+            <strong>{{ t('pro.tax.personalTakeHome') }}</strong>
+            <strong :style="{ color: breakdown.personal_take_home >= 0 ? '#18a058' : '#d03050' }">
+              {{ breakdown.personal_take_home.toFixed(2) }} €
+            </strong>
+          </div>
           <div v-for="(note, i) in breakdown.notes" :key="i" style="margin-top: 8px; font-size: 12px; opacity: 0.7;">
             ⓘ {{ note }}
           </div>
