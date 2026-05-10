@@ -12,10 +12,6 @@
       <n-button v-for="f in statusFilters" :key="f.value" :type="activeStatus === f.value ? 'primary' : 'default'" size="small" @click="activeStatus = f.value">
         {{ f.label }}
       </n-button>
-      <n-divider vertical />
-      <n-button v-for="f in modeFilters" :key="f.value" :type="activeMode === f.value ? 'info' : 'default'" size="small" @click="activeMode = f.value">
-        {{ f.label }}
-      </n-button>
     </n-space>
 
     <!-- Loading -->
@@ -32,9 +28,6 @@
               <strong>{{ project.name }}</strong>
               <n-tag :type="statusTagType(project.status)" size="small">
                 {{ t('project.' + project.status) }}
-              </n-tag>
-              <n-tag :type="project.mode === 'pro' ? 'info' : 'default'" size="small">
-                {{ t('project.' + project.mode) }}
               </n-tag>
             </n-flex>
             <n-flex :size="8" @click.stop>
@@ -106,12 +99,6 @@
         <n-form-item :label="t('project.targetDate')">
           <n-date-picker v-model:value="projectForm.target_date" type="date" style="width: 100%" clearable />
         </n-form-item>
-        <n-form-item :label="t('project.mode')">
-          <n-radio-group v-model:value="projectForm.mode">
-            <n-radio-button value="personal">{{ t('project.personal') }}</n-radio-button>
-            <n-radio-button value="pro">{{ t('project.pro') }}</n-radio-button>
-          </n-radio-group>
-        </n-form-item>
         <n-form-item v-if="editingProject" :label="t('project.status')">
           <n-radio-group v-model:value="projectForm.status">
             <n-radio-button value="active">{{ t('project.active') }}</n-radio-button>
@@ -131,12 +118,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   NSpace, NFlex, NButton, NCard, NGrid, NGi, NText, NTag,
   NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
   NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
-  NPopconfirm, NDivider, useMessage,
+  NPopconfirm, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -153,10 +140,11 @@ const proStore = useProStore()
 const { isMobile } = useMobileDetect()
 
 const activeStatus = ref('all')
-const activeMode = ref('all')
 const showProjectModal = ref(false)
 const saving = ref(false)
 const editingProject = ref<Project | null>(null)
+
+const currentMode = computed<'personal' | 'pro'>(() => (proStore.isProMode ? 'pro' : 'personal'))
 
 const projectForm = ref({
   name: '',
@@ -174,16 +162,9 @@ const statusFilters = computed(() => [
   { label: t('project.abandoned'), value: 'abandoned' },
 ])
 
-const modeFilters = computed(() => [
-  { label: t('project.allModes'), value: 'all' },
-  { label: t('project.personal'), value: 'personal' },
-  { label: t('project.pro'), value: 'pro' },
-])
-
 const filteredProjects = computed(() => {
-  let list = projectStore.projects
+  let list = projectStore.projects.filter(p => p.mode === currentMode.value)
   if (activeStatus.value !== 'all') list = list.filter(p => p.status === activeStatus.value)
-  if (activeMode.value !== 'all') list = list.filter(p => p.mode === activeMode.value)
   return list
 })
 
@@ -194,7 +175,11 @@ const statusTagType = (status: string) => {
 }
 
 onMounted(async () => {
-  await projectStore.fetchProjects()
+  await projectStore.fetchProjects({ mode: currentMode.value })
+})
+
+watch(currentMode, async (mode) => {
+  await projectStore.fetchProjects({ mode })
 })
 
 const formatDate = (ts: number) => {
@@ -253,7 +238,7 @@ const handleSave = async () => {
       message.success(t('project.projectAdded'))
     }
     showProjectModal.value = false
-    await projectStore.fetchProjects()
+    await projectStore.fetchProjects({ mode: currentMode.value })
   } catch {
     message.error(t('errors.generic'))
   } finally {

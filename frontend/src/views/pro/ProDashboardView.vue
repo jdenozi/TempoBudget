@@ -90,6 +90,72 @@
         </div>
       </n-card>
 
+      <!-- Tax breakdown -->
+      <n-card :title="t('pro.tax.estimated')" size="small">
+        <template #header-extra>
+          <n-radio-group v-model:value="breakdownPeriod" size="small">
+            <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
+            <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
+            <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
+          </n-radio-group>
+        </template>
+        <div v-if="!breakdown" style="opacity: 0.6;">{{ t('pro.tax.loading') }}</div>
+        <div v-else>
+          <n-grid :cols="isMobile ? 1 : 2" :x-gap="12" :y-gap="6">
+            <n-gi>
+              <div class="tax-row">
+                <span>{{ t('pro.tax.turnover') }}</span>
+                <strong>{{ breakdown.turnover.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi>
+              <div class="tax-row">
+                <span>{{ t('pro.tax.cotisations') }}</span>
+                <strong>{{ breakdown.cotisations_sociales.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.cfp > 0">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.cfp') }}</span>
+                <strong>{{ breakdown.cfp.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.ir_versement_liberatoire != null">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.irVL') }}</span>
+                <strong>{{ breakdown.ir_versement_liberatoire.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.ir_classique_estime != null">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.irClassique') }}</span>
+                <strong>{{ breakdown.ir_classique_estime.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.impot_societes != null">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.is') }}</span>
+                <strong>{{ breakdown.impot_societes.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+          </n-grid>
+          <n-divider style="margin: 8px 0;" />
+          <div class="tax-row" style="font-size: 15px;">
+            <strong>{{ t('pro.tax.totalPrelevements') }}</strong>
+            <strong style="color: #f0a020;">{{ breakdown.total_prelevements.toFixed(2) }} €</strong>
+          </div>
+          <div class="tax-row">
+            <span>{{ t('pro.tax.netAfterTaxes') }}</span>
+            <strong :style="{ color: breakdown.net_after_taxes >= 0 ? '#18a058' : '#d03050' }">
+              {{ breakdown.net_after_taxes.toFixed(2) }} €
+            </strong>
+          </div>
+          <div v-for="(note, i) in breakdown.notes" :key="i" style="margin-top: 8px; font-size: 12px; opacity: 0.7;">
+            ⓘ {{ note }}
+          </div>
+        </div>
+      </n-card>
+
       <!-- Recent Transactions -->
       <n-card :title="t('pro.dashboard.recentTransactions')" size="small">
         <n-empty v-if="proStore.proTransactions.length === 0" :description="t('pro.transactions.noTransactions')" />
@@ -140,22 +206,100 @@
           <n-input v-model:value="profileForm.siret" :placeholder="t('pro.profile.siret')" />
         </n-form-item>
 
-        <!-- Activity & Cotisations -->
-        <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.activitySection') }}</n-divider>
-        <n-form-item :label="t('pro.profile.activityType')">
-          <n-select :value="profileForm.activity_type" :options="activityTypeOptions" @update:value="onActivityTypeChange" />
+        <!-- Legal Form -->
+        <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.regimeSection') }}</n-divider>
+        <n-form-item :label="t('pro.profile.legalForm')">
+          <n-select v-model:value="profileForm.legal_form" :options="legalFormOptions" />
         </n-form-item>
-        <n-form-item :label="t('pro.profile.cotisationRate')">
-          <n-input-number v-model:value="profileForm.cotisation_rate" :min="0" :max="100" :precision="1" style="width: 100%;" />
-        </n-form-item>
-        <n-form-item :label="t('pro.profile.declarationFrequency')">
-          <n-select v-model:value="profileForm.declaration_frequency" :options="frequencyOptions" />
-        </n-form-item>
-        <n-form-item :label="t('pro.profile.revenueThreshold')">
-          <n-input-number v-model:value="profileForm.revenue_threshold" :min="0" :precision="0" style="width: 100%;">
-            <template #suffix>€</template>
-          </n-input-number>
-        </n-form-item>
+
+        <!-- Micro: full activity & cotisations + IR options -->
+        <template v-if="profileForm.legal_form === 'micro'">
+          <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.activitySection') }}</n-divider>
+          <n-form-item :label="t('pro.profile.activityType')">
+            <n-select :value="profileForm.activity_type" :options="activityTypeOptions" @update:value="onActivityTypeChange" />
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.cotisationRate')">
+            <n-input-number v-model:value="profileForm.cotisation_rate" :min="0" :max="100" :precision="1" style="width: 100%;" />
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.cfpRate')">
+            <n-input-number v-model:value="profileForm.cfp_rate" :min="0" :max="10" :precision="3" :placeholder="t('pro.profile.cfpAuto')" style="width: 100%;">
+              <template #suffix>%</template>
+            </n-input-number>
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.declarationFrequency')">
+            <n-select v-model:value="profileForm.declaration_frequency" :options="frequencyOptions" />
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.revenueThreshold')">
+            <n-input-number v-model:value="profileForm.revenue_threshold" :min="0" :precision="0" style="width: 100%;">
+              <template #suffix>€</template>
+            </n-input-number>
+          </n-form-item>
+
+          <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.irSection') }}</n-divider>
+          <n-form-item :label="t('pro.profile.versementLiberatoire')">
+            <n-switch :value="profileForm.versement_liberatoire_enabled === 1" @update:value="(v: boolean) => profileForm.versement_liberatoire_enabled = v ? 1 : 0" />
+          </n-form-item>
+          <n-form-item v-if="profileForm.versement_liberatoire_enabled === 1" :label="t('pro.profile.versementLiberatoireRate')">
+            <n-input-number v-model:value="profileForm.versement_liberatoire_rate" :min="0" :max="10" :precision="2" :placeholder="t('pro.profile.cfpAuto')" style="width: 100%;">
+              <template #suffix>%</template>
+            </n-input-number>
+          </n-form-item>
+          <template v-if="profileForm.versement_liberatoire_enabled === 0">
+            <n-form-item :label="t('pro.profile.irAbattement')">
+              <n-input-number v-model:value="profileForm.ir_abattement_rate" :min="0" :max="100" :precision="0" :placeholder="t('pro.profile.cfpAuto')" style="width: 100%;">
+                <template #suffix>%</template>
+              </n-input-number>
+            </n-form-item>
+            <n-form-item :label="t('pro.profile.foyerTmi')">
+              <n-input-number v-model:value="profileForm.foyer_tmi" :min="0" :max="50" :precision="0" :placeholder="t('pro.profile.foyerTmiPlaceholder')" style="width: 100%;">
+                <template #suffix>%</template>
+              </n-input-number>
+            </n-form-item>
+          </template>
+        </template>
+
+        <!-- EI au réel & EURL: TNS rate + TMI (always for IR) -->
+        <template v-if="profileForm.legal_form === 'ei_reel' || profileForm.legal_form === 'eurl'">
+          <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.realRegimeSection') }}</n-divider>
+          <n-form-item v-if="profileForm.legal_form === 'eurl'" :label="t('pro.profile.eurlTaxOption')">
+            <n-radio-group v-model:value="profileForm.eurl_tax_option">
+              <n-radio-button value="ir">{{ t('pro.profile.eurlIR') }}</n-radio-button>
+              <n-radio-button value="is">{{ t('pro.profile.eurlIS') }}</n-radio-button>
+            </n-radio-group>
+          </n-form-item>
+          <template v-if="profileForm.legal_form === 'ei_reel' || profileForm.eurl_tax_option === 'ir'">
+            <n-form-item :label="t('pro.profile.tnsCotisationsRate')">
+              <n-input-number v-model:value="profileForm.tns_cotisations_rate" :min="0" :max="100" :precision="1" style="width: 100%;">
+                <template #suffix>%</template>
+              </n-input-number>
+            </n-form-item>
+            <n-form-item :label="t('pro.profile.foyerTmi')">
+              <n-input-number v-model:value="profileForm.foyer_tmi" :min="0" :max="50" :precision="0" :placeholder="t('pro.profile.foyerTmiPlaceholder')" style="width: 100%;">
+                <template #suffix>%</template>
+              </n-input-number>
+            </n-form-item>
+          </template>
+        </template>
+
+        <!-- Incorporated (SASU, SAS, EURL-IS): salary + IS + dividends -->
+        <template v-if="isIncorporated">
+          <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.incorporatedSection') }}</n-divider>
+          <n-form-item :label="t('pro.profile.salaryGrossMonthly')">
+            <n-input-number v-model:value="profileForm.salary_gross_monthly" :min="0" :precision="0" style="width: 100%;">
+              <template #suffix>€</template>
+            </n-input-number>
+          </n-form-item>
+          <n-form-item v-if="profileForm.legal_form === 'eurl'" :label="t('pro.profile.tnsCotisationsRate')">
+            <n-input-number v-model:value="profileForm.tns_cotisations_rate" :min="0" :max="100" :precision="1" style="width: 100%;">
+              <template #suffix>%</template>
+            </n-input-number>
+          </n-form-item>
+          <n-form-item :label="t('pro.profile.dividendsYearly')">
+            <n-input-number v-model:value="profileForm.dividends_yearly" :min="0" :precision="0" style="width: 100%;">
+              <template #suffix>€</template>
+            </n-input-number>
+          </n-form-item>
+        </template>
 
         <!-- TVA -->
         <n-divider style="margin: 8px 0 16px;">TVA</n-divider>
@@ -180,16 +324,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   NSpace, NCard, NGrid, NGi, NStatistic, NIcon, NProgress,
-  NList, NListItem, NThing, NTag, NEmpty, NAlert, NButton,
+  NList, NListItem, NThing, NTag, NEmpty, NButton, NRadioGroup, NRadioButton,
   NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch, NDivider, NSpin
 } from 'naive-ui'
 import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } from '@vicons/ionicons5'
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
+import { proProfileAPI, type TaxBreakdown } from '@/services/api'
 
 const { t } = useI18n()
 const proStore = useProStore()
@@ -199,10 +344,20 @@ const showProfileModal = ref(false)
 
 const profileForm = ref({
   siret: '',
+  legal_form: 'micro' as 'micro' | 'ei_reel' | 'eurl' | 'sasu' | 'sas',
   activity_type: 'services',
   cotisation_rate: 21.1,
   declaration_frequency: 'quarterly',
   revenue_threshold: 77700,
+  cfp_rate: null as number | null,
+  versement_liberatoire_enabled: 0 as number,
+  versement_liberatoire_rate: null as number | null,
+  ir_abattement_rate: null as number | null,
+  foyer_tmi: null as number | null,
+  tns_cotisations_rate: 45.0,
+  salary_gross_monthly: 0,
+  dividends_yearly: 0,
+  eurl_tax_option: 'ir' as 'ir' | 'is',
   is_subject_to_vat: 0 as number,
   vat_rate: 20.0,
   vat_number: '',
@@ -254,6 +409,20 @@ const frequencyOptions = computed(() => [
   { label: t('pro.profile.quarterly'), value: 'quarterly' },
 ])
 
+const legalFormOptions = computed(() => [
+  { label: t('pro.profile.legalForms.micro'), value: 'micro' },
+  { label: t('pro.profile.legalForms.ei_reel'), value: 'ei_reel' },
+  { label: t('pro.profile.legalForms.eurl'), value: 'eurl' },
+  { label: t('pro.profile.legalForms.sasu'), value: 'sasu' },
+  { label: t('pro.profile.legalForms.sas'), value: 'sas' },
+])
+
+const isIncorporated = computed(() => {
+  if (profileForm.value.legal_form === 'sasu' || profileForm.value.legal_form === 'sas') return true
+  if (profileForm.value.legal_form === 'eurl' && profileForm.value.eurl_tax_option === 'is') return true
+  return false
+})
+
 const summary = computed(() => proStore.dashboardSummary || {
   ca_month: 0, ca_quarter: 0, ca_year: 0,
   expenses_month: 0, expenses_quarter: 0, expenses_year: 0,
@@ -274,10 +443,20 @@ onMounted(async () => {
   if (proStore.proProfile) {
     profileForm.value = {
       siret: proStore.proProfile.siret || '',
+      legal_form: proStore.proProfile.legal_form || 'micro',
       activity_type: proStore.proProfile.activity_type,
       cotisation_rate: proStore.proProfile.cotisation_rate,
       declaration_frequency: proStore.proProfile.declaration_frequency,
       revenue_threshold: proStore.proProfile.revenue_threshold,
+      cfp_rate: proStore.proProfile.cfp_rate,
+      versement_liberatoire_enabled: proStore.proProfile.versement_liberatoire_enabled || 0,
+      versement_liberatoire_rate: proStore.proProfile.versement_liberatoire_rate,
+      ir_abattement_rate: proStore.proProfile.ir_abattement_rate,
+      foyer_tmi: proStore.proProfile.foyer_tmi,
+      tns_cotisations_rate: proStore.proProfile.tns_cotisations_rate ?? 45.0,
+      salary_gross_monthly: proStore.proProfile.salary_gross_monthly ?? 0,
+      dividends_yearly: proStore.proProfile.dividends_yearly ?? 0,
+      eurl_tax_option: proStore.proProfile.eurl_tax_option ?? 'ir',
       is_subject_to_vat: proStore.proProfile.is_subject_to_vat || 0,
       vat_rate: proStore.proProfile.vat_rate || 20.0,
       vat_number: proStore.proProfile.vat_number || '',
@@ -287,11 +466,38 @@ onMounted(async () => {
       company_phone: proStore.proProfile.company_phone || '',
     }
   }
+
+  await loadBreakdown()
 })
 
 async function saveProfile() {
   await proStore.updateProfile(profileForm.value)
   await proStore.fetchDashboard()
+  await loadBreakdown()
   showProfileModal.value = false
 }
+
+// ── Tax breakdown ──
+
+const breakdownPeriod = ref<'month' | 'quarter' | 'year'>('month')
+const breakdown = ref<TaxBreakdown | null>(null)
+
+async function loadBreakdown() {
+  try {
+    breakdown.value = await proProfileAPI.getTaxBreakdown(breakdownPeriod.value)
+  } catch {
+    breakdown.value = null
+  }
+}
+
+watch(breakdownPeriod, loadBreakdown)
 </script>
+
+<style scoped>
+.tax-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+</style>

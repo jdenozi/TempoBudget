@@ -9,14 +9,24 @@ from pydantic import BaseModel, Field
 
 
 class ProProfile(BaseModel):
-    """Auto-entrepreneur profile."""
+    """Pro profile (any legal form: micro-entrepreneur, EI, EURL, SASU, SAS)."""
     id: str = Field(..., description="Unique identifier (UUID)")
     user_id: str = Field(..., description="User ID")
     siret: str | None = Field(None, description="SIRET number")
-    activity_type: str = Field("services", description="Activity type")
-    cotisation_rate: float = Field(21.1, description="Cotisation rate (%)")
+    legal_form: str = Field("micro", description="Legal form: micro/ei_reel/eurl/sasu/sas")
+    activity_type: str = Field("services", description="Activity type (micro: services/vente/...)")
+    cotisation_rate: float = Field(21.1, description="Social cotisation rate (%) — micro")
     declaration_frequency: str = Field("quarterly", description="Declaration frequency")
     revenue_threshold: float = Field(77700, description="Annual revenue threshold")
+    cfp_rate: float | None = Field(None, description="CFP rate (%) — micro; null = use activity default")
+    versement_liberatoire_enabled: int = Field(0, description="Whether IR versement libératoire is opted-in")
+    versement_liberatoire_rate: float | None = Field(None, description="VL rate (%) — micro; null = use activity default")
+    ir_abattement_rate: float | None = Field(None, description="IR abattement (%) — micro; null = use activity default")
+    foyer_tmi: float | None = Field(None, description="Marginal tax rate of the household (%), used for IR estimation")
+    tns_cotisations_rate: float = Field(45.0, description="TNS social cotisations rate (%) — used for EI/EURL")
+    salary_gross_monthly: float = Field(0, description="Monthly gross salary (SASU/SAS/EURL-IS)")
+    dividends_yearly: float = Field(0, description="Estimated yearly dividends to distribute (SASU/SAS/EURL-IS)")
+    eurl_tax_option: str = Field("ir", description="EURL tax option: 'ir' or 'is'")
     is_subject_to_vat: int = Field(0, description="Whether subject to VAT (0/1)")
     vat_rate: float = Field(20.0, description="VAT rate (%)")
     vat_number: str | None = Field(None, description="VAT intra-community number")
@@ -34,6 +44,7 @@ class ProProfile(BaseModel):
 class UpdateProProfile(BaseModel):
     """Request payload for updating a pro profile."""
     siret: str | None = None
+    legal_form: Literal["micro", "ei_reel", "eurl", "sasu", "sas"] | None = None
     activity_type: Literal[
         "services", "liberal", "vente", "artisan", "commercant",
         "agent_commercial", "location_meublee", "restauration",
@@ -42,6 +53,15 @@ class UpdateProProfile(BaseModel):
     cotisation_rate: float | None = Field(None, gt=0, le=100)
     declaration_frequency: Literal["monthly", "quarterly"] | None = None
     revenue_threshold: float | None = Field(None, gt=0)
+    cfp_rate: float | None = Field(None, ge=0, le=10)
+    versement_liberatoire_enabled: int | None = Field(None, ge=0, le=1)
+    versement_liberatoire_rate: float | None = Field(None, ge=0, le=10)
+    ir_abattement_rate: float | None = Field(None, ge=0, le=100)
+    foyer_tmi: float | None = Field(None, ge=0, le=50)
+    tns_cotisations_rate: float | None = Field(None, ge=0, le=100)
+    salary_gross_monthly: float | None = Field(None, ge=0)
+    dividends_yearly: float | None = Field(None, ge=0)
+    eurl_tax_option: Literal["ir", "is"] | None = None
     is_subject_to_vat: int | None = Field(None, ge=0, le=1)
     vat_rate: float | None = Field(None, gt=0, le=100)
     vat_number: str | None = None
@@ -154,6 +174,7 @@ class CreateProTransaction(BaseModel):
     gift_card_id: str | None = None
     gift_card_amount: float | None = None
     project_category_id: str | None = None
+    is_declared: int = Field(0, ge=0, le=1, description="Whether to mark as accounted (0/1) — income only")
 
 
 class UpdateProTransaction(BaseModel):
@@ -167,6 +188,7 @@ class UpdateProTransaction(BaseModel):
     payment_method: str | None = None
     comment: str | None = None
     project_category_id: str | None = None
+    is_declared: int | None = Field(None, ge=0, le=1)
 
 
 class ProProduct(BaseModel):
@@ -546,3 +568,117 @@ class UpdateProQuote(BaseModel):
 class UpdateProQuoteStatus(BaseModel):
     """Update quote status."""
     status: Literal["draft", "sent", "accepted", "rejected", "expired"]
+
+
+# ── Pro recurring transactions (subscriptions, fixed costs, etc.) ──
+
+
+class ProRecurringTransaction(BaseModel):
+    """A recurring pro transaction template (subscription, monthly bill, etc.)."""
+    id: str
+    user_id: str
+    client_id: str | None = None
+    category_id: str
+    title: str
+    amount: float
+    transaction_type: str
+    frequency: str
+    day: int | None = None
+    payment_method: str | None = "cash"
+    comment: str | None = None
+    active: int = 1
+    created_at: str
+    client_name: str | None = None
+    category_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProRecurringTransaction(BaseModel):
+    """Request payload for creating a recurring pro transaction."""
+    client_id: str | None = None
+    category_id: str
+    title: str = Field(..., min_length=1)
+    amount: float = Field(..., gt=0)
+    transaction_type: Literal["income", "expense"]
+    frequency: Literal["daily", "weekly", "monthly", "yearly"]
+    day: int | None = Field(None, ge=0, le=31)
+    payment_method: str | None = "cash"
+    comment: str | None = None
+
+
+class UpdateProRecurringTransaction(BaseModel):
+    """Request payload for updating a recurring pro transaction."""
+    client_id: str | None = None
+    category_id: str | None = None
+    title: str | None = Field(None, min_length=1)
+    amount: float | None = Field(None, gt=0)
+    transaction_type: Literal["income", "expense"] | None = None
+    frequency: Literal["daily", "weekly", "monthly", "yearly"] | None = None
+    day: int | None = Field(None, ge=0, le=31)
+    payment_method: str | None = None
+    comment: str | None = None
+    active: int | None = Field(None, ge=0, le=1)
+
+
+# ── User-defined revenue limits / thresholds ──
+
+
+class ProThreshold(BaseModel):
+    """A user-defined revenue threshold (e.g. CAF benefit ceiling, fiscal limit, custom goal)."""
+    id: str
+    user_id: str
+    name: str
+    period: str  # 'monthly' | 'quarterly' | 'yearly'
+    amount: float
+    color: str = "#f0a020"
+    active: int = 1
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class CreateProThreshold(BaseModel):
+    """Request payload for creating a threshold."""
+    name: str = Field(..., min_length=1, max_length=80)
+    period: Literal["monthly", "quarterly", "yearly"]
+    amount: float = Field(..., gt=0)
+    color: str = Field("#f0a020", min_length=4, max_length=9)
+
+
+class UpdateProThreshold(BaseModel):
+    """Request payload for updating a threshold."""
+    name: str | None = Field(None, min_length=1, max_length=80)
+    period: Literal["monthly", "quarterly", "yearly"] | None = None
+    amount: float | None = Field(None, gt=0)
+    color: str | None = Field(None, min_length=4, max_length=9)
+    active: int | None = Field(None, ge=0, le=1)
+
+
+# ── Tax breakdown (multi-regime) ──
+
+
+class TaxBreakdown(BaseModel):
+    """Detailed view of all prélèvements (cotisations + taxes) for one period.
+
+    Shape kept stable across regimes: fields irrelevant to a given regime are
+    null. The `notes` array carries human-readable explanations or warnings
+    (e.g. "TMI non renseigné, IR classique non estimé").
+    """
+    legal_form: str
+    period: str  # 'month' | 'quarter' | 'year'
+    period_label: str
+    turnover: float
+    deductible_expenses: float = 0.0
+    benefice_imposable: float | None = None
+    cotisations_sociales: float = 0.0
+    cfp: float = 0.0
+    ir_versement_liberatoire: float | None = None
+    ir_classique_estime: float | None = None
+    impot_societes: float | None = None
+    dividendes_taxes: float | None = None
+    total_prelevements: float = 0.0
+    net_after_taxes: float = 0.0
+    notes: list[str] = []

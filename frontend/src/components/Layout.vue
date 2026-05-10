@@ -74,10 +74,9 @@
           </n-flex>
 
           <n-button
-            v-if="!proStore.isProMode"
             type="primary"
             circle
-            @click="showTransactionDrawer = true"
+            @click="handleAddClick"
             size="large"
           >
             +
@@ -107,7 +106,7 @@
         </n-drawer-content>
       </n-drawer>
 
-      <!-- Add Transaction Drawer -->
+      <!-- Add Transaction Drawer (Personal) -->
       <n-drawer
         v-model:show="showTransactionDrawer"
         :width="isMobile ? '100%' : 400"
@@ -115,6 +114,17 @@
       >
         <n-drawer-content :title="t('transaction.addTransaction')" closable>
           <AddTransactionForm @success="handleTransactionSuccess" />
+        </n-drawer-content>
+      </n-drawer>
+
+      <!-- Add Transaction Drawer (Pro) -->
+      <n-drawer
+        v-model:show="showProTransactionDrawer"
+        :width="isMobile ? '100%' : 480"
+        placement="right"
+      >
+        <n-drawer-content :title="t('pro.transactions.addTransaction')" closable>
+          <ProTransactionForm @success="handleProTransactionSuccess" />
         </n-drawer-content>
       </n-drawer>
 
@@ -153,6 +163,7 @@ import {
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
+import ProTransactionForm from './pro/ProTransactionForm.vue'
 import ReleaseNotesModal from './modals/ReleaseNotesModal.vue'
 import { themeOverrides } from '@/theme'
 import { useMobileDetect } from '@/composables/useMobileDetect'
@@ -171,9 +182,20 @@ const activeKey = ref('dashboard')
 /** Mobile menu drawer visibility */
 const showDrawer = ref(false)
 
-/** Transaction form drawer visibility */
+/** Personal transaction form drawer visibility */
 const showTransactionDrawer = ref(false)
+/** Pro transaction form drawer visibility */
+const showProTransactionDrawer = ref(false)
 const showReleaseNotes = ref(false)
+
+/** Open the right drawer based on current mode */
+const handleAddClick = () => {
+  if (proStore.isProMode) {
+    showProTransactionDrawer.value = true
+  } else {
+    showTransactionDrawer.value = true
+  }
+}
 
 const { isMobile } = useMobileDetect()
 
@@ -288,6 +310,11 @@ const proMenuOptions = computed<MenuOption[]>(() => [
     icon: () => h(ProjectOutlined)
   },
   {
+    label: t('nav.proRecurring'),
+    key: 'pro-recurring',
+    icon: () => h(SyncOutlined)
+  },
+  {
     label: t('nav.proHistory'),
     key: 'pro-history',
     icon: () => h(HistoryOutlined)
@@ -335,6 +362,10 @@ const handleMenuClickMobile = (key: string) => {
  */
 const handleTransactionSuccess = () => {
   showTransactionDrawer.value = false
+}
+
+const handleProTransactionSuccess = () => {
+  showProTransactionDrawer.value = false
 }
 
 declare const __APP_VERSION__: string

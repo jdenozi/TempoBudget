@@ -172,6 +172,11 @@ const router = createRouter({
           name: 'pro-declaration',
           component: () => import('@/views/pro/ProDeclarationView.vue'),
         },
+        {
+          path: 'pro/recurring',
+          name: 'pro-recurring',
+          component: () => import('@/views/pro/ProRecurringView.vue'),
+        },
       ],
     },
   ],

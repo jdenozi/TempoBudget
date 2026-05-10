@@ -28,7 +28,11 @@ from ..models import (
     ProInvoiceItem, CreateProInvoiceItem,
     ProQuote, CreateProQuote, UpdateProQuote, UpdateProQuoteStatus,
     ProQuoteItem, CreateProQuoteItem,
+    ProRecurringTransaction, CreateProRecurringTransaction, UpdateProRecurringTransaction,
+    ProThreshold, CreateProThreshold, UpdateProThreshold,
+    TaxBreakdown,
 )
+from ..services.tax_engines import get_engine, PeriodInput
 from ..pdf_generator import generate_invoice_pdf, generate_quote_pdf
 
 router = APIRouter()
@@ -50,6 +54,35 @@ DEFAULT_PRO_CATEGORIES = [
 
 # ────────────────────────────── Profile ──────────────────────────────
 
+def _row_to_pro_profile(r) -> ProProfile:
+    """Map a pro_profiles row to a ProProfile model, with safe defaults for new columns."""
+    return ProProfile(
+        id=r["id"], user_id=r["user_id"], siret=r.get("siret"),
+        legal_form=r.get("legal_form") or "micro",
+        activity_type=r.get("activity_type") or "services",
+        cotisation_rate=r.get("cotisation_rate") or 21.1,
+        declaration_frequency=r.get("declaration_frequency") or "quarterly",
+        revenue_threshold=r.get("revenue_threshold") or 77700,
+        cfp_rate=r.get("cfp_rate"),
+        versement_liberatoire_enabled=r.get("versement_liberatoire_enabled") or 0,
+        versement_liberatoire_rate=r.get("versement_liberatoire_rate"),
+        ir_abattement_rate=r.get("ir_abattement_rate"),
+        foyer_tmi=r.get("foyer_tmi"),
+        tns_cotisations_rate=r.get("tns_cotisations_rate") if r.get("tns_cotisations_rate") is not None else 45.0,
+        salary_gross_monthly=r.get("salary_gross_monthly") or 0,
+        dividends_yearly=r.get("dividends_yearly") or 0,
+        eurl_tax_option=r.get("eurl_tax_option") or "ir",
+        is_subject_to_vat=r.get("is_subject_to_vat") or 0,
+        vat_rate=r.get("vat_rate") or 20.0,
+        vat_number=r.get("vat_number"),
+        company_name=r.get("company_name"),
+        company_address=r.get("company_address"),
+        company_email=r.get("company_email"),
+        company_phone=r.get("company_phone"),
+        created_at=r["created_at"], updated_at=r["updated_at"],
+    )
+
+
 @router.get("/profile", response_model=ProProfile)
 async def get_or_create_profile(
     user_id: str = Depends(get_current_user),
@@ -63,22 +96,7 @@ async def get_or_create_profile(
     row = result.fetchone()
 
     if row:
-        r = row._mapping
-        return ProProfile(
-            id=r["id"], user_id=r["user_id"], siret=r.get("siret"),
-            activity_type=r.get("activity_type", "services"),
-            cotisation_rate=r.get("cotisation_rate", 21.1),
-            declaration_frequency=r.get("declaration_frequency", "quarterly"),
-            revenue_threshold=r.get("revenue_threshold", 77700),
-            is_subject_to_vat=r.get("is_subject_to_vat", 0),
-            vat_rate=r.get("vat_rate", 20.0),
-            vat_number=r.get("vat_number"),
-            company_name=r.get("company_name"),
-            company_address=r.get("company_address"),
-            company_email=r.get("company_email"),
-            company_phone=r.get("company_phone"),
-            created_at=r["created_at"], updated_at=r["updated_at"],
-        )
+        return _row_to_pro_profile(row._mapping)
 
     # Create profile
     profile_id = str(uuid4())
@@ -105,15 +123,11 @@ async def get_or_create_profile(
 
     await db.commit()
 
-    return ProProfile(
-        id=profile_id, user_id=user_id, siret=None,
-        activity_type="services", cotisation_rate=21.1,
-        declaration_frequency="quarterly", revenue_threshold=77700,
-        is_subject_to_vat=0, vat_rate=20.0, vat_number=None,
-        company_name=None, company_address=None,
-        company_email=None, company_phone=None,
-        created_at=now, updated_at=now,
+    refetch = await db.execute(
+        text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
     )
+    return _row_to_pro_profile(refetch.fetchone()._mapping)
 
 
 @router.put("/profile", response_model=ProProfile)
@@ -126,7 +140,10 @@ async def update_profile(
     updates = []
     params: dict = {"user_id": user_id, "updated_at": datetime.now(timezone.utc).isoformat()}
 
-    for field in ("siret", "activity_type", "cotisation_rate", "declaration_frequency", "revenue_threshold",
+    for field in ("siret", "legal_form", "activity_type", "cotisation_rate", "declaration_frequency",
+                   "revenue_threshold", "cfp_rate", "versement_liberatoire_enabled",
+                   "versement_liberatoire_rate", "ir_abattement_rate", "foyer_tmi",
+                   "tns_cotisations_rate", "salary_gross_monthly", "dividends_yearly", "eurl_tax_option",
                    "is_subject_to_vat", "vat_rate", "vat_number",
                    "company_name", "company_address", "company_email", "company_phone"):
         value = getattr(payload, field)
@@ -146,23 +163,7 @@ async def update_profile(
         text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
         {"user_id": user_id},
     )
-    row = result.fetchone()
-    r = row._mapping
-    return ProProfile(
-        id=r["id"], user_id=r["user_id"], siret=r.get("siret"),
-        activity_type=r.get("activity_type", "services"),
-        cotisation_rate=r.get("cotisation_rate", 21.1),
-        declaration_frequency=r.get("declaration_frequency", "quarterly"),
-        revenue_threshold=r.get("revenue_threshold", 77700),
-        is_subject_to_vat=r.get("is_subject_to_vat", 0),
-        vat_rate=r.get("vat_rate", 20.0),
-        vat_number=r.get("vat_number"),
-        company_name=r.get("company_name"),
-        company_address=r.get("company_address"),
-        company_email=r.get("company_email"),
-        company_phone=r.get("company_phone"),
-        created_at=r["created_at"], updated_at=r["updated_at"],
-    )
+    return _row_to_pro_profile(result.fetchone()._mapping)
 
 
 # ────────────────────────────── Clients ──────────────────────────────
@@ -956,10 +957,10 @@ async def create_transaction(
         text("""
             INSERT INTO pro_transactions (id, user_id, client_id, category_id, title,
                                           amount, transaction_type, date, payment_method, comment,
-                                          discount_type, discount_value, coupon_id, gift_card_payment, project_category_id, created_at)
+                                          discount_type, discount_value, coupon_id, gift_card_payment, project_category_id, is_declared, created_at)
             VALUES (:id, :user_id, :client_id, :category_id, :title,
                     :amount, :transaction_type, :date, :payment_method, :comment,
-                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id, :created_at)
+                    :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id, :is_declared, :created_at)
         """),
         {
             "id": tx_id, "user_id": user_id,
@@ -970,6 +971,7 @@ async def create_transaction(
             "discount_type": discount_type, "discount_value": discount_value,
             "coupon_id": coupon_id, "gift_card_payment": round(gift_card_payment, 2),
             "project_category_id": payload.project_category_id,
+            "is_declared": payload.is_declared if payload.transaction_type == "income" else 0,
             "created_at": now,
         },
     )
@@ -1085,7 +1087,7 @@ async def update_transaction(
 
     updates = []
     params: dict = {"id": transaction_id, "user_id": user_id}
-    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id"):
+    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id", "is_declared"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -2123,4 +2125,460 @@ async def download_quote_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── Pro recurring transactions ──
+
+
+@router.get("/recurring", response_model=list[ProRecurringTransaction])
+async def list_recurring(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all recurring pro transactions for the current user."""
+    result = await db.execute(
+        text("""
+            SELECT r.*, c.name as client_name, cat.name as category_name
+            FROM pro_recurring_transactions r
+            LEFT JOIN pro_clients c ON r.client_id = c.id
+            LEFT JOIN pro_categories cat ON r.category_id = cat.id
+            WHERE r.user_id = :user_id
+            ORDER BY r.created_at DESC
+        """),
+        {"user_id": user_id},
+    )
+    return [ProRecurringTransaction(**dict(r._mapping)) for r in result.fetchall()]
+
+
+@router.post("/recurring", response_model=ProRecurringTransaction, status_code=status.HTTP_201_CREATED)
+async def create_recurring(
+    payload: CreateProRecurringTransaction,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a recurring pro transaction template."""
+    rec_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("""
+            INSERT INTO pro_recurring_transactions (id, user_id, client_id, category_id, title,
+                                                    amount, transaction_type, frequency, day,
+                                                    payment_method, comment, active, created_at)
+            VALUES (:id, :user_id, :client_id, :category_id, :title,
+                    :amount, :transaction_type, :frequency, :day,
+                    :payment_method, :comment, 1, :created_at)
+        """),
+        {
+            "id": rec_id, "user_id": user_id,
+            "client_id": payload.client_id, "category_id": payload.category_id,
+            "title": payload.title, "amount": payload.amount,
+            "transaction_type": payload.transaction_type, "frequency": payload.frequency,
+            "day": payload.day, "payment_method": payload.payment_method,
+            "comment": payload.comment, "created_at": now,
+        },
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text("""
+            SELECT r.*, c.name as client_name, cat.name as category_name
+            FROM pro_recurring_transactions r
+            LEFT JOIN pro_clients c ON r.client_id = c.id
+            LEFT JOIN pro_categories cat ON r.category_id = cat.id
+            WHERE r.id = :id
+        """),
+        {"id": rec_id},
+    )
+    return ProRecurringTransaction(**dict(result.fetchone()._mapping))
+
+
+@router.put("/recurring/{recurring_id}", response_model=ProRecurringTransaction)
+async def update_recurring(
+    recurring_id: str,
+    payload: UpdateProRecurringTransaction,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a recurring pro transaction template."""
+    existing = await db.execute(
+        text("SELECT id FROM pro_recurring_transactions WHERE id = :id AND user_id = :user_id"),
+        {"id": recurring_id, "user_id": user_id},
+    )
+    if not existing.fetchone():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recurring transaction not found")
+
+    updates = []
+    params: dict = {"id": recurring_id, "user_id": user_id}
+    for field in ("client_id", "category_id", "title", "amount", "transaction_type",
+                  "frequency", "day", "payment_method", "comment", "active"):
+        value = getattr(payload, field)
+        if value is not None:
+            updates.append(f"{field} = :{field}")
+            params[field] = value
+
+    if updates:
+        query = f"UPDATE pro_recurring_transactions SET {', '.join(updates)} WHERE id = :id AND user_id = :user_id"
+        await db.execute(text(query), params)
+        await db.commit()
+
+    result = await db.execute(
+        text("""
+            SELECT r.*, c.name as client_name, cat.name as category_name
+            FROM pro_recurring_transactions r
+            LEFT JOIN pro_clients c ON r.client_id = c.id
+            LEFT JOIN pro_categories cat ON r.category_id = cat.id
+            WHERE r.id = :id
+        """),
+        {"id": recurring_id},
+    )
+    return ProRecurringTransaction(**dict(result.fetchone()._mapping))
+
+
+@router.put("/recurring/{recurring_id}/toggle", response_model=ProRecurringTransaction)
+async def toggle_recurring(
+    recurring_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle active state of a recurring pro transaction."""
+    result = await db.execute(
+        text("SELECT active FROM pro_recurring_transactions WHERE id = :id AND user_id = :user_id"),
+        {"id": recurring_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recurring transaction not found")
+
+    new_active = 0 if row.active == 1 else 1
+    await db.execute(
+        text("UPDATE pro_recurring_transactions SET active = :active WHERE id = :id"),
+        {"active": new_active, "id": recurring_id},
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text("""
+            SELECT r.*, c.name as client_name, cat.name as category_name
+            FROM pro_recurring_transactions r
+            LEFT JOIN pro_clients c ON r.client_id = c.id
+            LEFT JOIN pro_categories cat ON r.category_id = cat.id
+            WHERE r.id = :id
+        """),
+        {"id": recurring_id},
+    )
+    return ProRecurringTransaction(**dict(result.fetchone()._mapping))
+
+
+@router.delete("/recurring/{recurring_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_recurring(
+    recurring_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a recurring pro transaction template."""
+    result = await db.execute(
+        text("DELETE FROM pro_recurring_transactions WHERE id = :id AND user_id = :user_id"),
+        {"id": recurring_id, "user_id": user_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recurring transaction not found")
+    await db.commit()
+
+
+@router.post("/recurring/process", response_model=list[ProTransaction])
+async def process_recurring(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Materialize due recurring pro transactions into real pro transactions.
+
+    For each active template, creates pro_transactions for any due dates in the current month
+    that don't already have a matching transaction (same category/title/amount/date).
+    """
+    from calendar import monthrange
+
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    current_month = now.month
+    current_day = now.day
+    last_day_of_month = monthrange(current_year, current_month)[1]
+
+    result = await db.execute(
+        text("""
+            SELECT id, user_id, client_id, category_id, title, amount, transaction_type,
+                   frequency, day, payment_method, comment, created_at
+            FROM pro_recurring_transactions
+            WHERE user_id = :user_id AND active = 1
+        """),
+        {"user_id": user_id},
+    )
+    recurring_rows = result.fetchall()
+
+    created: list[ProTransaction] = []
+
+    for rec in recurring_rows:
+        dates_to_create: list[str] = []
+
+        if rec.frequency == "monthly":
+            target_day = min(rec.day or 1, last_day_of_month)
+            if target_day <= current_day:
+                dates_to_create.append(f"{current_year}-{current_month:02d}-{target_day:02d}")
+
+        elif rec.frequency == "weekly":
+            rec_dow = rec.day if rec.day is not None else 0
+            for d in range(1, current_day + 1):
+                if datetime(current_year, current_month, d, tzinfo=timezone.utc).weekday() == rec_dow:
+                    dates_to_create.append(f"{current_year}-{current_month:02d}-{d:02d}")
+
+        elif rec.frequency == "yearly":
+            target_day = min(rec.day or 1, last_day_of_month)
+            rec_created = datetime.fromisoformat(rec.created_at.replace("Z", "+00:00"))
+            if rec_created.month == current_month and target_day <= current_day:
+                dates_to_create.append(f"{current_year}-{current_month:02d}-{target_day:02d}")
+
+        elif rec.frequency == "daily":
+            for d in range(1, current_day + 1):
+                dates_to_create.append(f"{current_year}-{current_month:02d}-{d:02d}")
+
+        for date_str in dates_to_create:
+            existing = await db.execute(
+                text("""
+                    SELECT id FROM pro_transactions
+                    WHERE user_id = :user_id
+                    AND category_id = :category_id
+                    AND title = :title
+                    AND amount = :amount
+                    AND date = :date
+                """),
+                {
+                    "user_id": user_id,
+                    "category_id": rec.category_id,
+                    "title": rec.title,
+                    "amount": rec.amount,
+                    "date": date_str,
+                },
+            )
+            if existing.fetchone() is not None:
+                continue
+
+            tx_id = str(uuid4())
+            created_at = datetime.now(timezone.utc).isoformat()
+            await db.execute(
+                text("""
+                    INSERT INTO pro_transactions (id, user_id, client_id, category_id, title,
+                                                  amount, transaction_type, date, payment_method,
+                                                  comment, created_at)
+                    VALUES (:id, :user_id, :client_id, :category_id, :title,
+                            :amount, :transaction_type, :date, :payment_method,
+                            :comment, :created_at)
+                """),
+                {
+                    "id": tx_id, "user_id": user_id,
+                    "client_id": rec.client_id, "category_id": rec.category_id,
+                    "title": rec.title, "amount": rec.amount,
+                    "transaction_type": rec.transaction_type, "date": date_str,
+                    "payment_method": rec.payment_method or "cash",
+                    "comment": rec.comment,
+                    "created_at": created_at,
+                },
+            )
+            created.append(ProTransaction(
+                id=tx_id, user_id=user_id, client_id=rec.client_id,
+                category_id=rec.category_id, title=rec.title, amount=rec.amount,
+                transaction_type=rec.transaction_type, date=date_str,
+                payment_method=rec.payment_method or "cash", comment=rec.comment,
+                created_at=created_at,
+            ))
+
+    await db.commit()
+    return created
+
+
+# ── Revenue thresholds (user-defined limits, ceilings, goals) ──
+
+
+@router.get("/thresholds", response_model=list[ProThreshold])
+async def list_thresholds(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all revenue thresholds for the current user."""
+    result = await db.execute(
+        text("SELECT * FROM pro_thresholds WHERE user_id = :user_id ORDER BY created_at DESC"),
+        {"user_id": user_id},
+    )
+    return [ProThreshold(**dict(r._mapping)) for r in result.fetchall()]
+
+
+@router.post("/thresholds", response_model=ProThreshold, status_code=status.HTTP_201_CREATED)
+async def create_threshold(
+    payload: CreateProThreshold,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new revenue threshold."""
+    threshold_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("""
+            INSERT INTO pro_thresholds (id, user_id, name, period, amount, color, active, created_at)
+            VALUES (:id, :user_id, :name, :period, :amount, :color, 1, :created_at)
+        """),
+        {
+            "id": threshold_id, "user_id": user_id,
+            "name": payload.name, "period": payload.period,
+            "amount": payload.amount, "color": payload.color,
+            "created_at": now,
+        },
+    )
+    await db.commit()
+    result = await db.execute(
+        text("SELECT * FROM pro_thresholds WHERE id = :id"),
+        {"id": threshold_id},
+    )
+    return ProThreshold(**dict(result.fetchone()._mapping))
+
+
+@router.put("/thresholds/{threshold_id}", response_model=ProThreshold)
+async def update_threshold(
+    threshold_id: str,
+    payload: UpdateProThreshold,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing threshold."""
+    existing = await db.execute(
+        text("SELECT id FROM pro_thresholds WHERE id = :id AND user_id = :user_id"),
+        {"id": threshold_id, "user_id": user_id},
+    )
+    if not existing.fetchone():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Threshold not found")
+
+    updates = []
+    params: dict = {"id": threshold_id, "user_id": user_id}
+    for field in ("name", "period", "amount", "color", "active"):
+        value = getattr(payload, field)
+        if value is not None:
+            updates.append(f"{field} = :{field}")
+            params[field] = value
+
+    if updates:
+        query = f"UPDATE pro_thresholds SET {', '.join(updates)} WHERE id = :id AND user_id = :user_id"
+        await db.execute(text(query), params)
+        await db.commit()
+
+    result = await db.execute(
+        text("SELECT * FROM pro_thresholds WHERE id = :id"),
+        {"id": threshold_id},
+    )
+    return ProThreshold(**dict(result.fetchone()._mapping))
+
+
+@router.delete("/thresholds/{threshold_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_threshold(
+    threshold_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a threshold."""
+    result = await db.execute(
+        text("DELETE FROM pro_thresholds WHERE id = :id AND user_id = :user_id"),
+        {"id": threshold_id, "user_id": user_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Threshold not found")
+    await db.commit()
+
+
+# ── Tax breakdown (multi-regime) ──
+
+
+@router.get("/tax-breakdown", response_model=TaxBreakdown)
+async def tax_breakdown(
+    period: str = "month",
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a tax breakdown for the current month/quarter/year using the user's regime.
+
+    The regime (legal_form) is read from pro_profile and determines which engine
+    is invoked. Period values: 'month' | 'quarter' | 'year'.
+    """
+    if period not in ("month", "quarter", "year"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid period")
+
+    # Resolve profile
+    p = await db.execute(
+        text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    prow = p.fetchone()
+    if not prow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pro profile not found")
+    profile = dict(prow._mapping)
+    legal_form = profile.get("legal_form") or "micro"
+
+    # Resolve period start/end
+    now = datetime.now(timezone.utc)
+    year = now.year
+    if period == "month":
+        start = f"{year}-{now.month:02d}-01"
+        next_month = now.month % 12 + 1
+        next_year = year + 1 if now.month == 12 else year
+        end = f"{next_year}-{next_month:02d}-01"
+        period_label = f"{year}-{now.month:02d}"
+    elif period == "quarter":
+        q_start_month = ((now.month - 1) // 3) * 3 + 1
+        start = f"{year}-{q_start_month:02d}-01"
+        end_month = q_start_month + 3
+        end_year = year + 1 if end_month > 12 else year
+        end_month = end_month if end_month <= 12 else end_month - 12
+        end = f"{end_year}-{end_month:02d}-01"
+        period_label = f"Q{(q_start_month - 1) // 3 + 1} {year}"
+    else:  # year
+        start = f"{year}-01-01"
+        end = f"{year + 1}-01-01"
+        period_label = str(year)
+
+    # Aggregate turnover and expenses for the period
+    sums = await db.execute(
+        text("""
+            SELECT
+              COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE 0 END), 0) AS turnover,
+              COALESCE(SUM(CASE WHEN transaction_type='income' AND is_declared=1 THEN amount ELSE 0 END), 0) AS declared_turnover,
+              COALESCE(SUM(CASE WHEN transaction_type='expense' THEN amount ELSE 0 END), 0) AS expenses
+            FROM pro_transactions
+            WHERE user_id = :user_id AND date >= :start AND date < :end
+        """),
+        {"user_id": user_id, "start": start, "end": end},
+    )
+    s = sums.fetchone()
+    period_input = PeriodInput(
+        turnover=float(s.turnover),
+        declared_turnover=float(s.declared_turnover),
+        expenses=float(s.expenses),
+        period=period,
+    )
+
+    engine = get_engine(legal_form)
+    result = engine.compute(period_input, profile)
+
+    return TaxBreakdown(
+        legal_form=legal_form,
+        period=period,
+        period_label=period_label,
+        turnover=result.turnover,
+        deductible_expenses=result.deductible_expenses,
+        benefice_imposable=result.benefice_imposable,
+        cotisations_sociales=round(result.cotisations_sociales, 2),
+        cfp=round(result.cfp, 2),
+        ir_versement_liberatoire=None if result.ir_versement_liberatoire is None else round(result.ir_versement_liberatoire, 2),
+        ir_classique_estime=None if result.ir_classique_estime is None else round(result.ir_classique_estime, 2),
+        impot_societes=result.impot_societes,
+        dividendes_taxes=result.dividendes_taxes,
+        total_prelevements=round(result.total_prelevements, 2),
+        net_after_taxes=round(result.net_after_taxes, 2),
+        notes=result.notes,
     )

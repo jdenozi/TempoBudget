@@ -105,158 +105,13 @@
     </n-space>
 
     <!-- Create/Edit Transaction Modal -->
-    <n-modal v-model:show="showModal" preset="card" :title="editingTx ? t('transaction.editTransaction') : t('pro.transactions.addTransaction')" style="max-width: 600px;">
-      <n-form :model="txForm">
-        <n-form-item :label="t('transaction.type')">
-          <n-radio-group v-model:value="txForm.transaction_type">
-            <n-radio-button value="expense">{{ t('transaction.expense') }}</n-radio-button>
-            <n-radio-button value="income">{{ t('transaction.income') }}</n-radio-button>
-          </n-radio-group>
-        </n-form-item>
-
-        <!-- Product/Service selector (only for creation) -->
-        <n-form-item v-if="!editingTx" :label="t('pro.products.selectProducts')">
-          <n-select
-            v-model:value="selectedProductIds"
-            :options="availableProductOptions"
-            multiple
-            filterable
-            clearable
-            :placeholder="t('pro.products.selectProducts')"
-          />
-        </n-form-item>
-
-        <!-- Items list -->
-        <div v-if="txForm.items.length > 0" style="margin-bottom: 16px;">
-          <n-card v-for="(item, idx) in txForm.items" :key="idx" size="small" style="margin-bottom: 8px;">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <strong style="flex: 1; min-width: 100px;">{{ getProductName(item.product_id) }}</strong>
-              <n-input-number
-                v-model:value="item.quantity"
-                :min="1"
-                size="small"
-                style="width: 80px;"
-                :placeholder="t('pro.products.quantity')"
-              />
-              <span>×</span>
-              <n-input-number
-                v-model:value="item.unit_price"
-                :min="0"
-                :precision="2"
-                size="small"
-                style="width: 110px;"
-              >
-                <template #suffix>€</template>
-              </n-input-number>
-              <span style="min-width: 80px; text-align: right; font-weight: bold;">
-                = {{ ((item.quantity || 0) * (item.unit_price || 0)).toFixed(2) }} €
-              </span>
-              <n-button size="tiny" type="error" @click="removeItem(idx)">×</n-button>
-            </div>
-          </n-card>
-          <div style="text-align: right; font-weight: bold; font-size: 16px; margin-top: 8px;">
-            {{ t('pro.products.itemsTotal') }}: {{ itemsTotal.toFixed(2) }} €
-          </div>
-        </div>
-
-        <n-form-item :label="t('transaction.transactionTitle')">
-          <n-input v-model:value="txForm.title" :placeholder="autoTitle || ''" />
-        </n-form-item>
-        <n-form-item v-if="txForm.items.length === 0" :label="t('transaction.amount')">
-          <n-input-number v-model:value="txForm.amount" :min="0.01" :precision="2" style="width: 100%;">
-            <template #suffix>€</template>
-          </n-input-number>
-        </n-form-item>
-        <n-form-item :label="t('category.title')">
-          <n-select v-model:value="txForm.category_id" :options="filteredCategoryOptions" :placeholder="t('placeholders.selectCategory')" />
-        </n-form-item>
-        <n-form-item :label="t('pro.transactions.client')">
-          <n-select v-model:value="txForm.client_id" :options="clientOptions" clearable />
-        </n-form-item>
-        <n-form-item :label="t('transaction.date')">
-          <n-date-picker v-model:value="txForm.date" type="date" style="width: 100%;" />
-        </n-form-item>
-        <n-form-item :label="t('pro.transactions.paymentMethod')">
-          <n-select v-model:value="txForm.payment_method" :options="paymentMethodOptions" />
-        </n-form-item>
-        <!-- Discount Section -->
-        <n-divider v-if="!editingTx" style="margin: 8px 0;">{{ t('pro.discount.discount') }}</n-divider>
-        <n-form-item v-if="!editingTx" :label="t('pro.discount.discount')">
-          <n-radio-group v-model:value="discountMode">
-            <n-radio-button value="none">{{ t('pro.discount.noDiscount') }}</n-radio-button>
-            <n-radio-button value="manual">{{ t('pro.discount.manualDiscount') }}</n-radio-button>
-            <n-radio-button value="coupon">{{ t('pro.discount.useCoupon') }}</n-radio-button>
-          </n-radio-group>
-        </n-form-item>
-
-        <!-- Manual Discount -->
-        <template v-if="!editingTx && discountMode === 'manual'">
-          <n-form-item :label="t('pro.coupons.discountType')">
-            <n-radio-group v-model:value="txForm.discount_type">
-              <n-radio-button value="percentage">{{ t('pro.coupons.percentage') }}</n-radio-button>
-              <n-radio-button value="fixed">{{ t('pro.coupons.fixed') }}</n-radio-button>
-            </n-radio-group>
-          </n-form-item>
-          <n-form-item :label="t('pro.coupons.discountValue')">
-            <n-input-number v-model:value="txForm.discount_value" :min="0.01" :precision="2" style="width: 100%;">
-              <template #suffix>{{ txForm.discount_type === 'percentage' ? '%' : '€' }}</template>
-            </n-input-number>
-          </n-form-item>
-        </template>
-
-        <!-- Coupon Select -->
-        <n-form-item v-if="!editingTx && discountMode === 'coupon'" :label="t('pro.discount.selectCoupon')">
-          <n-select v-model:value="txForm.coupon_id" :options="activeCouponOptions" clearable :placeholder="t('pro.discount.selectCoupon')" />
-        </n-form-item>
-
-        <!-- Gift Card Payment -->
-        <n-divider v-if="!editingTx" style="margin: 8px 0;">{{ t('pro.discount.giftCardPayment') }}</n-divider>
-        <template v-if="!editingTx">
-          <n-form-item :label="t('pro.discount.selectGiftCard')">
-            <n-select v-model:value="txForm.gift_card_id" :options="activeGiftCardOptions" clearable :placeholder="t('pro.discount.selectGiftCard')" />
-          </n-form-item>
-          <n-form-item v-if="txForm.gift_card_id" :label="t('pro.discount.giftCardAmount')">
-            <n-input-number v-model:value="txForm.gift_card_amount" :min="0.01" :precision="2" :max="selectedGiftCardBalance" style="width: 100%;">
-              <template #suffix>€</template>
-            </n-input-number>
-          </n-form-item>
-        </template>
-
-        <!-- Summary -->
-        <n-card v-if="!editingTx && (discountMode !== 'none' || txForm.gift_card_id)" size="small" style="margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>{{ t('pro.discount.subtotal') }}</span>
-            <strong>{{ computedSubtotal.toFixed(2) }} €</strong>
-          </div>
-          <div v-if="computedDiscount > 0" style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #18a058;">
-            <span>{{ t('pro.discount.discount') }}</span>
-            <span>-{{ computedDiscount.toFixed(2) }} €</span>
-          </div>
-          <div v-if="txForm.gift_card_id && (txForm.gift_card_amount || 0) > 0" style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #2080f0;">
-            <span>{{ t('pro.discount.giftCardPayment') }}</span>
-            <span>-{{ (txForm.gift_card_amount || 0).toFixed(2) }} €</span>
-          </div>
-          <n-divider style="margin: 4px 0;" />
-          <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;">
-            <span>{{ t('pro.discount.totalToPay') }}</span>
-            <span>{{ computedTotal.toFixed(2) }} €</span>
-          </div>
-        </n-card>
-
-        <n-form-item v-if="projectCategoryOptions.length > 0" :label="t('project.linkToProject')">
-          <n-select
-            v-model:value="txForm.project_category_id"
-            :options="projectCategoryOptions"
-            clearable
-            :placeholder="t('project.linkToProject')"
-          />
-        </n-form-item>
-
-        <n-form-item :label="t('transaction.comment')">
-          <n-input v-model:value="txForm.comment" type="textarea" :rows="2" />
-        </n-form-item>
-        <n-button type="primary" block @click="handleSubmit">{{ t('common.save') }}</n-button>
-      </n-form>
+    <n-modal
+      v-model:show="showModal"
+      preset="card"
+      :title="editingTx ? t('transaction.editTransaction') : t('pro.transactions.addTransaction')"
+      style="max-width: 640px;"
+    >
+      <ProTransactionForm :editing-tx="editingTx" @success="handleFormSuccess" />
     </n-modal>
   </n-space>
 </template>
@@ -266,22 +121,19 @@ import { ref, computed, h, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NSpace, NCard, NGrid, NGi, NStatistic, NButton, NDataTable,
-  NDatePicker, NSelect, NTag, NEmpty, NModal, NForm, NFormItem,
-  NInput, NInputNumber, NRadioGroup, NRadioButton, NPopconfirm,
-  NDivider, useMessage
+  NDatePicker, NSelect, NTag, NEmpty, NModal, NPopconfirm, useMessage
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
-import { useProjectStore } from '@/stores/project'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import type { ProTransaction } from '@/services/api'
+import ProTransactionForm from '@/components/pro/ProTransactionForm.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const proStore = useProStore()
-const projectStore = useProjectStore()
 const message = useMessage()
 const { isMobile } = useMobileDetect()
 
@@ -293,32 +145,6 @@ const filterPaymentMethod = ref<string | null>(null)
 const filterProductId = ref<string | null>(null)
 const showModal = ref(false)
 const editingTx = ref<ProTransaction | null>(null)
-const selectedProductIds = ref<string[]>([])
-const discountMode = ref<'none' | 'manual' | 'coupon'>('none')
-
-interface ItemForm {
-  product_id: string
-  quantity: number
-  unit_price: number
-}
-
-const txForm = ref({
-  transaction_type: 'expense' as 'income' | 'expense',
-  title: '',
-  amount: null as number | null,
-  category_id: null as string | null,
-  client_id: null as string | null,
-  date: Date.now(),
-  payment_method: 'cash',
-  comment: '',
-  items: [] as ItemForm[],
-  discount_type: 'percentage' as 'percentage' | 'fixed',
-  discount_value: null as number | null,
-  coupon_id: null as string | null,
-  gift_card_id: null as string | null,
-  gift_card_amount: null as number | null,
-  project_category_id: null as string | null,
-})
 
 const clientOptions = computed(() =>
   proStore.proClients.map(c => ({ label: c.name, value: c.id }))
@@ -326,12 +152,6 @@ const clientOptions = computed(() =>
 
 const categoryOptions = computed(() =>
   proStore.proCategories.map(c => ({ label: `${c.name} (${c.type})`, value: c.id }))
-)
-
-const filteredCategoryOptions = computed(() =>
-  proStore.proCategories
-    .filter(c => c.type === txForm.value.transaction_type)
-    .map(c => ({ label: c.name, value: c.id }))
 )
 
 const paymentMethodOptions = computed(() => [
@@ -346,122 +166,6 @@ const paymentMethodOptions = computed(() => [
 const productOptions = computed(() =>
   proStore.proProducts.map(p => ({ label: `${p.name} (${p.default_price.toFixed(2)} €)`, value: p.id }))
 )
-
-const availableProductOptions = computed(() =>
-  proStore.proProducts.map(p => ({ label: `${p.name} — ${p.default_price.toFixed(2)} €`, value: p.id }))
-)
-
-const activeCouponOptions = computed(() =>
-  proStore.proCoupons
-    .filter(c => c.is_active && (c.max_uses === 0 || c.used_count < c.max_uses))
-    .map(c => ({
-      label: `${c.code} — ${c.name} (${c.discount_type === 'percentage' ? `${c.discount_value}%` : `${c.discount_value.toFixed(2)} €`})`,
-      value: c.id,
-    }))
-)
-
-const activeGiftCardOptions = computed(() =>
-  proStore.proGiftCards
-    .filter(gc => gc.is_active && gc.remaining_balance > 0)
-    .map(gc => ({
-      label: `${gc.code} — ${t('pro.discount.balance')}: ${gc.remaining_balance.toFixed(2)} €`,
-      value: gc.id,
-    }))
-)
-
-const projectCategoryOptions = computed(() => {
-  const options: { type: 'group'; label: string; key: string; children: { label: string; value: string }[] }[] = []
-  for (const project of projectStore.projects.filter(p => p.status === 'active' && p.mode === 'pro')) {
-    if (project.categories.length > 0) {
-      options.push({
-        type: 'group',
-        label: project.name,
-        key: project.id,
-        children: project.categories.map(c => ({
-          label: `${c.name} (${c.remaining.toFixed(2)} € restant)`,
-          value: c.id,
-        })),
-      })
-    }
-  }
-  return options
-})
-
-const selectedGiftCardBalance = computed(() => {
-  if (!txForm.value.gift_card_id) return 0
-  const gc = proStore.proGiftCards.find(g => g.id === txForm.value.gift_card_id)
-  return gc ? gc.remaining_balance : 0
-})
-
-const computedSubtotal = computed(() => {
-  if (txForm.value.items.length > 0) return itemsTotal.value
-  return txForm.value.amount || 0
-})
-
-const computedDiscount = computed(() => {
-  const sub = computedSubtotal.value
-  if (discountMode.value === 'coupon' && txForm.value.coupon_id) {
-    const coupon = proStore.proCoupons.find(c => c.id === txForm.value.coupon_id)
-    if (!coupon) return 0
-    return coupon.discount_type === 'percentage'
-      ? sub * coupon.discount_value / 100
-      : coupon.discount_value
-  }
-  if (discountMode.value === 'manual' && txForm.value.discount_value) {
-    return txForm.value.discount_type === 'percentage'
-      ? sub * txForm.value.discount_value / 100
-      : txForm.value.discount_value
-  }
-  return 0
-})
-
-const computedTotal = computed(() => {
-  const afterDiscount = Math.max(computedSubtotal.value - computedDiscount.value, 0)
-  const gcPayment = txForm.value.gift_card_amount || 0
-  return Math.max(afterDiscount - gcPayment, 0)
-})
-
-// Watch selectedProductIds to sync items
-watch(selectedProductIds, (newIds, oldIds) => {
-  const currentIds = txForm.value.items.map(i => i.product_id)
-  // Add new items
-  for (const id of newIds) {
-    if (!currentIds.includes(id)) {
-      const product = proStore.proProducts.find(p => p.id === id)
-      if (product) {
-        txForm.value.items.push({
-          product_id: id,
-          quantity: 1,
-          unit_price: product.default_price,
-        })
-      }
-    }
-  }
-  // Remove deselected items
-  txForm.value.items = txForm.value.items.filter(i => newIds.includes(i.product_id))
-})
-
-const itemsTotal = computed(() =>
-  txForm.value.items.reduce((sum, i) => sum + (i.quantity || 0) * (i.unit_price || 0), 0)
-)
-
-const autoTitle = computed(() => {
-  if (txForm.value.items.length === 0) return ''
-  return txForm.value.items.map(i => {
-    const name = getProductName(i.product_id)
-    return i.quantity > 1 ? `${name} x${i.quantity}` : name
-  }).join(' + ')
-})
-
-function getProductName(productId: string) {
-  return proStore.proProducts.find(p => p.id === productId)?.name || '?'
-}
-
-function removeItem(idx: number) {
-  const removed = txForm.value.items[idx]
-  txForm.value.items.splice(idx, 1)
-  selectedProductIds.value = selectedProductIds.value.filter(id => id !== removed.product_id)
-}
 
 // Refetch when product filter changes (backend filter)
 watch(filterProductId, async () => {
@@ -567,118 +271,19 @@ const columns: DataTableColumns<ProTransaction> = [
   },
 ]
 
-function formatDate(ts: number) {
-  const d = new Date(ts)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 function openCreateModal() {
   editingTx.value = null
-  selectedProductIds.value = []
-  discountMode.value = 'none'
-  txForm.value = {
-    transaction_type: 'expense',
-    title: '',
-    amount: null,
-    category_id: null,
-    client_id: null,
-    date: Date.now(),
-    payment_method: 'cash',
-    comment: '',
-    items: [],
-    discount_type: 'percentage',
-    discount_value: null,
-    coupon_id: null,
-    gift_card_id: null,
-    gift_card_amount: null,
-    project_category_id: null,
-  }
   showModal.value = true
 }
 
 function openEditModal(tx: ProTransaction) {
   editingTx.value = tx
-  selectedProductIds.value = []
-  discountMode.value = 'none'
-  txForm.value = {
-    transaction_type: tx.transaction_type,
-    title: tx.title,
-    amount: tx.amount,
-    category_id: tx.category_id,
-    client_id: tx.client_id,
-    date: new Date(tx.date).getTime(),
-    payment_method: tx.payment_method || 'cash',
-    comment: tx.comment || '',
-    items: [],
-    discount_type: 'percentage',
-    discount_value: null,
-    coupon_id: null,
-    gift_card_id: null,
-    gift_card_amount: null,
-    project_category_id: tx.project_category_id || null,
-  }
   showModal.value = true
 }
 
-async function handleSubmit() {
-  const hasItems = txForm.value.items.length > 0
-  const title = txForm.value.title || (hasItems ? autoTitle.value : '')
-  const amount = hasItems ? itemsTotal.value : txForm.value.amount
-
-  if (!title && !hasItems) return
-  if (!amount && !hasItems) return
-  if (!txForm.value.category_id) return
-
-  if (editingTx.value) {
-    await proStore.updateTransaction(editingTx.value.id, {
-      title,
-      amount: amount || undefined,
-      transaction_type: txForm.value.transaction_type,
-      category_id: txForm.value.category_id,
-      client_id: txForm.value.client_id || undefined,
-      date: formatDate(txForm.value.date),
-      payment_method: txForm.value.payment_method,
-      comment: txForm.value.comment || undefined,
-      project_category_id: txForm.value.project_category_id,
-    })
-    message.success(t('transaction.transactionUpdated'))
-  } else {
-    const data: Record<string, unknown> = {
-      title: txForm.value.title || undefined,
-      amount: hasItems ? undefined : amount,
-      transaction_type: txForm.value.transaction_type,
-      category_id: txForm.value.category_id,
-      client_id: txForm.value.client_id || undefined,
-      date: formatDate(txForm.value.date),
-      payment_method: txForm.value.payment_method,
-      comment: txForm.value.comment || undefined,
-      project_category_id: txForm.value.project_category_id,
-    }
-    if (hasItems) {
-      data.items = txForm.value.items.map(i => ({
-        product_id: i.product_id,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-      }))
-    }
-    // Discount
-    if (discountMode.value === 'coupon' && txForm.value.coupon_id) {
-      data.coupon_id = txForm.value.coupon_id
-    } else if (discountMode.value === 'manual' && txForm.value.discount_value) {
-      data.discount_type = txForm.value.discount_type
-      data.discount_value = txForm.value.discount_value
-    }
-    // Gift card
-    if (txForm.value.gift_card_id && txForm.value.gift_card_amount) {
-      data.gift_card_id = txForm.value.gift_card_id
-      data.gift_card_amount = txForm.value.gift_card_amount
-    }
-    await proStore.createTransaction(data as Parameters<typeof proStore.createTransaction>[0])
-    message.success(t('transaction.transactionAdded'))
-  }
-
+function handleFormSuccess() {
   showModal.value = false
-  await proStore.fetchDashboard()
+  editingTx.value = null
 }
 
 async function handleDelete(id: string) {
@@ -693,9 +298,6 @@ onMounted(async () => {
     proStore.fetchClients(),
     proStore.fetchCategories(),
     proStore.fetchProducts(),
-    proStore.fetchCoupons(),
-    proStore.fetchGiftCards(),
-    projectStore.fetchProjects(),
   ])
 
   // Pre-fill client filter from query param

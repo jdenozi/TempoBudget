@@ -12,9 +12,11 @@ import { ref } from 'vue'
 import {
   proProfileAPI, proClientsAPI, proCategoriesAPI, proTransactionsAPI, proDashboardAPI, proProductsAPI,
   proCouponsAPI, proGiftCardsAPI, proInvoicesAPI, proQuotesAPI, proInvoiceSettingsAPI, proDeclarationAPI,
+  proRecurringAPI, proThresholdsAPI,
   type ProProfile, type ProClient, type ProCategory, type ProTransaction, type ProDashboardSummary, type ProProduct,
   type ProCoupon, type ProGiftCard, type ProGiftCardUsage,
   type ProInvoice, type ProQuote, type ProInvoiceSettings, type DeclarationPeriodSummary,
+  type ProRecurringTransaction, type ProThreshold,
 } from '@/services/api'
 
 export const useProStore = defineStore('pro', () => {
@@ -47,6 +49,12 @@ export const useProStore = defineStore('pro', () => {
 
   /** Pro quotes */
   const proQuotes = ref<ProQuote[]>([])
+
+  /** Pro recurring transactions */
+  const proRecurring = ref<ProRecurringTransaction[]>([])
+
+  /** User-defined revenue thresholds */
+  const proThresholds = ref<ProThreshold[]>([])
 
   /** Invoice settings */
   const invoiceSettings = ref<ProInvoiceSettings | null>(null)
@@ -239,6 +247,8 @@ export const useProStore = defineStore('pro', () => {
     coupon_id?: string
     gift_card_id?: string
     gift_card_amount?: number
+    project_category_id?: string | null
+    is_declared?: number
   }) {
     const tx = await proTransactionsAPI.create(data)
     proTransactions.value.unshift(tx)
@@ -254,6 +264,8 @@ export const useProStore = defineStore('pro', () => {
     date?: string
     payment_method?: string
     comment?: string
+    project_category_id?: string | null
+    is_declared?: number
   }) {
     const updated = await proTransactionsAPI.update(id, data)
     const idx = proTransactions.value.findIndex(t => t.id === id)
@@ -400,6 +412,69 @@ export const useProStore = defineStore('pro', () => {
     await proDeclarationAPI.batchToggleDeclared(transactionIds, isDeclared)
   }
 
+  // ── Recurring transactions ──
+
+  async function fetchRecurring() {
+    proRecurring.value = await proRecurringAPI.getAll()
+  }
+
+  async function createRecurring(data: Parameters<typeof proRecurringAPI.create>[0]) {
+    const rec = await proRecurringAPI.create(data)
+    proRecurring.value.unshift(rec)
+    return rec
+  }
+
+  async function updateRecurring(id: string, data: Parameters<typeof proRecurringAPI.update>[1]) {
+    const updated = await proRecurringAPI.update(id, data)
+    const idx = proRecurring.value.findIndex(r => r.id === id)
+    if (idx !== -1) proRecurring.value[idx] = updated
+    return updated
+  }
+
+  async function toggleRecurring(id: string) {
+    const updated = await proRecurringAPI.toggle(id)
+    const idx = proRecurring.value.findIndex(r => r.id === id)
+    if (idx !== -1) proRecurring.value[idx] = updated
+    return updated
+  }
+
+  async function deleteRecurring(id: string) {
+    await proRecurringAPI.delete(id)
+    proRecurring.value = proRecurring.value.filter(r => r.id !== id)
+  }
+
+  async function processRecurring() {
+    const created = await proRecurringAPI.process()
+    if (created.length > 0) {
+      proTransactions.value.unshift(...created)
+    }
+    return created
+  }
+
+  // ── Thresholds ──
+
+  async function fetchThresholds() {
+    proThresholds.value = await proThresholdsAPI.getAll()
+  }
+
+  async function createThreshold(data: Parameters<typeof proThresholdsAPI.create>[0]) {
+    const t = await proThresholdsAPI.create(data)
+    proThresholds.value.unshift(t)
+    return t
+  }
+
+  async function updateThreshold(id: string, data: Parameters<typeof proThresholdsAPI.update>[1]) {
+    const updated = await proThresholdsAPI.update(id, data)
+    const idx = proThresholds.value.findIndex(t => t.id === id)
+    if (idx !== -1) proThresholds.value[idx] = updated
+    return updated
+  }
+
+  async function deleteThreshold(id: string) {
+    await proThresholdsAPI.delete(id)
+    proThresholds.value = proThresholds.value.filter(t => t.id !== id)
+  }
+
   return {
     // State
     isProMode,
@@ -478,5 +553,19 @@ export const useProStore = defineStore('pro', () => {
     declarationPeriods,
     fetchDeclarationPeriods,
     batchToggleDeclared,
+    // Recurring
+    proRecurring,
+    fetchRecurring,
+    createRecurring,
+    updateRecurring,
+    toggleRecurring,
+    deleteRecurring,
+    processRecurring,
+    // Thresholds
+    proThresholds,
+    fetchThresholds,
+    createThreshold,
+    updateThreshold,
+    deleteThreshold,
   }
 })

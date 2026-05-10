@@ -996,14 +996,26 @@ export interface ProjectInvitationWithDetails {
 // Pro (Auto-Entrepreneur) Types
 // ============================================================================
 
+export type LegalForm = 'micro' | 'ei_reel' | 'eurl' | 'sasu' | 'sas'
+
 export interface ProProfile {
   id: string
   user_id: string
   siret: string | null
+  legal_form: LegalForm
   activity_type: string
   cotisation_rate: number
   declaration_frequency: string
   revenue_threshold: number
+  cfp_rate: number | null
+  versement_liberatoire_enabled: number
+  versement_liberatoire_rate: number | null
+  ir_abattement_rate: number | null
+  foyer_tmi: number | null
+  tns_cotisations_rate: number
+  salary_gross_monthly: number
+  dividends_yearly: number
+  eurl_tax_option: 'ir' | 'is'
   is_subject_to_vat: number
   vat_rate: number
   vat_number: string | null
@@ -1013,6 +1025,24 @@ export interface ProProfile {
   company_phone: string | null
   created_at: string
   updated_at: string
+}
+
+export interface TaxBreakdown {
+  legal_form: LegalForm
+  period: 'month' | 'quarter' | 'year'
+  period_label: string
+  turnover: number
+  deductible_expenses: number
+  benefice_imposable: number | null
+  cotisations_sociales: number
+  cfp: number
+  ir_versement_liberatoire: number | null
+  ir_classique_estime: number | null
+  impot_societes: number | null
+  dividendes_taxes: number | null
+  total_prelevements: number
+  net_after_taxes: number
+  notes: string[]
 }
 
 export interface ProClient {
@@ -1250,6 +1280,10 @@ export const proProfileAPI = {
     const response = await api.put<ProProfile>('/pro/profile', data)
     return response.data
   },
+  getTaxBreakdown: async (period: 'month' | 'quarter' | 'year') => {
+    const response = await api.get<TaxBreakdown>('/pro/tax-breakdown', { params: { period } })
+    return response.data
+  },
 }
 
 export const proClientsAPI = {
@@ -1327,6 +1361,7 @@ export const proTransactionsAPI = {
     gift_card_id?: string
     gift_card_amount?: number
     project_category_id?: string | null
+    is_declared?: number
   }) => {
     const response = await api.post<ProTransaction>('/pro/transactions', data)
     return response.data
@@ -1341,12 +1376,107 @@ export const proTransactionsAPI = {
     payment_method?: string
     comment?: string
     project_category_id?: string | null
+    is_declared?: number
   }) => {
     const response = await api.put<ProTransaction>(`/pro/transactions/${id}`, data)
     return response.data
   },
   delete: async (id: string) => {
     await api.delete(`/pro/transactions/${id}`)
+  },
+}
+
+export interface ProRecurringTransaction {
+  id: string
+  user_id: string
+  client_id: string | null
+  category_id: string
+  title: string
+  amount: number
+  transaction_type: 'income' | 'expense'
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  day: number | null
+  payment_method: string | null
+  comment: string | null
+  active: number
+  created_at: string
+  client_name: string | null
+  category_name: string | null
+}
+
+export const proRecurringAPI = {
+  getAll: async () => {
+    const response = await api.get<ProRecurringTransaction[]>('/pro/recurring')
+    return response.data
+  },
+  create: async (data: {
+    client_id?: string | null
+    category_id: string
+    title: string
+    amount: number
+    transaction_type: 'income' | 'expense'
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+    day?: number | null
+    payment_method?: string
+    comment?: string
+  }) => {
+    const response = await api.post<ProRecurringTransaction>('/pro/recurring', data)
+    return response.data
+  },
+  update: async (id: string, data: Partial<{
+    client_id: string | null
+    category_id: string
+    title: string
+    amount: number
+    transaction_type: 'income' | 'expense'
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
+    day: number | null
+    payment_method: string
+    comment: string
+    active: number
+  }>) => {
+    const response = await api.put<ProRecurringTransaction>(`/pro/recurring/${id}`, data)
+    return response.data
+  },
+  toggle: async (id: string) => {
+    const response = await api.put<ProRecurringTransaction>(`/pro/recurring/${id}/toggle`)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/recurring/${id}`)
+  },
+  process: async () => {
+    const response = await api.post<ProTransaction[]>('/pro/recurring/process')
+    return response.data
+  },
+}
+
+export interface ProThreshold {
+  id: string
+  user_id: string
+  name: string
+  period: 'monthly' | 'quarterly' | 'yearly'
+  amount: number
+  color: string
+  active: number
+  created_at: string
+}
+
+export const proThresholdsAPI = {
+  getAll: async () => {
+    const response = await api.get<ProThreshold[]>('/pro/thresholds')
+    return response.data
+  },
+  create: async (data: { name: string; period: 'monthly' | 'quarterly' | 'yearly'; amount: number; color?: string }) => {
+    const response = await api.post<ProThreshold>('/pro/thresholds', data)
+    return response.data
+  },
+  update: async (id: string, data: Partial<{ name: string; period: 'monthly' | 'quarterly' | 'yearly'; amount: number; color: string; active: number }>) => {
+    const response = await api.put<ProThreshold>(`/pro/thresholds/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    await api.delete(`/pro/thresholds/${id}`)
   },
 }
 
