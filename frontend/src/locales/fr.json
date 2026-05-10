@@ -342,6 +342,7 @@
       "cotisationsMonth": "Cotisations estimées",
       "threshold": "Seuil de CA",
       "thresholdProgress": "Progression vers le seuil",
+      "trackedLimits": "Plafonds suivis",
       "recentTransactions": "Dernières transactions",
       "setupProfile": "Configurez votre profil pro",
       "setupProfileDesc": "Renseignez votre SIRET et type d'activité pour une meilleure estimation de vos cotisations."
@@ -408,11 +409,15 @@
       "loading": "Chargement…",
       "yearly": "Annuel",
       "turnover": "Chiffre d'affaires",
+      "deductibleExpenses": "Charges déductibles",
+      "beneficeImposable": "Bénéfice imposable",
+      "netSalary": "Rémunération nette",
       "cotisations": "Cotisations URSSAF",
       "cfp": "CFP",
       "irVL": "IR (versement libératoire)",
       "irClassique": "IR estimé (TMI × imposable)",
       "is": "Impôt sur les sociétés",
+      "dividends": "Dividendes (flat tax 30 %)",
       "totalPrelevements": "Total des prélèvements",
       "netAfterTaxes": "Net après prélèvements"
     },

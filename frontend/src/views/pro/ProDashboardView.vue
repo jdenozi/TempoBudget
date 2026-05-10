@@ -90,6 +90,28 @@
         </div>
       </n-card>
 
+      <!-- Tracked limits (user-defined thresholds from pro_thresholds) -->
+      <n-card v-if="trackedLimits.length > 0" :title="t('pro.dashboard.trackedLimits')" size="small">
+        <n-space vertical :size="10">
+          <div v-for="lim in trackedLimits" :key="lim.id" class="tracked-limit-row">
+            <div class="tracked-limit-header">
+              <span class="dot" :style="{ background: lim.color }" />
+              <strong>{{ lim.name }}</strong>
+              <n-tag size="tiny" type="info">{{ t(`pro.thresholds.period.${lim.period}`) }}</n-tag>
+              <span class="amount-text">{{ lim.current.toFixed(0) }} € / {{ lim.amount.toFixed(0) }} €</span>
+              <span class="pct-text" :style="{ color: lim.colorClass }">{{ lim.rawPercentage.toFixed(0) }} %</span>
+            </div>
+            <n-progress
+              type="line"
+              :percentage="lim.percentage"
+              :color="lim.colorClass"
+              :rail-color="'rgba(255,255,255,0.1)'"
+              :show-indicator="false"
+            />
+          </div>
+        </n-space>
+      </n-card>
+
       <!-- Tax breakdown -->
       <n-card :title="t('pro.tax.estimated')" size="small">
         <template #header-extra>
@@ -106,6 +128,24 @@
               <div class="tax-row">
                 <span>{{ t('pro.tax.turnover') }}</span>
                 <strong>{{ breakdown.turnover.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.deductible_expenses > 0">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.deductibleExpenses') }}</span>
+                <strong>{{ breakdown.deductible_expenses.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.benefice_imposable != null">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.beneficeImposable') }}</span>
+                <strong>{{ breakdown.benefice_imposable.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.net_salary != null">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.netSalary') }}</span>
+                <strong style="color: #18a058;">{{ breakdown.net_salary.toFixed(2) }} €</strong>
               </div>
             </n-gi>
             <n-gi>
@@ -136,6 +176,12 @@
               <div class="tax-row">
                 <span>{{ t('pro.tax.is') }}</span>
                 <strong>{{ breakdown.impot_societes.toFixed(2) }} €</strong>
+              </div>
+            </n-gi>
+            <n-gi v-if="breakdown.dividendes_taxes != null && breakdown.dividendes_taxes > 0">
+              <div class="tax-row">
+                <span>{{ t('pro.tax.dividends') }}</span>
+                <strong>{{ breakdown.dividendes_taxes.toFixed(2) }} €</strong>
               </div>
             </n-gi>
           </n-grid>
@@ -433,11 +479,40 @@ const threshold = computed(() => proStore.proProfile?.revenue_threshold || 77700
 
 const recentTransactions = computed(() => proStore.proTransactions.slice(0, 10))
 
+/** For a threshold's period, compute current accumulated turnover (income) for the user. */
+function turnoverForPeriod(period: 'monthly' | 'quarterly' | 'yearly'): number {
+  const now = new Date()
+  const year = now.getFullYear()
+  return proStore.proTransactions
+    .filter(tx => {
+      if (tx.transaction_type !== 'income') return false
+      const d = new Date(tx.date)
+      if (d.getFullYear() !== year) return false
+      if (period === 'yearly') return true
+      if (period === 'monthly') return d.getMonth() === now.getMonth()
+      // quarterly
+      return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3)
+    })
+    .reduce((s, tx) => s + tx.amount, 0)
+}
+
+const trackedLimits = computed(() => {
+  return proStore.proThresholds
+    .filter(th => th.active === 1)
+    .map(th => {
+      const current = turnoverForPeriod(th.period)
+      const percentage = th.amount > 0 ? (current / th.amount) * 100 : 0
+      const colorClass = percentage > 90 ? '#d03050' : percentage > 70 ? '#f0a020' : '#18a058'
+      return { ...th, current, percentage: Math.min(percentage, 100), rawPercentage: percentage, colorClass }
+    })
+})
+
 onMounted(async () => {
   await Promise.all([
     proStore.fetchProfile(),
     proStore.fetchDashboard(),
     proStore.fetchTransactions(),
+    proStore.fetchThresholds(),
   ])
 
   if (proStore.proProfile) {
@@ -499,5 +574,32 @@ watch(breakdownPeriod, loadBreakdown)
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
+}
+.tracked-limit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tracked-limit-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.tracked-limit-header .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.tracked-limit-header .amount-text {
+  margin-left: auto;
+  opacity: 0.75;
+}
+.tracked-limit-header .pct-text {
+  font-weight: bold;
+  min-width: 44px;
+  text-align: right;
 }
 </style>

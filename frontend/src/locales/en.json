@@ -342,6 +342,7 @@
       "cotisationsMonth": "Estimated contributions",
       "threshold": "Revenue threshold",
       "thresholdProgress": "Threshold progress",
+      "trackedLimits": "Tracked limits",
       "recentTransactions": "Recent transactions",
       "setupProfile": "Set up your pro profile",
       "setupProfileDesc": "Enter your SIRET and activity type for better contribution estimates."
@@ -408,11 +409,15 @@
       "loading": "Loading…",
       "yearly": "Yearly",
       "turnover": "Turnover",
+      "deductibleExpenses": "Deductible expenses",
+      "beneficeImposable": "Taxable profit",
+      "netSalary": "Net salary received",
       "cotisations": "URSSAF contributions",
       "cfp": "CFP",
       "irVL": "Income tax (withholding)",
       "irClassique": "Income tax estimate (marginal × taxable)",
       "is": "Corporate tax",
+      "dividends": "Dividends (flat tax 30%)",
       "totalPrelevements": "Total taxes",
       "netAfterTaxes": "Net after taxes"
     },

@@ -21,10 +21,12 @@ _IS_THRESHOLD_YEARLY = 42500.0
 _IS_RATE_LOW = 0.15
 _IS_RATE_HIGH = 0.25
 
-# Default cotisations rates for assimilé-salarié (SASU/SAS président)
-# Approximation: 22 % salarié + 45 % patronal of gross. We compute total social
-# cost as gross × 0.67 (combined ratio of net total weight on gross).
-_ASSIMILE_SALARIE_TOTAL_RATE = 0.67
+# Default cotisations rates for assimilé-salarié (SASU/SAS président).
+# Employer charges ~45 % of gross, employee charges ~22 % of gross.
+# Total social cost = gross × (employer + employee) = gross × 0.67.
+_ASSIMILE_SALARIE_EMPLOYER_RATE = 0.45
+_ASSIMILE_SALARIE_EMPLOYEE_RATE = 0.22
+_ASSIMILE_SALARIE_TOTAL_RATE = _ASSIMILE_SALARIE_EMPLOYER_RATE + _ASSIMILE_SALARIE_EMPLOYEE_RATE
 
 # Flat tax (PFU) on dividends: 12.8 % IR + 17.2 % PS = 30 %
 _DIVIDENDS_FLAT_TAX = 0.30
@@ -91,6 +93,8 @@ class TaxBreakdown:
     total_prelevements: float
     net_after_taxes: float
     notes: list[str]
+    # Incorporated entities (SASU/SAS/EURL-IS) only — net salary received by the dirigeant
+    net_salary: float | None = None
 
 
 class TaxEngine(ABC):
@@ -262,19 +266,40 @@ class _ManagedSocietyEngine(TaxEngine):
         salary_period = salary_monthly * (12 * _period_factor(period.period))
 
         if self.is_assimile_salarie:
-            cotisations = salary_period * _ASSIMILE_SALARIE_TOTAL_RATE
+            # SASU/SAS: split employer / employee charges, employee charges are
+            # withheld from the gross salary (net = gross − employee).
+            employer_charges = salary_period * _ASSIMILE_SALARIE_EMPLOYER_RATE
+            employee_charges = salary_period * _ASSIMILE_SALARIE_EMPLOYEE_RATE
+            cotisations = employer_charges + employee_charges
+            net_salary = salary_period - employee_charges
         else:
+            # EURL au IS: gérant majoritaire TNS. Cotisations payées par la société
+            # par-dessus la rémunération ; le gérant reçoit l'intégralité de sa rému.
             tns_rate = (profile.get("tns_cotisations_rate") or 45.0) / 100
-            cotisations = salary_period * tns_rate
+            employer_charges = salary_period * tns_rate
+            cotisations = employer_charges
+            net_salary = salary_period
 
-        benefice = max(0.0, period.turnover - period.expenses - salary_period - cotisations)
+        # Bénéfice imposable à l'IS : CA − charges − rémunération − cotisations société
+        benefice = max(0.0, period.turnover - period.expenses - salary_period - employer_charges)
         is_value = _compute_is(benefice, period.period)
 
         dividends_year = profile.get("dividends_yearly") or 0.0
         dividends_period = _scale_yearly_to_period(dividends_year, period.period)
         dividends_taxes = dividends_period * _DIVIDENDS_FLAT_TAX
 
-        total = cotisations + is_value + dividends_taxes
+        # IR personnel sur la rémunération nette (approximation simple via TMI).
+        ir_class: float | None = None
+        tmi = profile.get("foyer_tmi")
+        if salary_monthly > 0:
+            if tmi is not None:
+                ir_class = net_salary * (tmi / 100)
+            else:
+                notes.append(
+                    "IR personnel non estimé : renseignez votre TMI dans le profil pour estimer l'impôt sur votre rémunération."
+                )
+
+        total = cotisations + is_value + dividends_taxes + (ir_class or 0)
         net = period.turnover - period.expenses - total
 
         if salary_monthly <= 0:
@@ -290,12 +315,13 @@ class _ManagedSocietyEngine(TaxEngine):
             cotisations_sociales=cotisations,
             cfp=0.0,
             ir_versement_liberatoire=None,
-            ir_classique_estime=None,
+            ir_classique_estime=ir_class,
             impot_societes=is_value,
             dividendes_taxes=dividends_taxes,
             total_prelevements=total,
             net_after_taxes=net,
             notes=notes,
+            net_salary=net_salary if salary_monthly > 0 else None,
         )
 
 

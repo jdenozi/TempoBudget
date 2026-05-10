@@ -1040,6 +1040,7 @@ export interface TaxBreakdown {
   ir_classique_estime: number | null
   impot_societes: number | null
   dividendes_taxes: number | null
+  net_salary: number | null
   total_prelevements: number
   net_after_taxes: number
   notes: string[]
