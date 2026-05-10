@@ -425,6 +425,7 @@
       "current": "Current",
       "lowest": "Lowest",
       "compareNote": "Comparison at constant turnover, expenses, salary and dividends. The “lowest” regime maximises your personal net income (Net to you) for the selected period.",
+      "regimeHint": "Under {regime}, you would net €{amount} more for this period. Click to compare.",
       "regimeLabels": {
         "micro": "Micro",
         "ei_reel": "Sole prop. (real)",

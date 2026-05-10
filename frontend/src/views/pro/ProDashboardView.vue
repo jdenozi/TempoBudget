@@ -202,6 +202,9 @@
           <div v-for="(note, i) in breakdown.notes" :key="i" style="margin-top: 8px; font-size: 12px; opacity: 0.7;">
             ⓘ {{ note }}
           </div>
+          <div v-if="regimeHint" class="regime-hint" @click="openCompareModal">
+            💡 {{ regimeHint }}
+          </div>
         </div>
       </n-card>
 
@@ -682,7 +685,35 @@ async function loadBreakdown() {
   } catch {
     breakdown.value = null
   }
+  // Refresh the comparison-derived hint in the background
+  loadComparisonForHint()
 }
+
+const comparisonForHint = ref<RegimeComparisonRow[]>([])
+async function loadComparisonForHint() {
+  try {
+    comparisonForHint.value = await proProfileAPI.getRegimeComparison(breakdownPeriod.value)
+  } catch {
+    comparisonForHint.value = []
+  }
+}
+
+const regimeHint = computed<string | null>(() => {
+  if (!breakdown.value || comparisonForHint.value.length === 0) return null
+  const current = comparisonForHint.value.find(r => r.regime === currentRegimeKey.value)
+  if (!current) return null
+  let best = current
+  for (const row of comparisonForHint.value) {
+    if (row.breakdown.personal_take_home > best.breakdown.personal_take_home) best = row
+  }
+  if (best.regime === current.regime) return null
+  const delta = best.breakdown.personal_take_home - current.breakdown.personal_take_home
+  if (delta < 1) return null
+  return t('pro.tax.regimeHint', {
+    regime: t(`pro.tax.regimeLabels.${best.regime}`),
+    amount: delta.toFixed(0),
+  })
+})
 
 watch(breakdownPeriod, loadBreakdown)
 
@@ -809,5 +840,18 @@ const bestRegimeKey = computed<string | null>(() => {
 }
 .regime-compare .best-badge {
   background: rgba(24, 160, 88, 0.4);
+}
+.regime-hint {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(24, 160, 88, 0.12);
+  border-left: 3px solid #18a058;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.regime-hint:hover {
+  background: rgba(24, 160, 88, 0.2);
 }
 </style>

@@ -425,6 +425,7 @@
       "current": "Actuel",
       "lowest": "Optimal",
       "compareNote": "Comparaison à CA, charges, salaire et dividendes constants. Le régime « optimal » maximise le revenu net qui vous revient personnellement (Net pour vous) sur la période choisie.",
+      "regimeHint": "Au régime {regime}, vous gagneriez {amount} € de plus sur cette période. Cliquez pour comparer.",
       "regimeLabels": {
         "micro": "Micro",
         "ei_reel": "EI réel",
