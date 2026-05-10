@@ -462,12 +462,18 @@
               </tr>
               <tr class="net">
                 <th>{{ t('pro.tax.netAfterTaxes') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.net_after_taxes.toFixed(0) }} €
+                </td>
+              </tr>
+              <tr class="net take-home">
+                <th>{{ t('pro.tax.personalTakeHome') }}</th>
                 <td
                   v-for="row in comparisonRows"
                   :key="row.regime"
                   :class="{ 'best': row.regime === bestRegimeKey }"
                 >
-                  {{ row.breakdown.net_after_taxes.toFixed(0) }} €
+                  {{ row.breakdown.personal_take_home.toFixed(0) }} €
                 </td>
               </tr>
             </tbody>
@@ -716,7 +722,7 @@ const bestRegimeKey = computed<string | null>(() => {
   if (comparisonRows.value.length === 0) return null
   let best = comparisonRows.value[0]
   for (const row of comparisonRows.value) {
-    if (row.breakdown.total_prelevements < best.breakdown.total_prelevements) best = row
+    if (row.breakdown.personal_take_home > best.breakdown.personal_take_home) best = row
   }
   return best.regime
 })

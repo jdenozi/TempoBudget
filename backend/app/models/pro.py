@@ -682,6 +682,7 @@ class TaxBreakdown(BaseModel):
     net_salary: float | None = None
     total_prelevements: float = 0.0
     net_after_taxes: float = 0.0
+    personal_take_home: float = 0.0
     notes: list[str] = []
 
 

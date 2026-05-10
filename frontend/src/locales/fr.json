@@ -420,10 +420,11 @@
       "dividends": "Dividendes (flat tax 30 %)",
       "totalPrelevements": "Total des prélèvements",
       "netAfterTaxes": "Net après prélèvements",
+      "personalTakeHome": "Net pour vous",
       "compareRegimes": "Comparer les régimes",
       "current": "Actuel",
       "lowest": "Optimal",
-      "compareNote": "Comparaison à CA, charges, salaire et dividendes constants. Le régime « optimal » minimise les prélèvements totaux pour la période choisie.",
+      "compareNote": "Comparaison à CA, charges, salaire et dividendes constants. Le régime « optimal » maximise le revenu net qui vous revient personnellement (Net pour vous) sur la période choisie.",
       "regimeLabels": {
         "micro": "Micro",
         "ei_reel": "EI réel",

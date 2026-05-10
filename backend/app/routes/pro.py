@@ -2604,6 +2604,7 @@ async def tax_breakdown(
         net_salary=None if result.net_salary is None else round(result.net_salary, 2),
         total_prelevements=round(result.total_prelevements, 2),
         net_after_taxes=round(result.net_after_taxes, 2),
+        personal_take_home=round(result.personal_take_home, 2),
         notes=result.notes,
     )
 
@@ -2718,6 +2719,7 @@ async def regime_comparison(
                 net_salary=None if result.net_salary is None else round(result.net_salary, 2),
                 total_prelevements=round(result.total_prelevements, 2),
                 net_after_taxes=round(result.net_after_taxes, 2),
+                personal_take_home=round(result.personal_take_home, 2),
                 notes=result.notes,
             ),
         ))

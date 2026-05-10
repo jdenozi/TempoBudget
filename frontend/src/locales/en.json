@@ -420,10 +420,11 @@
       "dividends": "Dividends (flat tax 30%)",
       "totalPrelevements": "Total taxes",
       "netAfterTaxes": "Net after taxes",
+      "personalTakeHome": "Net to you",
       "compareRegimes": "Compare regimes",
       "current": "Current",
       "lowest": "Lowest",
-      "compareNote": "Comparison at constant turnover, expenses, salary and dividends. The “lowest” regime minimises total taxes for the selected period.",
+      "compareNote": "Comparison at constant turnover, expenses, salary and dividends. The “lowest” regime maximises your personal net income (Net to you) for the selected period.",
       "regimeLabels": {
         "micro": "Micro",
         "ei_reel": "Sole prop. (real)",

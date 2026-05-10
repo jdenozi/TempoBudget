@@ -1043,6 +1043,7 @@ export interface TaxBreakdown {
   net_salary: number | null
   total_prelevements: number
   net_after_taxes: number
+  personal_take_home: number
   notes: string[]
 }
 

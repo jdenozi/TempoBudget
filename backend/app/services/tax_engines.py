@@ -95,6 +95,10 @@ class TaxBreakdown:
     notes: list[str]
     # Incorporated entities (SASU/SAS/EURL-IS) only — net salary received by the dirigeant
     net_salary: float | None = None
+    # What the user pockets personally for the period — comparable across regimes.
+    # = net_after_taxes for non-incorporated regimes (the user IS the company).
+    # = (net_salary − personal IR) + (dividends − dividend tax) for incorporated.
+    personal_take_home: float = 0.0
 
 
 class TaxEngine(ABC):
@@ -177,6 +181,7 @@ class MicroEngine(TaxEngine):
             total_prelevements=total,
             net_after_taxes=net,
             notes=notes,
+            personal_take_home=net,
         )
 
 
@@ -221,6 +226,7 @@ class _RealRegimeIR(TaxEngine):
             total_prelevements=total,
             net_after_taxes=net,
             notes=notes,
+            personal_take_home=net,
         )
 
 
@@ -307,6 +313,9 @@ class _ManagedSocietyEngine(TaxEngine):
         if dividends_year <= 0:
             notes.append("Pas de dividendes prévus : si vous comptez en distribuer, renseignez le montant annuel dans le profil.")
 
+        # Personal take-home: what the dirigeant pockets after all personal taxes.
+        personal = (net_salary - (ir_class or 0)) + (dividends_period - dividends_taxes)
+
         return TaxBreakdown(
             period=period.period,
             turnover=period.turnover,
@@ -322,6 +331,7 @@ class _ManagedSocietyEngine(TaxEngine):
             net_after_taxes=net,
             notes=notes,
             net_salary=net_salary if salary_monthly > 0 else None,
+            personal_take_home=personal,
         )
 
 
