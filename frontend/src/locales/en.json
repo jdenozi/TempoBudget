@@ -472,7 +472,17 @@
       "supplierRequired": "Supplier is required",
       "paymentMethodRequired": "Payment method is required",
       "deductible": "Tax-deductible",
-      "notDeductible": "Not deductible"
+      "notDeductible": "Not deductible",
+      "vatRate": "VAT rate",
+      "vatRateDefault": "Default:",
+      "vatHint": "Net/VAT split:"
+    },
+    "vat": {
+      "title": "VAT",
+      "collected": "VAT collected",
+      "deductible": "VAT deductible",
+      "toPay": "Owed to tax authority",
+      "toRefund": "VAT credit"
     },
     "categories": {
       "title": "Pro categories",

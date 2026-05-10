@@ -82,6 +82,25 @@
       <n-select v-model:value="txForm.payment_method" :options="paymentMethodOptions" />
     </n-form-item>
 
+    <!-- VAT rate (only if profile is subject to VAT) -->
+    <n-form-item v-if="showVatField" :label="t('pro.transactions.vatRate')">
+      <n-input-number
+        v-model:value="txForm.vat_rate"
+        :min="0"
+        :max="100"
+        :precision="1"
+        clearable
+        :placeholder="vatRatePlaceholder"
+        style="width: 100%;"
+      >
+        <template #suffix>%</template>
+      </n-input-number>
+    </n-form-item>
+    <div v-if="showVatField && txForm.amount" class="vat-hint">
+      <span>{{ t('pro.transactions.vatHint') }}</span>
+      <span>HT {{ vatBreakdown.ht.toFixed(2) }} € · TVA {{ vatBreakdown.tva.toFixed(2) }} € · TTC {{ txForm.amount.toFixed(2) }} €</span>
+    </div>
+
     <!-- Discount (income only, creation only) -->
     <template v-if="!editingTx && !isExpense">
       <n-divider style="margin: 8px 0;">{{ t('pro.discount.discount') }}</n-divider>
@@ -258,9 +277,23 @@ const txForm = ref({
   project_category_id: null as string | null,
   is_declared: false,
   is_deductible: true,
+  vat_rate: null as number | null,
 })
 
 const showDeductibleToggle = computed(() => (proStore.proProfile?.legal_form ?? 'micro') !== 'micro')
+
+const showVatField = computed(() => (proStore.proProfile?.is_subject_to_vat ?? 0) === 1)
+const vatRatePlaceholder = computed(() => {
+  const def = proStore.proProfile?.vat_rate ?? 20
+  return `${t('pro.transactions.vatRateDefault')} ${def} %`
+})
+
+const vatBreakdown = computed(() => {
+  const amount = txForm.value.amount || 0
+  const rate = txForm.value.vat_rate ?? proStore.proProfile?.vat_rate ?? 20
+  const tva = amount * rate / (100 + rate)
+  return { ht: amount - tva, tva }
+})
 
 const isExpense = computed(() => txForm.value.transaction_type === 'expense')
 
@@ -472,6 +505,7 @@ function resetForm() {
     project_category_id: null,
     is_declared: false,
     is_deductible: true,
+    vat_rate: null,
   }
 }
 
@@ -496,6 +530,7 @@ function loadFromTx(tx: ProTransaction) {
     project_category_id: tx.project_category_id || null,
     is_declared: tx.is_declared === 1,
     is_deductible: tx.is_deductible !== 0,
+    vat_rate: tx.vat_rate,
   }
 }
 
@@ -538,6 +573,7 @@ async function handleSubmit() {
         project_category_id: txForm.value.project_category_id,
         is_declared: !isExpense.value ? (txForm.value.is_declared ? 1 : 0) : undefined,
         is_deductible: isExpense.value ? (txForm.value.is_deductible ? 1 : 0) : undefined,
+        vat_rate: showVatField.value ? txForm.value.vat_rate : undefined,
       })
       message.success(t('transaction.transactionUpdated'))
     } else {
@@ -553,6 +589,7 @@ async function handleSubmit() {
         project_category_id: txForm.value.project_category_id,
         is_declared: !isExpense.value && txForm.value.is_declared ? 1 : 0,
         is_deductible: isExpense.value ? (txForm.value.is_deductible ? 1 : 0) : 1,
+        vat_rate: showVatField.value ? txForm.value.vat_rate : null,
       }
       if (hasItems) {
         data.items = txForm.value.items.map(i => ({
@@ -600,3 +637,15 @@ onMounted(async () => {
   ])
 })
 </script>
+
+<style scoped>
+.vat-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  opacity: 0.7;
+  margin: -8px 0 12px;
+}
+</style>

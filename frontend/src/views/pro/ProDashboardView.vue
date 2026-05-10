@@ -112,6 +112,44 @@
         </n-space>
       </n-card>
 
+      <!-- VAT summary (only when subject to VAT) -->
+      <n-card v-if="vatSummary && vatSummary.is_subject_to_vat === 1" :title="t('pro.vat.title')" size="small">
+        <template #header-extra>
+          <n-radio-group v-model:value="vatPeriod" size="small">
+            <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
+            <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
+            <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
+          </n-radio-group>
+        </template>
+        <n-grid :cols="isMobile ? 1 : 3" :x-gap="12">
+          <n-gi>
+            <div class="vat-stat">
+              <div class="vat-label">{{ t('pro.vat.collected') }}</div>
+              <div class="vat-value" style="color: #18a058;">{{ vatSummary.collected.toFixed(2) }} €</div>
+            </div>
+          </n-gi>
+          <n-gi>
+            <div class="vat-stat">
+              <div class="vat-label">{{ t('pro.vat.deductible') }}</div>
+              <div class="vat-value" style="color: #2080f0;">{{ vatSummary.deductible.toFixed(2) }} €</div>
+            </div>
+          </n-gi>
+          <n-gi>
+            <div class="vat-stat">
+              <div class="vat-label">
+                {{ vatSummary.balance >= 0 ? t('pro.vat.toPay') : t('pro.vat.toRefund') }}
+              </div>
+              <div class="vat-value" :style="{ color: vatSummary.balance >= 0 ? '#d03050' : '#18a058' }">
+                {{ Math.abs(vatSummary.balance).toFixed(2) }} €
+              </div>
+            </div>
+          </n-gi>
+        </n-grid>
+        <div v-for="(note, i) in vatSummary.notes" :key="i" class="vat-note">
+          ⓘ {{ note }}
+        </div>
+      </n-card>
+
       <!-- Tax breakdown -->
       <n-card :title="t('pro.tax.estimated')" size="small">
         <template #header-extra>
@@ -524,7 +562,7 @@ import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } fr
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import { proProfileAPI, type TaxBreakdown, type RegimeComparisonRow } from '@/services/api'
+import { proProfileAPI, type TaxBreakdown, type RegimeComparisonRow, type VatSummary } from '@/services/api'
 
 const { t } = useI18n()
 const proStore = useProStore()
@@ -687,6 +725,7 @@ onMounted(async () => {
   }
 
   await loadBreakdown()
+  await loadVatSummary()
 })
 
 async function saveProfile() {
@@ -747,6 +786,21 @@ const regimeHint = computed<string | null>(() => {
 
 watch(breakdownPeriod, loadBreakdown)
 watch(breakdownYear, loadBreakdown)
+
+// ── VAT summary ──
+
+const vatPeriod = ref<'month' | 'quarter' | 'year'>('month')
+const vatSummary = ref<VatSummary | null>(null)
+
+async function loadVatSummary() {
+  try {
+    vatSummary.value = await proProfileAPI.getVatSummary(vatPeriod.value)
+  } catch {
+    vatSummary.value = null
+  }
+}
+
+watch(vatPeriod, loadVatSummary)
 
 // ── Regime comparison ──
 
@@ -886,5 +940,23 @@ const bestRegimeKey = computed<string | null>(() => {
 }
 .regime-hint:hover {
   background: rgba(24, 160, 88, 0.2);
+}
+.vat-stat {
+  text-align: center;
+  padding: 8px 0;
+}
+.vat-label {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+.vat-value {
+  font-size: 22px;
+  font-weight: bold;
+}
+.vat-note {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.7;
 }
 </style>

@@ -1105,6 +1105,7 @@ export interface ProTransaction {
   gift_card_payment: number
   is_declared: number
   is_deductible: number
+  vat_rate: number | null
   invoice_id: string | null
   project_category_id?: string | null
   created_at: string
@@ -1291,6 +1292,21 @@ export const proProfileAPI = {
     const response = await api.get<RegimeComparisonRow[]>('/pro/regime-comparison', { params: { period, year } })
     return response.data
   },
+  getVatSummary: async (period: 'month' | 'quarter' | 'year', year?: number) => {
+    const response = await api.get<VatSummary>('/pro/vat-summary', { params: { period, year } })
+    return response.data
+  },
+}
+
+export interface VatSummary {
+  period: 'month' | 'quarter' | 'year'
+  period_label: string
+  is_subject_to_vat: number
+  default_rate: number
+  collected: number
+  deductible: number
+  balance: number
+  notes: string[]
 }
 
 export interface RegimeComparisonRow {
@@ -1375,6 +1391,7 @@ export const proTransactionsAPI = {
     project_category_id?: string | null
     is_declared?: number
     is_deductible?: number
+    vat_rate?: number | null
   }) => {
     const response = await api.post<ProTransaction>('/pro/transactions', data)
     return response.data
@@ -1391,6 +1408,7 @@ export const proTransactionsAPI = {
     project_category_id?: string | null
     is_declared?: number
     is_deductible?: number
+    vat_rate?: number | null
   }) => {
     const response = await api.put<ProTransaction>(`/pro/transactions/${id}`, data)
     return response.data

@@ -147,6 +147,7 @@ class ProTransaction(BaseModel):
     gift_card_payment: float = Field(0, description="Amount paid by gift card")
     is_declared: int = Field(0, description="Whether declared to URSSAF (0/1)")
     is_deductible: int = Field(1, description="Whether the expense is tax-deductible (0/1) — only meaningful for expenses on non-micro regimes")
+    vat_rate: float | None = Field(None, description="VAT rate (%) used for this transaction. Null = inherit profile.vat_rate at display time.")
     invoice_id: str | None = Field(None, description="Linked invoice ID (auto-created from paid invoice)")
     project_category_id: str | None = Field(None, description="Linked project category ID")
     created_at: str = Field(..., description="Creation timestamp")
@@ -177,6 +178,7 @@ class CreateProTransaction(BaseModel):
     project_category_id: str | None = None
     is_declared: int = Field(0, ge=0, le=1, description="Whether to mark as accounted (0/1) — income only")
     is_deductible: int = Field(1, ge=0, le=1, description="Whether the expense is tax-deductible (0/1) — expense only")
+    vat_rate: float | None = Field(None, ge=0, le=100, description="VAT rate (%) for this transaction; null = inherit profile.vat_rate")
 
 
 class UpdateProTransaction(BaseModel):
@@ -192,6 +194,7 @@ class UpdateProTransaction(BaseModel):
     project_category_id: str | None = None
     is_declared: int | None = Field(None, ge=0, le=1)
     is_deductible: int | None = Field(None, ge=0, le=1)
+    vat_rate: float | None = Field(None, ge=0, le=100)
 
 
 class ProProduct(BaseModel):
@@ -693,3 +696,15 @@ class RegimeComparisonRow(BaseModel):
     """One row of the regime comparison table — same inputs, different regime."""
     regime: str  # 'micro' | 'ei_reel' | 'eurl_ir' | 'eurl_is' | 'sasu' | 'sas'
     breakdown: TaxBreakdown
+
+
+class VatSummary(BaseModel):
+    """VAT (TVA) summary for one period."""
+    period: str  # 'month' | 'quarter' | 'year'
+    period_label: str
+    is_subject_to_vat: int
+    default_rate: float
+    collected: float          # TVA collectée (on income)
+    deductible: float         # TVA déductible (on deductible expenses)
+    balance: float            # collected - deductible (positive = owed to DGFiP)
+    notes: list[str] = []

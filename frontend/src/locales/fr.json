@@ -472,7 +472,17 @@
       "supplierRequired": "Le fournisseur est obligatoire",
       "paymentMethodRequired": "Le moyen de paiement est obligatoire",
       "deductible": "Charge déductible",
-      "notDeductible": "Non déductible"
+      "notDeductible": "Non déductible",
+      "vatRate": "Taux de TVA",
+      "vatRateDefault": "Défaut :",
+      "vatHint": "Détail HT/TVA :"
+    },
+    "vat": {
+      "title": "TVA",
+      "collected": "TVA collectée",
+      "deductible": "TVA déductible",
+      "toPay": "À payer à la DGFiP",
+      "toRefund": "Crédit de TVA"
     },
     "categories": {
       "title": "Catégories pro",

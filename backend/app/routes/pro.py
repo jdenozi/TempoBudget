@@ -30,7 +30,7 @@ from ..models import (
     ProQuoteItem, CreateProQuoteItem,
     ProRecurringTransaction, CreateProRecurringTransaction, UpdateProRecurringTransaction,
     ProThreshold, CreateProThreshold, UpdateProThreshold,
-    TaxBreakdown, RegimeComparisonRow,
+    TaxBreakdown, RegimeComparisonRow, VatSummary,
 )
 from ..services.tax_engines import get_engine, PeriodInput
 from ..pdf_generator import generate_invoice_pdf, generate_quote_pdf
@@ -958,11 +958,11 @@ async def create_transaction(
             INSERT INTO pro_transactions (id, user_id, client_id, category_id, title,
                                           amount, transaction_type, date, payment_method, comment,
                                           discount_type, discount_value, coupon_id, gift_card_payment, project_category_id,
-                                          is_declared, is_deductible, created_at)
+                                          is_declared, is_deductible, vat_rate, created_at)
             VALUES (:id, :user_id, :client_id, :category_id, :title,
                     :amount, :transaction_type, :date, :payment_method, :comment,
                     :discount_type, :discount_value, :coupon_id, :gift_card_payment, :project_category_id,
-                    :is_declared, :is_deductible, :created_at)
+                    :is_declared, :is_deductible, :vat_rate, :created_at)
         """),
         {
             "id": tx_id, "user_id": user_id,
@@ -975,6 +975,7 @@ async def create_transaction(
             "project_category_id": payload.project_category_id,
             "is_declared": payload.is_declared if payload.transaction_type == "income" else 0,
             "is_deductible": payload.is_deductible if payload.transaction_type == "expense" else 1,
+            "vat_rate": payload.vat_rate,
             "created_at": now,
         },
     )
@@ -1090,7 +1091,7 @@ async def update_transaction(
 
     updates = []
     params: dict = {"id": transaction_id, "user_id": user_id}
-    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id", "is_declared", "is_deductible"):
+    for field in ("client_id", "category_id", "title", "amount", "transaction_type", "date", "payment_method", "comment", "project_category_id", "is_declared", "is_deductible", "vat_rate"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -2731,3 +2732,101 @@ async def regime_comparison(
             ),
         ))
     return rows
+
+
+# ── VAT (TVA) summary ──
+
+
+def _resolve_period_window(period: str, year_override: int | None):
+    """Return (start_iso, end_iso, label) for the requested period.
+
+    Mirrors the logic used by /tax-breakdown so the VAT summary stays aligned.
+    """
+    if period not in ("month", "quarter", "year"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid period")
+
+    now = datetime.now(timezone.utc)
+    target_year = year_override if (year_override is not None and period == "year") else now.year
+    if period == "month":
+        start = f"{target_year}-{now.month:02d}-01"
+        next_month = now.month % 12 + 1
+        next_year = target_year + 1 if now.month == 12 else target_year
+        end = f"{next_year}-{next_month:02d}-01"
+        label = f"{target_year}-{now.month:02d}"
+    elif period == "quarter":
+        q_start_month = ((now.month - 1) // 3) * 3 + 1
+        start = f"{target_year}-{q_start_month:02d}-01"
+        end_month = q_start_month + 3
+        end_year = target_year + 1 if end_month > 12 else target_year
+        end_month = end_month if end_month <= 12 else end_month - 12
+        end = f"{end_year}-{end_month:02d}-01"
+        label = f"Q{(q_start_month - 1) // 3 + 1} {target_year}"
+    else:
+        start = f"{target_year}-01-01"
+        end = f"{target_year + 1}-01-01"
+        label = str(target_year)
+    return start, end, label
+
+
+@router.get("/vat-summary", response_model=VatSummary)
+async def vat_summary(
+    period: str = "month",
+    year: int | None = None,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return TVA collected vs deductible for the requested period.
+
+    Computation:
+      - Per transaction VAT = amount × rate / (100 + rate), where rate is the
+        transaction's vat_rate or, if null, the profile's vat_rate.
+      - Collected = sum of VAT over income transactions
+      - Deductible = sum of VAT over expense transactions where is_deductible=1
+      - Balance = collected − deductible (positive = owed to DGFiP)
+    """
+    p = await db.execute(
+        text("SELECT is_subject_to_vat, vat_rate FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    prow = p.fetchone()
+    if not prow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pro profile not found")
+    is_subject = int(prow.is_subject_to_vat or 0)
+    default_rate = float(prow.vat_rate or 20.0)
+
+    start, end, label = _resolve_period_window(period, year)
+
+    notes: list[str] = []
+    if not is_subject:
+        notes.append("Le profil n'est pas assujetti à la TVA. Les chiffres restent à 0 jusqu'à activation dans le profil.")
+
+    # Aggregate VAT amounts using SQL math; coalesce(vat_rate, default) per row.
+    result = await db.execute(
+        text(f"""
+            SELECT
+              COALESCE(SUM(CASE WHEN transaction_type='income'
+                                THEN amount * COALESCE(vat_rate, :default_rate) / (100 + COALESCE(vat_rate, :default_rate))
+                                ELSE 0 END), 0) AS collected,
+              COALESCE(SUM(CASE WHEN transaction_type='expense' AND is_deductible=1
+                                THEN amount * COALESCE(vat_rate, :default_rate) / (100 + COALESCE(vat_rate, :default_rate))
+                                ELSE 0 END), 0) AS deductible
+            FROM pro_transactions
+            WHERE user_id = :user_id AND date >= :start AND date < :end
+        """),
+        {"user_id": user_id, "start": start, "end": end, "default_rate": default_rate},
+    )
+    row = result.fetchone()
+    collected = float(row.collected) if is_subject else 0.0
+    deductible = float(row.deductible) if is_subject else 0.0
+    balance = collected - deductible
+
+    return VatSummary(
+        period=period,
+        period_label=label,
+        is_subject_to_vat=is_subject,
+        default_rate=default_rate,
+        collected=round(collected, 2),
+        deductible=round(deductible, 2),
+        balance=round(balance, 2),
+        notes=notes,
+    )

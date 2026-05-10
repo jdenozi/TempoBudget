@@ -250,6 +250,7 @@ export const useProStore = defineStore('pro', () => {
     project_category_id?: string | null
     is_declared?: number
     is_deductible?: number
+    vat_rate?: number | null
   }) {
     const tx = await proTransactionsAPI.create(data)
     proTransactions.value.unshift(tx)
@@ -268,6 +269,7 @@ export const useProStore = defineStore('pro', () => {
     project_category_id?: string | null
     is_declared?: number
     is_deductible?: number
+    vat_rate?: number | null
   }) {
     const updated = await proTransactionsAPI.update(id, data)
     const idx = proTransactions.value.findIndex(t => t.id === id)
