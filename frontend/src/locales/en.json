@@ -419,7 +419,19 @@
       "is": "Corporate tax",
       "dividends": "Dividends (flat tax 30%)",
       "totalPrelevements": "Total taxes",
-      "netAfterTaxes": "Net after taxes"
+      "netAfterTaxes": "Net after taxes",
+      "compareRegimes": "Compare regimes",
+      "current": "Current",
+      "lowest": "Lowest",
+      "compareNote": "Comparison at constant turnover, expenses, salary and dividends. The “lowest” regime minimises total taxes for the selected period.",
+      "regimeLabels": {
+        "micro": "Micro",
+        "ei_reel": "Sole prop. (real)",
+        "eurl_ir": "EURL (IR)",
+        "eurl_is": "EURL (IS)",
+        "sasu": "SASU",
+        "sas": "SAS"
+      }
     },
     "clients": {
       "title": "Clients",

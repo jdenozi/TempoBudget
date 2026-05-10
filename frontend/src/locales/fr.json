@@ -419,7 +419,19 @@
       "is": "Impôt sur les sociétés",
       "dividends": "Dividendes (flat tax 30 %)",
       "totalPrelevements": "Total des prélèvements",
-      "netAfterTaxes": "Net après prélèvements"
+      "netAfterTaxes": "Net après prélèvements",
+      "compareRegimes": "Comparer les régimes",
+      "current": "Actuel",
+      "lowest": "Optimal",
+      "compareNote": "Comparaison à CA, charges, salaire et dividendes constants. Le régime « optimal » minimise les prélèvements totaux pour la période choisie.",
+      "regimeLabels": {
+        "micro": "Micro",
+        "ei_reel": "EI réel",
+        "eurl_ir": "EURL (IR)",
+        "eurl_is": "EURL (IS)",
+        "sasu": "SASU",
+        "sas": "SAS"
+      }
     },
     "clients": {
       "title": "Clients",

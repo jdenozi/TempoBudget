@@ -30,7 +30,7 @@ from ..models import (
     ProQuoteItem, CreateProQuoteItem,
     ProRecurringTransaction, CreateProRecurringTransaction, UpdateProRecurringTransaction,
     ProThreshold, CreateProThreshold, UpdateProThreshold,
-    TaxBreakdown,
+    TaxBreakdown, RegimeComparisonRow,
 )
 from ..services.tax_engines import get_engine, PeriodInput
 from ..pdf_generator import generate_invoice_pdf, generate_quote_pdf
@@ -2606,3 +2606,119 @@ async def tax_breakdown(
         net_after_taxes=round(result.net_after_taxes, 2),
         notes=result.notes,
     )
+
+
+# Comparison spec: regime key (returned to frontend) → engine inputs override
+_REGIME_COMPARISON_SPEC: list[tuple[str, dict]] = [
+    ("micro",   {"legal_form": "micro"}),
+    ("ei_reel", {"legal_form": "ei_reel"}),
+    ("eurl_ir", {"legal_form": "eurl", "eurl_tax_option": "ir"}),
+    ("eurl_is", {"legal_form": "eurl", "eurl_tax_option": "is"}),
+    ("sasu",    {"legal_form": "sasu"}),
+    ("sas",     {"legal_form": "sas"}),
+]
+
+
+@router.get("/regime-comparison", response_model=list[RegimeComparisonRow])
+async def regime_comparison(
+    period: str = "year",
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a side-by-side breakdown of every regime, computed from the user's
+    current CA, expenses, salary and dividends. Helps decide which legal form
+    minimises total prélèvements for the given activity level.
+    """
+    if period not in ("month", "quarter", "year"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid period")
+
+    p = await db.execute(
+        text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    prow = p.fetchone()
+    if not prow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pro profile not found")
+    base_profile = dict(prow._mapping)
+
+    now = datetime.now(timezone.utc)
+    year = now.year
+    if period == "month":
+        start = f"{year}-{now.month:02d}-01"
+        next_month = now.month % 12 + 1
+        next_year = year + 1 if now.month == 12 else year
+        end = f"{next_year}-{next_month:02d}-01"
+        period_label = f"{year}-{now.month:02d}"
+    elif period == "quarter":
+        q_start_month = ((now.month - 1) // 3) * 3 + 1
+        start = f"{year}-{q_start_month:02d}-01"
+        end_month = q_start_month + 3
+        end_year = year + 1 if end_month > 12 else year
+        end_month = end_month if end_month <= 12 else end_month - 12
+        end = f"{end_year}-{end_month:02d}-01"
+        period_label = f"Q{(q_start_month - 1) // 3 + 1} {year}"
+    else:
+        start = f"{year}-01-01"
+        end = f"{year + 1}-01-01"
+        period_label = str(year)
+
+    sums = await db.execute(
+        text("""
+            SELECT
+              COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE 0 END), 0) AS turnover,
+              COALESCE(SUM(CASE WHEN transaction_type='income' AND is_declared=1 THEN amount ELSE 0 END), 0) AS declared_turnover,
+              COALESCE(SUM(CASE WHEN transaction_type='expense' THEN amount ELSE 0 END), 0) AS expenses
+            FROM pro_transactions
+            WHERE user_id = :user_id AND date >= :start AND date < :end
+        """),
+        {"user_id": user_id, "start": start, "end": end},
+    )
+    s = sums.fetchone()
+    period_input = PeriodInput(
+        turnover=float(s.turnover),
+        declared_turnover=float(s.declared_turnover),
+        expenses=float(s.expenses),
+        period=period,
+    )
+
+    rows: list[RegimeComparisonRow] = []
+    for regime_key, overrides in _REGIME_COMPARISON_SPEC:
+        scoped_profile = {**base_profile, **overrides}
+        # Make sure micro-style declared CA is meaningful even if user is currently elsewhere:
+        # if profile has no declared transactions, treat all turnover as declared for the comparison.
+        if regime_key == "micro" and period_input.declared_turnover == 0 and period_input.turnover > 0:
+            scoped_input = PeriodInput(
+                turnover=period_input.turnover,
+                declared_turnover=period_input.turnover,
+                expenses=period_input.expenses,
+                period=period_input.period,
+            )
+        else:
+            scoped_input = period_input
+
+        engine_form = overrides["legal_form"]
+        engine = get_engine(engine_form)
+        result = engine.compute(scoped_input, scoped_profile)
+
+        rows.append(RegimeComparisonRow(
+            regime=regime_key,
+            breakdown=TaxBreakdown(
+                legal_form=engine_form,
+                period=period,
+                period_label=period_label,
+                turnover=result.turnover,
+                deductible_expenses=result.deductible_expenses,
+                benefice_imposable=None if result.benefice_imposable is None else round(result.benefice_imposable, 2),
+                cotisations_sociales=round(result.cotisations_sociales, 2),
+                cfp=round(result.cfp, 2),
+                ir_versement_liberatoire=None if result.ir_versement_liberatoire is None else round(result.ir_versement_liberatoire, 2),
+                ir_classique_estime=None if result.ir_classique_estime is None else round(result.ir_classique_estime, 2),
+                impot_societes=None if result.impot_societes is None else round(result.impot_societes, 2),
+                dividendes_taxes=None if result.dividendes_taxes is None else round(result.dividendes_taxes, 2),
+                net_salary=None if result.net_salary is None else round(result.net_salary, 2),
+                total_prelevements=round(result.total_prelevements, 2),
+                net_after_taxes=round(result.net_after_taxes, 2),
+                notes=result.notes,
+            ),
+        ))
+    return rows

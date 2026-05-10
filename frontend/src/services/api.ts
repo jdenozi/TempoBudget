@@ -1285,6 +1285,15 @@ export const proProfileAPI = {
     const response = await api.get<TaxBreakdown>('/pro/tax-breakdown', { params: { period } })
     return response.data
   },
+  getRegimeComparison: async (period: 'month' | 'quarter' | 'year') => {
+    const response = await api.get<RegimeComparisonRow[]>('/pro/regime-comparison', { params: { period } })
+    return response.data
+  },
+}
+
+export interface RegimeComparisonRow {
+  regime: 'micro' | 'ei_reel' | 'eurl_ir' | 'eurl_is' | 'sasu' | 'sas'
+  breakdown: TaxBreakdown
 }
 
 export const proClientsAPI = {

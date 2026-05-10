@@ -35,7 +35,7 @@ from .pro import (
     ProQuoteItem, CreateProQuoteItem,
     ProRecurringTransaction, CreateProRecurringTransaction, UpdateProRecurringTransaction,
     ProThreshold, CreateProThreshold, UpdateProThreshold,
-    TaxBreakdown,
+    TaxBreakdown, RegimeComparisonRow,
 )
 
 __all__ = [
@@ -65,5 +65,5 @@ __all__ = [
     "ProQuoteItem", "CreateProQuoteItem",
     "ProRecurringTransaction", "CreateProRecurringTransaction", "UpdateProRecurringTransaction",
     "ProThreshold", "CreateProThreshold", "UpdateProThreshold",
-    "TaxBreakdown",
+    "TaxBreakdown", "RegimeComparisonRow",
 ]

@@ -683,3 +683,9 @@ class TaxBreakdown(BaseModel):
     total_prelevements: float = 0.0
     net_after_taxes: float = 0.0
     notes: list[str] = []
+
+
+class RegimeComparisonRow(BaseModel):
+    """One row of the regime comparison table — same inputs, different regime."""
+    regime: str  # 'micro' | 'ei_reel' | 'eurl_ir' | 'eurl_is' | 'sasu' | 'sas'
+    breakdown: TaxBreakdown

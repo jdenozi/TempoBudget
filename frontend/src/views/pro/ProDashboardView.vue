@@ -115,11 +115,14 @@
       <!-- Tax breakdown -->
       <n-card :title="t('pro.tax.estimated')" size="small">
         <template #header-extra>
-          <n-radio-group v-model:value="breakdownPeriod" size="small">
-            <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
-            <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
-            <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
-          </n-radio-group>
+          <n-space size="small">
+            <n-radio-group v-model:value="breakdownPeriod" size="small">
+              <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
+              <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
+              <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
+            </n-radio-group>
+            <n-button size="small" @click="openCompareModal">{{ t('pro.tax.compareRegimes') }}</n-button>
+          </n-space>
         </template>
         <div v-if="!breakdown" style="opacity: 0.6;">{{ t('pro.tax.loading') }}</div>
         <div v-else>
@@ -366,6 +369,116 @@
         <n-button type="primary" block @click="saveProfile" style="margin-top: 16px;">{{ t('common.save') }}</n-button>
       </n-form>
     </n-modal>
+
+    <!-- Regime Comparison Modal -->
+    <n-modal v-model:show="showCompareModal" preset="card" :title="t('pro.tax.compareRegimes')" style="max-width: 900px;">
+      <n-space vertical>
+        <n-radio-group v-model:value="comparePeriod" size="small">
+          <n-radio-button value="month">{{ t('pro.charts.monthly') }}</n-radio-button>
+          <n-radio-button value="quarter">{{ t('pro.charts.quarterly') }}</n-radio-button>
+          <n-radio-button value="year">{{ t('pro.tax.yearly') }}</n-radio-button>
+        </n-radio-group>
+
+        <div v-if="comparisonRows.length === 0" style="opacity: 0.6; padding: 16px 0;">{{ t('pro.tax.loading') }}</div>
+
+        <div v-else style="overflow-x: auto;">
+          <table class="regime-compare">
+            <thead>
+              <tr>
+                <th></th>
+                <th
+                  v-for="row in comparisonRows"
+                  :key="row.regime"
+                  :class="{ 'current': row.regime === currentRegimeKey, 'best': row.regime === bestRegimeKey }"
+                >
+                  {{ t(`pro.tax.regimeLabels.${row.regime}`) }}
+                  <div v-if="row.regime === currentRegimeKey" class="badge">{{ t('pro.tax.current') }}</div>
+                  <div v-else-if="row.regime === bestRegimeKey" class="badge best-badge">{{ t('pro.tax.lowest') }}</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>{{ t('pro.tax.turnover') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">{{ row.breakdown.turnover.toFixed(0) }} €</td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.deductibleExpenses') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">{{ row.breakdown.deductible_expenses.toFixed(0) }} €</td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.beneficeImposable') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.benefice_imposable != null ? row.breakdown.benefice_imposable.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.netSalary') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.net_salary != null ? row.breakdown.net_salary.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.cotisations') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">{{ row.breakdown.cotisations_sociales.toFixed(0) }} €</td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.cfp') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">{{ row.breakdown.cfp.toFixed(0) }} €</td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.irVL') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.ir_versement_liberatoire != null ? row.breakdown.ir_versement_liberatoire.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.irClassique') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.ir_classique_estime != null ? row.breakdown.ir_classique_estime.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.is') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.impot_societes != null ? row.breakdown.impot_societes.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr>
+                <th>{{ t('pro.tax.dividends') }}</th>
+                <td v-for="row in comparisonRows" :key="row.regime">
+                  {{ row.breakdown.dividendes_taxes != null ? row.breakdown.dividendes_taxes.toFixed(0) + ' €' : '—' }}
+                </td>
+              </tr>
+              <tr class="total">
+                <th>{{ t('pro.tax.totalPrelevements') }}</th>
+                <td
+                  v-for="row in comparisonRows"
+                  :key="row.regime"
+                  :class="{ 'best': row.regime === bestRegimeKey }"
+                >
+                  {{ row.breakdown.total_prelevements.toFixed(0) }} €
+                </td>
+              </tr>
+              <tr class="net">
+                <th>{{ t('pro.tax.netAfterTaxes') }}</th>
+                <td
+                  v-for="row in comparisonRows"
+                  :key="row.regime"
+                  :class="{ 'best': row.regime === bestRegimeKey }"
+                >
+                  {{ row.breakdown.net_after_taxes.toFixed(0) }} €
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="font-size: 12px; opacity: 0.7;">
+          ⓘ {{ t('pro.tax.compareNote') }}
+        </div>
+      </n-space>
+    </n-modal>
   </n-space>
 </template>
 
@@ -380,7 +493,7 @@ import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } fr
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import { proProfileAPI, type TaxBreakdown } from '@/services/api'
+import { proProfileAPI, type TaxBreakdown, type RegimeComparisonRow } from '@/services/api'
 
 const { t } = useI18n()
 const proStore = useProStore()
@@ -566,6 +679,47 @@ async function loadBreakdown() {
 }
 
 watch(breakdownPeriod, loadBreakdown)
+
+// ── Regime comparison ──
+
+const showCompareModal = ref(false)
+const comparePeriod = ref<'month' | 'quarter' | 'year'>('year')
+const comparisonRows = ref<RegimeComparisonRow[]>([])
+
+async function loadComparison() {
+  try {
+    comparisonRows.value = await proProfileAPI.getRegimeComparison(comparePeriod.value)
+  } catch {
+    comparisonRows.value = []
+  }
+}
+
+async function openCompareModal() {
+  comparisonRows.value = []
+  showCompareModal.value = true
+  await loadComparison()
+}
+
+watch(comparePeriod, () => {
+  if (showCompareModal.value) loadComparison()
+})
+
+const currentRegimeKey = computed<string>(() => {
+  const lf = proStore.proProfile?.legal_form ?? 'micro'
+  if (lf === 'eurl') {
+    return proStore.proProfile?.eurl_tax_option === 'is' ? 'eurl_is' : 'eurl_ir'
+  }
+  return lf
+})
+
+const bestRegimeKey = computed<string | null>(() => {
+  if (comparisonRows.value.length === 0) return null
+  let best = comparisonRows.value[0]
+  for (const row of comparisonRows.value) {
+    if (row.breakdown.total_prelevements < best.breakdown.total_prelevements) best = row
+  }
+  return best.regime
+})
 </script>
 
 <style scoped>
@@ -601,5 +755,53 @@ watch(breakdownPeriod, loadBreakdown)
   font-weight: bold;
   min-width: 44px;
   text-align: right;
+}
+.regime-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.regime-compare th,
+.regime-compare td {
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.regime-compare thead th {
+  text-align: center;
+  vertical-align: top;
+  font-weight: 600;
+  position: relative;
+}
+.regime-compare tbody th {
+  text-align: left;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.regime-compare th.current {
+  background: rgba(32, 128, 240, 0.18);
+}
+.regime-compare th.best,
+.regime-compare td.best {
+  background: rgba(24, 160, 88, 0.18);
+}
+.regime-compare tr.total td,
+.regime-compare tr.total th,
+.regime-compare tr.net td,
+.regime-compare tr.net th {
+  font-weight: bold;
+  font-size: 14px;
+}
+.regime-compare .badge {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: normal;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(32, 128, 240, 0.3);
+}
+.regime-compare .best-badge {
+  background: rgba(24, 160, 88, 0.4);
 }
 </style>
