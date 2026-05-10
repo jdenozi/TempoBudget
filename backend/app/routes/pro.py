@@ -1173,17 +1173,40 @@ async def get_dashboard(
     )
     row = result.fetchone()
 
-    # Get cotisation rate and threshold from profile
+    # Get full profile to dispatch to the right tax engine for cotisations estimation
     profile_result = await db.execute(
-        text("SELECT cotisation_rate, revenue_threshold FROM pro_profiles WHERE user_id = :user_id"),
+        text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
         {"user_id": user_id},
     )
-    profile = profile_result.fetchone()
-    rate = profile.cotisation_rate if profile else 21.1
-    threshold = profile.revenue_threshold if profile else 77700
+    profile_row = profile_result.fetchone()
+    profile_dict = dict(profile_row._mapping) if profile_row else {}
+    threshold = profile_dict.get("revenue_threshold") or 77700
 
     ca_year = row.ca_year
-    cotisations = ca_year * (rate / 100)
+
+    # Declared income for the year (for engines that gate cotisations on declared CA)
+    declared_result = await db.execute(
+        text("""
+            SELECT COALESCE(SUM(amount), 0) AS declared
+            FROM pro_transactions
+            WHERE user_id = :user_id AND transaction_type = 'income'
+              AND date >= :year_start AND is_declared = 1
+        """),
+        {"user_id": user_id, "year_start": year_start},
+    )
+    declared_year = float(declared_result.fetchone().declared)
+
+    engine = get_engine(profile_dict.get("legal_form") or "micro")
+    yearly_breakdown = engine.compute(
+        PeriodInput(
+            turnover=float(ca_year),
+            declared_turnover=declared_year,
+            expenses=float(row.expenses_year),
+            period="year",
+        ),
+        profile_dict,
+    )
+    cotisations = yearly_breakdown.cotisations_sociales
     threshold_pct = (ca_year / threshold * 100) if threshold > 0 else 0
 
     return ProDashboardSummary(
