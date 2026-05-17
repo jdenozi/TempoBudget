@@ -6,13 +6,20 @@
         <img src="/logo.png" alt="Tempo Budget" class="hero-logo" />
         <h1>{{ t('landing.title') }}</h1>
         <p class="hero-subtitle">{{ t('landing.subtitle') }}</p>
+        <p class="hero-explanation">{{ t('landing.twoOptions') }}</p>
         <div class="hero-buttons">
-          <n-button type="primary" size="large" @click="router.push('/pricing')">
-            {{ t('landing.subscribeNow') }}
-          </n-button>
-          <n-button size="large" @click="openMailto">
-            {{ t('landing.requestInvitation') }}
-          </n-button>
+          <div class="hero-button-group">
+            <n-button type="primary" size="large" @click="router.push('/pricing')">
+              {{ t('landing.subscribeNow') }}
+            </n-button>
+            <span class="button-hint">{{ t('landing.immediateAccess') }}</span>
+          </div>
+          <div class="hero-button-group">
+            <n-button size="large" @click="openMailto">
+              {{ t('landing.requestInvitation') }}
+            </n-button>
+            <span class="button-hint">{{ t('landing.freeTrialHint') }}</span>
+          </div>
         </div>
       </div>
       <div class="hero-visual">
@@ -353,10 +360,29 @@ function openMailto() {
   line-height: 1.6;
 }
 
+.hero-explanation {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
 .hero-buttons {
   display: flex;
-  gap: 16px;
+  gap: 24px;
   flex-wrap: wrap;
+}
+
+.hero-button-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .hero-visual {
@@ -929,9 +955,14 @@ function openMailto() {
   .hero-buttons {
     flex-direction: column;
     width: 100%;
+    gap: 16px;
   }
 
-  .hero-buttons .n-button {
+  .hero-button-group {
+    width: 100%;
+  }
+
+  .hero-button-group .n-button {
     width: 100%;
   }
 }
