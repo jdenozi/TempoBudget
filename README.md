@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.11.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.12.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -83,13 +83,16 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.11.0)
+## Recent Changes (v2.12.0)
 
-* **Factur-X e-invoicing**: generate compliant PDF/A-3 invoices with embedded XML (EN 16931 / Factur-X BASIC profile) — ready for the French 2026 e-invoicing mandate
-* **Client enrichment**: SIREN, VAT number, and structured address fields for B2B invoicing compliance
-* **PDP export endpoint**: JSON export for transmission to e-invoicing platforms via n8n or similar automation tools
-* **Public landing page**: new `/welcome` page showcasing features for visitors before login
-* **VAT tracking**: per-transaction VAT rate with dashboard summary (v2.10.0 → v2.11.0 includes this from previous commit)
+* **ACRE support**: 50% cotisation reduction for the first year with start date tracking
+* **Pro setup wizard**: guided 4-step onboarding for new Pro users with required field validation
+* **Help chat**: pre-programmed responses and quick topics for user assistance
+* **URSSAF schedule**: payment deadlines and projections in the declaration view
+* **Pricing on landing page**: €4.99/month subscription with feature details
+* **Avatar generation**: DiceBear API integration for profile personalization (no upload needed)
+* **TNS cotisations breakdown**: detailed breakdown for all tax regimes
+* **Accessibility improvements**: aria-labels and clearer navigation
 
 ## License
 
