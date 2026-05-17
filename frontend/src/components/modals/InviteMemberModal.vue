@@ -12,7 +12,6 @@
           <n-input
             v-model:value="formData.email"
             :placeholder="t('placeholders.enterEmail')"
-            type="email"
           />
         </n-form-item>
 

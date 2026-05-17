@@ -151,13 +151,13 @@ export const useProStore = defineStore('pro', () => {
     proProducts.value = await proProductsAPI.getAll()
   }
 
-  async function createProduct(data: { name: string; type: 'product' | 'service'; default_price: number; category_id?: string }) {
+  async function createProduct(data: { name: string; type: 'product' | 'service' | 'gift_card'; default_price: number; category_id?: string }) {
     const product = await proProductsAPI.create(data)
     proProducts.value.push(product)
     return product
   }
 
-  async function updateProduct(id: string, data: { name?: string; type?: 'product' | 'service'; default_price?: number; category_id?: string }) {
+  async function updateProduct(id: string, data: { name?: string; type?: 'product' | 'service' | 'gift_card'; default_price?: number; category_id?: string }) {
     const updated = await proProductsAPI.update(id, data)
     const idx = proProducts.value.findIndex(p => p.id === id)
     if (idx !== -1) proProducts.value[idx] = updated
@@ -339,8 +339,8 @@ export const useProStore = defineStore('pro', () => {
     return updated
   }
 
-  async function downloadInvoicePdf(id: string) {
-    return await proInvoicesAPI.downloadPdf(id)
+  async function downloadInvoicePdf(id: string, facturx = false) {
+    return await proInvoicesAPI.downloadPdf(id, facturx)
   }
 
   // ── Quotes ──

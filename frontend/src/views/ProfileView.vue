@@ -557,8 +557,10 @@ const avatarSrc = computed(() => {
 const userInitials = computed(() => {
   const name = authStore.user?.name || authStore.user?.email || '?'
   const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  const first = parts[0]
+  const last = parts[parts.length - 1]
+  if (parts.length >= 2 && first && last && first.length > 0 && last.length > 0) {
+    return (first.charAt(0) + last.charAt(0)).toUpperCase()
   }
   return name.slice(0, 2).toUpperCase()
 })

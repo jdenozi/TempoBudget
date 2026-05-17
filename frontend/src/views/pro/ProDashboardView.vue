@@ -837,8 +837,9 @@ const currentRegimeKey = computed<string>(() => {
 })
 
 const bestRegimeKey = computed<string | null>(() => {
-  if (comparisonRows.value.length === 0) return null
-  let best = comparisonRows.value[0]
+  const first = comparisonRows.value[0]
+  if (!first) return null
+  let best = first
   for (const row of comparisonRows.value) {
     if (row.breakdown.personal_take_home > best.breakdown.personal_take_home) best = row
   }

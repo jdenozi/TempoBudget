@@ -162,8 +162,9 @@ const budgetVsActualTitle = computed(() => `${t('budget.title')} vs ${t('budget.
 
 onMounted(async () => {
   await budgetStore.fetchBudgets()
-  if (budgetStore.budgets.length > 0) {
-    selectedBudget.value = budgetStore.budgets[0].id
+  const first = budgetStore.budgets[0]
+  if (first) {
+    selectedBudget.value = first.id
   }
 })
 

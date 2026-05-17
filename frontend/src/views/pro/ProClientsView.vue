@@ -44,7 +44,7 @@
     </n-space>
 
     <!-- Create/Edit Modal -->
-    <n-modal v-model:show="showModal" preset="card" :title="editingClient ? t('pro.clients.editClient') : t('pro.clients.addClient')" style="max-width: 500px;">
+    <n-modal v-model:show="showModal" preset="card" :title="editingClient ? t('pro.clients.editClient') : t('pro.clients.addClient')" style="max-width: 600px;">
       <n-form ref="formRef" :model="clientForm">
         <n-form-item :label="t('pro.clients.name')" path="name" :rule="{ required: true, message: t('errors.required') }">
           <n-input v-model:value="clientForm.name" />
@@ -55,9 +55,54 @@
         <n-form-item :label="t('pro.clients.phone')">
           <n-input v-model:value="clientForm.phone" />
         </n-form-item>
-        <n-form-item :label="t('pro.clients.address')">
-          <n-input v-model:value="clientForm.address" type="textarea" :rows="2" />
+
+        <n-divider>{{ t('pro.clients.legalInfo') }}</n-divider>
+
+        <n-form-item :label="t('pro.clients.clientType')">
+          <n-radio-group v-model:value="clientForm.is_professional">
+            <n-radio :value="1">{{ t('pro.clients.professional') }}</n-radio>
+            <n-radio :value="0">{{ t('pro.clients.individual') }}</n-radio>
+          </n-radio-group>
         </n-form-item>
+
+        <template v-if="clientForm.is_professional === 1">
+          <n-grid :cols="2" :x-gap="12">
+            <n-gi>
+              <n-form-item :label="t('pro.clients.siren')">
+                <n-input v-model:value="clientForm.siren" placeholder="123456789" maxlength="9" />
+              </n-form-item>
+            </n-gi>
+            <n-gi>
+              <n-form-item :label="t('pro.clients.vatNumber')">
+                <n-input v-model:value="clientForm.vat_number" placeholder="FR12345678901" />
+              </n-form-item>
+            </n-gi>
+          </n-grid>
+        </template>
+
+        <n-divider>{{ t('pro.clients.addressSection') }}</n-divider>
+
+        <n-form-item :label="t('pro.clients.street')">
+          <n-input v-model:value="clientForm.street" :placeholder="t('placeholders.street')" />
+        </n-form-item>
+        <n-grid :cols="3" :x-gap="12">
+          <n-gi>
+            <n-form-item :label="t('pro.clients.postalCode')">
+              <n-input v-model:value="clientForm.postal_code" placeholder="75001" maxlength="10" />
+            </n-form-item>
+          </n-gi>
+          <n-gi>
+            <n-form-item :label="t('pro.clients.city')">
+              <n-input v-model:value="clientForm.city" placeholder="Paris" />
+            </n-form-item>
+          </n-gi>
+          <n-gi>
+            <n-form-item :label="t('pro.clients.country')">
+              <n-input v-model:value="clientForm.country" placeholder="FR" maxlength="2" />
+            </n-form-item>
+          </n-gi>
+        </n-grid>
+
         <n-form-item :label="t('pro.clients.notes')">
           <n-input v-model:value="clientForm.notes" type="textarea" :rows="2" />
         </n-form-item>
@@ -71,7 +116,8 @@
 import { ref, h, onMounted } from 'vue'
 import {
   NSpace, NCard, NButton, NDataTable, NModal, NForm, NFormItem,
-  NInput, NEmpty, NPopconfirm, useMessage
+  NInput, NEmpty, NPopconfirm, NDivider, NRadioGroup, NRadio, NGrid, NGi,
+  useMessage
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -98,8 +144,14 @@ const clientForm = ref({
   name: '',
   email: '',
   phone: '',
-  address: '',
   notes: '',
+  siren: '',
+  vat_number: '',
+  street: '',
+  postal_code: '',
+  city: '',
+  country: 'FR',
+  is_professional: 1 as number,
 })
 
 const columns: DataTableColumns<ProClient> = [
@@ -115,7 +167,12 @@ const columns: DataTableColumns<ProClient> = [
   },
   { title: () => t('pro.clients.email'), key: 'email' },
   { title: () => t('pro.clients.phone'), key: 'phone' },
-  { title: () => t('pro.clients.address'), key: 'address', ellipsis: { tooltip: true } },
+  { title: () => t('pro.clients.siren'), key: 'siren' },
+  {
+    title: () => t('pro.clients.city'),
+    key: 'city',
+    render: (row) => row.city ? `${row.postal_code || ''} ${row.city}`.trim() : '',
+  },
   {
     title: () => t('common.actions'),
     key: 'actions',
@@ -135,7 +192,10 @@ const columns: DataTableColumns<ProClient> = [
 
 function openCreateModal() {
   editingClient.value = null
-  clientForm.value = { name: '', email: '', phone: '', address: '', notes: '' }
+  clientForm.value = {
+    name: '', email: '', phone: '', notes: '',
+    siren: '', vat_number: '', street: '', postal_code: '', city: '', country: 'FR', is_professional: 1,
+  }
   showModal.value = true
 }
 
@@ -145,8 +205,14 @@ function openEditModal(client: ProClient) {
     name: client.name,
     email: client.email || '',
     phone: client.phone || '',
-    address: client.address || '',
     notes: client.notes || '',
+    siren: client.siren || '',
+    vat_number: client.vat_number || '',
+    street: client.street || '',
+    postal_code: client.postal_code || '',
+    city: client.city || '',
+    country: client.country || 'FR',
+    is_professional: client.is_professional ?? 1,
   }
   showModal.value = true
 }
@@ -158,8 +224,14 @@ async function handleSubmit() {
     name: clientForm.value.name,
     email: clientForm.value.email || undefined,
     phone: clientForm.value.phone || undefined,
-    address: clientForm.value.address || undefined,
     notes: clientForm.value.notes || undefined,
+    siren: clientForm.value.siren || undefined,
+    vat_number: clientForm.value.vat_number || undefined,
+    street: clientForm.value.street || undefined,
+    postal_code: clientForm.value.postal_code || undefined,
+    city: clientForm.value.city || undefined,
+    country: clientForm.value.country || undefined,
+    is_professional: clientForm.value.is_professional,
   }
 
   if (editingClient.value) {

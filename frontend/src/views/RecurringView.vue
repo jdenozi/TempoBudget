@@ -255,8 +255,9 @@ onMounted(async () => {
   }
 
   // Select the first budget by default
-  if (budgetStore.budgets.length > 0) {
-    selectedBudgetId.value = budgetStore.budgets[0].id
+  const first = budgetStore.budgets[0]
+  if (first) {
+    selectedBudgetId.value = first.id
     await loadRecurring()
   }
 })

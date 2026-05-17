@@ -95,7 +95,7 @@
               <n-space :size="8" style="width: 100%;">
                 <n-select
                   v-model:value="form.discount_type"
-                  :options="[{ label: '-', value: null }, { label: '%', value: 'percentage' }, { label: '€', value: 'fixed' }]"
+                  :options="[{ label: '-', value: null as unknown as string }, { label: '%', value: 'percentage' }, { label: '€', value: 'fixed' }]"
                   :disabled="!isDraft"
                   style="width: 80px;"
                 />
@@ -214,9 +214,10 @@ function addItem() {
 
 function onProductSelect(idx: number, productId: string) {
   const product = proStore.proProducts.find(p => p.id === productId)
-  if (product) {
-    form.value.items[idx].description = product.name
-    form.value.items[idx].unit_price = product.default_price
+  const item = form.value.items[idx]
+  if (product && item) {
+    item.description = product.name
+    item.unit_price = product.default_price
   }
 }
 

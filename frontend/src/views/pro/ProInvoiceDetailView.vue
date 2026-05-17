@@ -11,7 +11,9 @@
         <n-button v-if="invoice.status === 'sent'" type="success" @click="showPayModal = true">{{ t('pro.invoices.paid') }}</n-button>
         <n-button v-if="invoice.status === 'sent'" @click="handleReminder">{{ t('pro.invoices.sendReminder') }}</n-button>
         <n-button v-if="invoice.status !== 'cancelled' && invoice.status !== 'paid'" type="error" quaternary @click="handleStatusChange('cancelled')">{{ t('pro.invoices.cancelled') }}</n-button>
-        <n-button type="info" @click="handleDownloadPdf">PDF</n-button>
+        <n-dropdown :options="pdfOptions" @select="handlePdfSelect">
+          <n-button type="info">PDF ▼</n-button>
+        </n-dropdown>
         <n-button @click="showSettingsModal = true">⚙</n-button>
       </n-space>
     </div>
@@ -96,7 +98,7 @@
               <n-space :size="8" style="width: 100%;">
                 <n-select
                   v-model:value="form.discount_type"
-                  :options="[{ label: '-', value: null }, { label: '%', value: 'percentage' }, { label: '€', value: 'fixed' }]"
+                  :options="[{ label: '-', value: null as unknown as string }, { label: '%', value: 'percentage' }, { label: '€', value: 'fixed' }]"
                   :disabled="!isDraft"
                   style="width: 80px;"
                 />
@@ -174,7 +176,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NSpace, NButton, NCard, NGrid, NGi, NFormItem, NInput, NInputNumber,
-  NSelect, NDatePicker, NTag, NModal, useMessage,
+  NSelect, NDatePicker, NTag, NModal, NDropdown, useMessage,
 } from 'naive-ui'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
@@ -263,9 +265,10 @@ function addItem() {
 
 function onProductSelect(idx: number, productId: string) {
   const product = proStore.proProducts.find(p => p.id === productId)
-  if (product) {
-    form.value.items[idx].description = product.name
-    form.value.items[idx].unit_price = product.default_price
+  const item = form.value.items[idx]
+  if (product && item) {
+    item.description = product.name
+    item.unit_price = product.default_price
   }
 }
 
@@ -327,13 +330,20 @@ async function handleReminder() {
   await loadInvoice()
 }
 
-async function handleDownloadPdf() {
+const pdfOptions = computed(() => [
+  { label: 'PDF', key: 'pdf' },
+  { label: 'Factur-X (e-invoicing)', key: 'facturx' },
+])
+
+async function handlePdfSelect(key: string) {
   try {
-    const blob = await proStore.downloadInvoicePdf(invoice.value!.id)
+    const facturx = key === 'facturx'
+    const blob = await proStore.downloadInvoicePdf(invoice.value!.id, facturx)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${invoice.value!.invoice_number}.pdf`
+    const suffix = facturx ? '-facturx' : ''
+    a.download = `${invoice.value!.invoice_number}${suffix}.pdf`
     a.click()
     URL.revokeObjectURL(url)
   } catch (e: any) {

@@ -31,9 +31,13 @@ class ProProfile(BaseModel):
     vat_rate: float = Field(20.0, description="VAT rate (%)")
     vat_number: str | None = Field(None, description="VAT intra-community number")
     company_name: str | None = Field(None, description="Company/business name")
-    company_address: str | None = Field(None, description="Company address")
+    company_address: str | None = Field(None, description="Company address (legacy free-text)")
     company_email: str | None = Field(None, description="Company email")
     company_phone: str | None = Field(None, description="Company phone")
+    street: str | None = Field(None, description="Street address (Factur-X)")
+    postal_code: str | None = Field(None, description="Postal code (Factur-X)")
+    city: str | None = Field(None, description="City (Factur-X)")
+    country: str = Field("FR", description="Country code ISO 3166-1 alpha-2 (Factur-X)")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
 
@@ -69,6 +73,10 @@ class UpdateProProfile(BaseModel):
     company_address: str | None = None
     company_email: str | None = None
     company_phone: str | None = None
+    street: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    country: str | None = None
 
 
 class ProClient(BaseModel):
@@ -78,8 +86,16 @@ class ProClient(BaseModel):
     name: str = Field(..., description="Client name")
     email: str | None = Field(None, description="Client email")
     phone: str | None = Field(None, description="Client phone")
-    address: str | None = Field(None, description="Client address")
+    address: str | None = Field(None, description="Client address (legacy free-text)")
     notes: str | None = Field(None, description="Notes")
+    siren: str | None = Field(None, description="SIREN (9 digits) for Factur-X B2B")
+    siret: str | None = Field(None, description="SIRET (14 digits) for Factur-X B2B")
+    vat_number: str | None = Field(None, description="VAT intra-community number")
+    street: str | None = Field(None, description="Street address (Factur-X)")
+    postal_code: str | None = Field(None, description="Postal code (Factur-X)")
+    city: str | None = Field(None, description="City (Factur-X)")
+    country: str = Field("FR", description="Country code ISO 3166-1 alpha-2")
+    is_professional: int = Field(1, description="1=B2B (requires SIREN), 0=B2C")
     created_at: str = Field(..., description="Creation timestamp")
 
     class Config:
@@ -93,6 +109,14 @@ class CreateProClient(BaseModel):
     phone: str | None = None
     address: str | None = None
     notes: str | None = None
+    siren: str | None = Field(None, pattern=r"^\d{9}$")
+    siret: str | None = Field(None, pattern=r"^\d{14}$")
+    vat_number: str | None = None
+    street: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    country: str = "FR"
+    is_professional: int = Field(1, ge=0, le=1)
 
 
 class UpdateProClient(BaseModel):
@@ -102,6 +126,14 @@ class UpdateProClient(BaseModel):
     phone: str | None = None
     address: str | None = None
     notes: str | None = None
+    siren: str | None = Field(None, pattern=r"^\d{9}$")
+    siret: str | None = Field(None, pattern=r"^\d{14}$")
+    vat_number: str | None = None
+    street: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    country: str | None = None
+    is_professional: int | None = Field(None, ge=0, le=1)
 
 
 class ProCategory(BaseModel):

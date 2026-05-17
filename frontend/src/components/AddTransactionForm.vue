@@ -288,8 +288,9 @@ const memberOptions = computed(() => {
 // Load budgets on mount
 onMounted(async () => {
   await budgetStore.fetchBudgets()
-  if (budgetStore.budgets.length > 0) {
-    transaction.value.budgetId = budgetStore.budgets[0].id
+  const first = budgetStore.budgets[0]
+  if (first) {
+    transaction.value.budgetId = first.id
   }
 })
 

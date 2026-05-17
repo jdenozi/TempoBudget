@@ -449,7 +449,19 @@
       "noClients": "Aucun client",
       "clientAdded": "Client ajouté",
       "clientUpdated": "Client mis à jour",
-      "clientDeleted": "Client supprimé"
+      "clientDeleted": "Client supprimé",
+      "legalInfo": "Informations légales (Factur-X)",
+      "clientType": "Type de client",
+      "professional": "Professionnel (B2B)",
+      "individual": "Particulier (B2C)",
+      "siren": "SIREN",
+      "siret": "SIRET",
+      "vatNumber": "N° TVA intracom.",
+      "addressSection": "Adresse",
+      "street": "Rue",
+      "postalCode": "Code postal",
+      "city": "Ville",
+      "country": "Pays (ISO)"
     },
     "transactions": {
       "paymentMethod": "Moyen de paiement",
@@ -768,7 +780,8 @@
     "enterCurrentPassword": "Entrez votre mot de passe actuel",
     "enterNewPassword": "Entrez votre nouveau mot de passe",
     "confirmNewPassword": "Confirmez votre nouveau mot de passe",
-    "changeReason": "Ex: Augmentation de prix, Changement de fournisseur..."
+    "changeReason": "Ex: Augmentation de prix, Changement de fournisseur...",
+    "street": "12 rue de la Paix"
   },
   "project": {
     "title": "Projets",
@@ -844,5 +857,38 @@
     "alreadyMember": "Cet utilisateur est déjà membre ou a une invitation en attente",
     "memberRemoved": "Membre retiré",
     "removeMemberConfirm": "Retirer ce membre du projet ?"
+  },
+  "landing": {
+    "title": "Gérez votre budget en toute simplicité",
+    "subtitle": "Une application complète pour suivre vos dépenses personnelles, partager des budgets en groupe, et gérer votre activité professionnelle.",
+    "getStarted": "Commencer",
+    "learnMore": "En savoir plus",
+    "featuresTitle": "Tout ce dont vous avez besoin",
+    "feature1Title": "Budgets personnels",
+    "feature1Desc": "Suivez vos dépenses par catégories et sous-catégories. Visualisez où va votre argent.",
+    "feature2Title": "Budgets partagés",
+    "feature2Desc": "Partagez un budget avec votre famille ou colocataires. Voyez qui doit quoi.",
+    "feature3Title": "Transactions récurrentes",
+    "feature3Desc": "Automatisez le suivi de vos abonnements et dépenses fixes mensuelles.",
+    "feature4Title": "Graphiques et analyses",
+    "feature4Desc": "Visualisez vos tendances de dépenses et anticipez vos finances.",
+    "proTitle": "Mode Pro pour indépendants",
+    "proSubtitle": "Tout pour gérer votre activité d'auto-entrepreneur ou société.",
+    "proFeature1": "Multi-régimes : Micro, EI, EURL, SASU, SAS",
+    "proFeature2": "Estimation des cotisations URSSAF et impôts",
+    "proFeature3": "Comparaison de régimes fiscaux",
+    "proFeature4": "Facturation clients avec devis et factures",
+    "proFeature5": "Suivi des seuils de CA et alertes",
+    "taxPreview": "Aperçu fiscal",
+    "incomeTax": "Impôt sur le revenu",
+    "netToYou": "Net pour vous",
+    "facturxTitle": "Prêt pour la facturation électronique 2026",
+    "facturxDesc": "Générez des factures conformes Factur-X, prêtes pour les nouvelles obligations légales.",
+    "facturxFeature1": "Format PDF/A-3 avec XML embarqué",
+    "facturxFeature2": "Conforme EN 16931",
+    "facturxFeature3": "Export pour PDP via n8n",
+    "ctaTitle": "Prêt à prendre le contrôle de vos finances ?",
+    "ctaSubtitle": "Créez votre compte gratuitement et commencez dès maintenant.",
+    "ctaButton": "Créer mon compte"
   }
 }

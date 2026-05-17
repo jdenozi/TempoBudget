@@ -449,7 +449,19 @@
       "noClients": "No clients",
       "clientAdded": "Client added",
       "clientUpdated": "Client updated",
-      "clientDeleted": "Client deleted"
+      "clientDeleted": "Client deleted",
+      "legalInfo": "Legal info (Factur-X)",
+      "clientType": "Client type",
+      "professional": "Professional (B2B)",
+      "individual": "Individual (B2C)",
+      "siren": "SIREN",
+      "siret": "SIRET",
+      "vatNumber": "VAT number",
+      "addressSection": "Address",
+      "street": "Street",
+      "postalCode": "Postal code",
+      "city": "City",
+      "country": "Country (ISO)"
     },
     "transactions": {
       "paymentMethod": "Payment method",
@@ -768,7 +780,8 @@
     "enterCurrentPassword": "Enter your current password",
     "enterNewPassword": "Enter your new password",
     "confirmNewPassword": "Confirm your new password",
-    "changeReason": "e.g., Price increase, Changed provider..."
+    "changeReason": "e.g., Price increase, Changed provider...",
+    "street": "123 Main Street"
   },
   "project": {
     "title": "Projects",
@@ -844,5 +857,38 @@
     "alreadyMember": "This user is already a member or has a pending invitation",
     "memberRemoved": "Member removed",
     "removeMemberConfirm": "Remove this member from the project?"
+  },
+  "landing": {
+    "title": "Manage your budget with ease",
+    "subtitle": "A complete app to track personal expenses, share budgets with groups, and manage your professional activity.",
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "featuresTitle": "Everything you need",
+    "feature1Title": "Personal Budgets",
+    "feature1Desc": "Track your expenses by categories and subcategories. See where your money goes.",
+    "feature2Title": "Shared Budgets",
+    "feature2Desc": "Share a budget with family or roommates. See who owes what.",
+    "feature3Title": "Recurring Transactions",
+    "feature3Desc": "Automate tracking of your subscriptions and fixed monthly expenses.",
+    "feature4Title": "Charts & Analytics",
+    "feature4Desc": "Visualize your spending trends and anticipate your finances.",
+    "proTitle": "Pro Mode for freelancers",
+    "proSubtitle": "Everything to manage your self-employed or company activity.",
+    "proFeature1": "Multi-regime: Micro, Sole Prop, EURL, SASU, SAS",
+    "proFeature2": "URSSAF contributions and tax estimation",
+    "proFeature3": "Tax regime comparison",
+    "proFeature4": "Client invoicing with quotes and invoices",
+    "proFeature5": "Revenue threshold tracking and alerts",
+    "taxPreview": "Tax Preview",
+    "incomeTax": "Income Tax",
+    "netToYou": "Net to you",
+    "facturxTitle": "Ready for 2026 e-invoicing",
+    "facturxDesc": "Generate Factur-X compliant invoices, ready for new legal requirements.",
+    "facturxFeature1": "PDF/A-3 format with embedded XML",
+    "facturxFeature2": "EN 16931 compliant",
+    "facturxFeature3": "Export to PDP via n8n",
+    "ctaTitle": "Ready to take control of your finances?",
+    "ctaSubtitle": "Create your free account and get started now.",
+    "ctaButton": "Create my account"
   }
 }

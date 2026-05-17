@@ -221,10 +221,48 @@ def generate_invoice_pdf(
     profile: dict,
     settings: dict,
     client: dict,
+    facturx: bool = False,
 ) -> bytes:
-    """Generate a PDF for an invoice."""
+    """Generate a PDF for an invoice.
+
+    Args:
+        invoice: Invoice data
+        items: Line items
+        profile: Seller profile
+        settings: Invoice settings
+        client: Client/buyer data
+        facturx: If True, generate Factur-X compliant PDF/A-3 with embedded XML
+
+    Returns:
+        PDF bytes (standard or Factur-X compliant)
+    """
     status_map = {"draft": "Brouillon", "sent": "Envoyée", "paid": "Payée", "cancelled": "Annulée"}
     is_vat = bool(profile.get("is_subject_to_vat"))
+
+    # Build client address from structured fields if available
+    client_address = client.get("address")
+    if client.get("street") or client.get("city"):
+        parts = []
+        if client.get("street"):
+            parts.append(client["street"])
+        if client.get("postal_code") or client.get("city"):
+            parts.append(f"{client.get('postal_code', '')} {client.get('city', '')}".strip())
+        if client.get("country") and client.get("country") != "FR":
+            parts.append(client["country"])
+        if parts:
+            client_address = ", ".join(parts)
+
+    # Build profile address from structured fields if available
+    profile_address = profile.get("address")
+    if profile.get("street") or profile.get("city"):
+        parts = []
+        if profile.get("street"):
+            parts.append(profile["street"])
+        if profile.get("postal_code") or profile.get("city"):
+            parts.append(f"{profile.get('postal_code', '')} {profile.get('city', '')}".strip())
+        if parts:
+            profile_address = ", ".join(parts)
+
     html_str = _build_html(
         doc_type="Facture",
         doc_number=invoice["invoice_number"],
@@ -232,16 +270,16 @@ def generate_invoice_pdf(
         issue_date=invoice["issue_date"],
         due_or_validity_label="Date d'échéance",
         due_or_validity_date=invoice["due_date"],
-        profile_name=profile.get("name", ""),
+        profile_name=profile.get("company_name") or profile.get("name", ""),
         profile_siret=profile.get("siret"),
         profile_email=profile.get("email"),
         profile_phone=profile.get("phone"),
-        profile_address=profile.get("address"),
+        profile_address=profile_address,
         profile_vat_number=profile.get("vat_number"),
         is_subject_to_vat=is_vat,
         client_name=client["name"],
         client_email=client.get("email"),
-        client_address=client.get("address"),
+        client_address=client_address,
         items=items,
         subtotal=invoice["subtotal"],
         discount_type=invoice.get("discount_type"),
@@ -256,7 +294,21 @@ def generate_invoice_pdf(
         bank_iban=settings.get("bank_iban"),
         bank_bic=settings.get("bank_bic"),
     )
-    return HTML(string=html_str).write_pdf()
+
+    pdf_bytes = HTML(string=html_str).write_pdf()
+
+    if facturx:
+        from app.facturx_generator import generate_facturx_pdf
+        return generate_facturx_pdf(
+            invoice=invoice,
+            items=items,
+            profile=profile,
+            settings=settings,
+            client=client,
+            html_pdf_bytes=pdf_bytes,
+        )
+
+    return pdf_bytes
 
 
 def generate_quote_pdf(

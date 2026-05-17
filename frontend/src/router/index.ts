@@ -21,6 +21,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import Layout from '@/components/Layout.vue'
+import LandingView from '@/views/LandingView.vue'
 import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import BudgetDetailView from '@/views/BudgetDetailView.vue'
@@ -33,6 +34,11 @@ import AuthCallbackView from '@/views/AuthCallbackView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/welcome',
+      name: 'welcome',
+      component: LandingView,
+    },
     {
       path: '/login',
       name: 'login',
@@ -190,21 +196,17 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
-  // Allow auth callback without authentication
-  if (to.path === '/auth/success') {
+  // Allow auth callback and welcome page without authentication
+  if (to.path === '/auth/success' || to.path === '/welcome') {
     next()
     return
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // In production, redirect to OIDC login; in dev, use local login page
-    if (import.meta.env.PROD) {
-      window.location.href = '/auth/login'
-    } else {
-      next('/login')
-    }
+    // Redirect to landing page for unauthenticated users
+    next('/welcome')
     return
-  } else if (to.path === '/login' && authStore.isAuthenticated) {
+  } else if ((to.path === '/login' || to.path === '/welcome') && authStore.isAuthenticated) {
     next('/dashboard')
   } else {
     next()

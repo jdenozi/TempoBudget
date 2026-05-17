@@ -47,6 +47,7 @@
 * **Quarterly chart view**: toggle the revenue evolution chart between monthly (12 months) and quarterly (8 quarters) aggregation
 * **"Accounted" toggle on income**: opt a transaction in or out of the URSSAF basis directly when creating it, instead of having to bulk-toggle afterwards
 * **Pro / Personal projects separated**: the *Projects* view now filters automatically based on the current Pro/Personal toggle
+* **Factur-X compliant invoicing**: generate e-invoices in PDF/A-3 format with embedded XML (EN 16931 / Factur-X BASIC profile), ready for French 2026 e-invoicing mandate. Includes structured client data (SIREN, VAT number, full address), export endpoint for PDP transmission via n8n or similar automation tools
 
 ## Tech Stack
 

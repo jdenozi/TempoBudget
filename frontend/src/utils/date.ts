@@ -26,6 +26,9 @@ export function formatDateLocal(timestamp: number): string {
  * @returns Unix timestamp in milliseconds
  */
 export function parseDateToTimestamp(dateString: string): number {
-  const [year, month, day] = dateString.split('-').map(Number)
+  const parts = dateString.split('-').map(Number)
+  const year = parts[0] ?? 0
+  const month = parts[1] ?? 1
+  const day = parts[2] ?? 1
   return new Date(year, month - 1, day, 12, 0, 0).getTime()
 }

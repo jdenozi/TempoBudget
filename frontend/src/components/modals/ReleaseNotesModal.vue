@@ -107,13 +107,13 @@ const renderBody = (body: string | null): string => {
     const line = raw.trim()
     if (!line) { closeList(); continue }
     const h2 = line.match(/^##\s+(.*)$/)
-    if (h2) { closeList(); out.push(`<h4>${escapeHtml(h2[1])}</h4>`); continue }
+    if (h2) { closeList(); out.push(`<h4>${escapeHtml(h2[1]!)}</h4>`); continue }
     const h3 = line.match(/^###\s+(.*)$/)
-    if (h3) { closeList(); out.push(`<h5>${escapeHtml(h3[1])}</h5>`); continue }
+    if (h3) { closeList(); out.push(`<h5>${escapeHtml(h3[1]!)}</h5>`); continue }
     const bullet = line.match(/^[-*]\s+(.*)$/)
     if (bullet) {
       if (!inList) { out.push('<ul>'); inList = true }
-      const content = escapeHtml(bullet[1]).replace(
+      const content = escapeHtml(bullet[1]!).replace(
         /(https?:\/\/\S+)/g,
         '<a href="$1" target="_blank" rel="noopener">$1</a>',
       )

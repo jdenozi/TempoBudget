@@ -244,8 +244,9 @@ async function handleSubmit() {
 }
 
 onMounted(() => {
-  if (budgetStore.categories.length > 0) {
-    transaction.value.categoryId = budgetStore.categories[0].id
+  const first = budgetStore.categories[0]
+  if (first) {
+    transaction.value.categoryId = first.id
   }
 })
 </script>

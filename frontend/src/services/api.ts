@@ -1023,6 +1023,10 @@ export interface ProProfile {
   company_address: string | null
   company_email: string | null
   company_phone: string | null
+  street: string | null
+  postal_code: string | null
+  city: string | null
+  country: string
   created_at: string
   updated_at: string
 }
@@ -1055,6 +1059,14 @@ export interface ProClient {
   phone: string | null
   address: string | null
   notes: string | null
+  siren: string | null
+  siret: string | null
+  vat_number: string | null
+  street: string | null
+  postal_code: string | null
+  city: string | null
+  country: string
+  is_professional: number
   created_at: string
 }
 
@@ -1319,11 +1331,19 @@ export const proClientsAPI = {
     const response = await api.get<ProClient[]>('/pro/clients')
     return response.data
   },
-  create: async (data: { name: string; email?: string; phone?: string; address?: string; notes?: string }) => {
+  create: async (data: {
+    name: string; email?: string; phone?: string; address?: string; notes?: string;
+    siren?: string; siret?: string; vat_number?: string;
+    street?: string; postal_code?: string; city?: string; country?: string; is_professional?: number;
+  }) => {
     const response = await api.post<ProClient>('/pro/clients', data)
     return response.data
   },
-  update: async (id: string, data: { name?: string; email?: string; phone?: string; address?: string; notes?: string }) => {
+  update: async (id: string, data: {
+    name?: string; email?: string; phone?: string; address?: string; notes?: string;
+    siren?: string; siret?: string; vat_number?: string;
+    street?: string; postal_code?: string; city?: string; country?: string; is_professional?: number;
+  }) => {
     const response = await api.put<ProClient>(`/pro/clients/${id}`, data)
     return response.data
   },
@@ -1624,8 +1644,15 @@ export const proInvoicesAPI = {
     const response = await api.put<ProInvoice>(`/pro/invoices/${id}/reminder`)
     return response.data
   },
-  downloadPdf: async (id: string) => {
-    const response = await api.get(`/pro/invoices/${id}/pdf`, { responseType: 'blob' })
+  downloadPdf: async (id: string, facturx = false) => {
+    const response = await api.get(`/pro/invoices/${id}/pdf`, {
+      responseType: 'blob',
+      params: { facturx },
+    })
+    return response.data
+  },
+  exportForPdp: async (id: string) => {
+    const response = await api.get(`/pro/invoices/${id}/export`)
     return response.data
   },
 }

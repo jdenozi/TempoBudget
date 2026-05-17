@@ -79,6 +79,10 @@ def _row_to_pro_profile(r) -> ProProfile:
         company_address=r.get("company_address"),
         company_email=r.get("company_email"),
         company_phone=r.get("company_phone"),
+        street=r.get("street"),
+        postal_code=r.get("postal_code"),
+        city=r.get("city"),
+        country=r.get("country") or "FR",
         created_at=r["created_at"], updated_at=r["updated_at"],
     )
 
@@ -145,7 +149,8 @@ async def update_profile(
                    "versement_liberatoire_rate", "ir_abattement_rate", "foyer_tmi",
                    "tns_cotisations_rate", "salary_gross_monthly", "dividends_yearly", "eurl_tax_option",
                    "is_subject_to_vat", "vat_rate", "vat_number",
-                   "company_name", "company_address", "company_email", "company_phone"):
+                   "company_name", "company_address", "company_email", "company_phone",
+                   "street", "postal_code", "city", "country"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -180,7 +185,11 @@ async def get_clients(
     )
     return [ProClient(
         id=r.id, user_id=r.user_id, name=r.name, email=r.email,
-        phone=r.phone, address=r.address, notes=r.notes, created_at=r.created_at,
+        phone=r.phone, address=r.address, notes=r.notes,
+        siren=r.siren, siret=r.siret, vat_number=r.vat_number,
+        street=r.street, postal_code=r.postal_code, city=r.city,
+        country=r.country or "FR", is_professional=r.is_professional if r.is_professional is not None else 1,
+        created_at=r.created_at,
     ) for r in result.fetchall()]
 
 
@@ -196,14 +205,20 @@ async def create_client(
 
     await db.execute(
         text("""
-            INSERT INTO pro_clients (id, user_id, name, email, phone, address, notes, created_at)
-            VALUES (:id, :user_id, :name, :email, :phone, :address, :notes, :created_at)
+            INSERT INTO pro_clients (id, user_id, name, email, phone, address, notes,
+                siren, siret, vat_number, street, postal_code, city, country, is_professional, created_at)
+            VALUES (:id, :user_id, :name, :email, :phone, :address, :notes,
+                :siren, :siret, :vat_number, :street, :postal_code, :city, :country, :is_professional, :created_at)
         """),
         {
             "id": client_id, "user_id": user_id,
             "name": payload.name, "email": payload.email,
             "phone": payload.phone, "address": payload.address,
-            "notes": payload.notes, "created_at": now,
+            "notes": payload.notes, "siren": payload.siren, "siret": payload.siret,
+            "vat_number": payload.vat_number, "street": payload.street,
+            "postal_code": payload.postal_code, "city": payload.city,
+            "country": payload.country, "is_professional": payload.is_professional,
+            "created_at": now,
         },
     )
     await db.commit()
@@ -211,7 +226,11 @@ async def create_client(
     return ProClient(
         id=client_id, user_id=user_id, name=payload.name,
         email=payload.email, phone=payload.phone, address=payload.address,
-        notes=payload.notes, created_at=now,
+        notes=payload.notes, siren=payload.siren, siret=payload.siret,
+        vat_number=payload.vat_number, street=payload.street,
+        postal_code=payload.postal_code, city=payload.city,
+        country=payload.country, is_professional=payload.is_professional,
+        created_at=now,
     )
 
 
@@ -232,7 +251,8 @@ async def update_client(
 
     updates = []
     params: dict = {"id": client_id, "user_id": user_id}
-    for field in ("name", "email", "phone", "address", "notes"):
+    for field in ("name", "email", "phone", "address", "notes", "siren", "siret",
+                  "vat_number", "street", "postal_code", "city", "country", "is_professional"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -250,7 +270,11 @@ async def update_client(
     r = result.fetchone()
     return ProClient(
         id=r.id, user_id=r.user_id, name=r.name, email=r.email,
-        phone=r.phone, address=r.address, notes=r.notes, created_at=r.created_at,
+        phone=r.phone, address=r.address, notes=r.notes,
+        siren=r.siren, siret=r.siret, vat_number=r.vat_number,
+        street=r.street, postal_code=r.postal_code, city=r.city,
+        country=r.country or "FR", is_professional=r.is_professional if r.is_professional is not None else 1,
+        created_at=r.created_at,
     )
 
 
@@ -1390,7 +1414,8 @@ async def _get_profile_for_pdf(db: AsyncSession, user_id: str) -> dict:
     result = await db.execute(
         text("""SELECT u.name, u.email, u.phone, p.siret,
                        p.is_subject_to_vat, p.vat_rate, p.vat_number,
-                       p.company_name, p.company_address, p.company_email, p.company_phone
+                       p.company_name, p.company_address, p.company_email, p.company_phone,
+                       p.street, p.postal_code, p.city, p.country
                 FROM users u LEFT JOIN pro_profiles p ON p.user_id = u.id
                 WHERE u.id = :user_id"""),
         {"user_id": user_id},
@@ -1404,6 +1429,7 @@ async def _get_profile_for_pdf(db: AsyncSession, user_id: str) -> dict:
     d["email"] = d.get("company_email") or d.get("email")
     d["phone"] = d.get("company_phone") or d.get("phone")
     d["address"] = d.get("company_address")
+    d["country"] = d.get("country") or "FR"
     return d
 
 
@@ -1777,10 +1803,16 @@ async def mark_invoice_reminder(
 @router.get("/invoices/{invoice_id}/pdf")
 async def download_invoice_pdf(
     invoice_id: str,
+    facturx: bool = False,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Download invoice as PDF."""
+    """Download invoice as PDF.
+
+    Args:
+        invoice_id: Invoice UUID
+        facturx: If True, generate Factur-X compliant PDF/A-3 with embedded XML
+    """
     result = await db.execute(
         text("SELECT * FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
         {"id": invoice_id, "user_id": user_id},
@@ -1802,13 +1834,117 @@ async def download_invoice_pdf(
 
     pdf_bytes = generate_invoice_pdf(
         invoice=invoice, items=items, profile=profile, settings=settings, client=client,
+        facturx=facturx,
     )
-    filename = f"{invoice['invoice_number']}.pdf"
+    suffix = "-facturx" if facturx else ""
+    filename = f"{invoice['invoice_number']}{suffix}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/invoices/{invoice_id}/export")
+async def export_invoice_for_pdp(
+    invoice_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export invoice data for PDP transmission via n8n.
+
+    Returns structured JSON compatible with French e-invoicing platforms.
+    """
+    result = await db.execute(
+        text("SELECT * FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice = dict(row._mapping)
+
+    items_result = await db.execute(
+        text("SELECT * FROM pro_invoice_items WHERE invoice_id = :id ORDER BY sort_order"),
+        {"id": invoice_id},
+    )
+    items = [dict(r._mapping) for r in items_result.fetchall()]
+
+    profile = await _get_profile_for_pdf(db, user_id)
+    settings = await _get_or_create_invoice_settings(db, user_id)
+    client = await _get_client_dict(db, invoice["client_id"])
+
+    # Calculate discount
+    discount_amount = 0.0
+    if invoice.get("discount_type") and invoice.get("discount_value"):
+        if invoice["discount_type"] == "percentage":
+            discount_amount = invoice["subtotal"] * invoice["discount_value"] / 100
+        else:
+            discount_amount = invoice["discount_value"]
+
+    return {
+        "format": "factur-x",
+        "profile": "BASIC",
+        "invoice": {
+            "number": invoice["invoice_number"],
+            "issue_date": invoice["issue_date"],
+            "due_date": invoice["due_date"],
+            "status": invoice["status"],
+            "currency": "EUR",
+        },
+        "seller": {
+            "name": profile.get("company_name") or profile.get("name"),
+            "siret": profile.get("siret"),
+            "vat_number": profile.get("vat_number"),
+            "email": profile.get("email"),
+            "phone": profile.get("phone"),
+            "address": {
+                "street": profile.get("street"),
+                "postal_code": profile.get("postal_code"),
+                "city": profile.get("city"),
+                "country": profile.get("country", "FR"),
+            },
+        },
+        "buyer": {
+            "name": client["name"],
+            "siren": client.get("siren"),
+            "siret": client.get("siret"),
+            "vat_number": client.get("vat_number"),
+            "email": client.get("email"),
+            "is_professional": bool(client.get("is_professional", 1)),
+            "address": {
+                "street": client.get("street"),
+                "postal_code": client.get("postal_code"),
+                "city": client.get("city"),
+                "country": client.get("country", "FR"),
+            },
+        },
+        "lines": [
+            {
+                "description": item["description"],
+                "quantity": item["quantity"],
+                "unit_price": item["unit_price"],
+                "total": item["total"],
+            }
+            for item in items
+        ],
+        "totals": {
+            "subtotal": invoice["subtotal"],
+            "discount_type": invoice.get("discount_type"),
+            "discount_value": invoice.get("discount_value", 0),
+            "discount_amount": discount_amount,
+            "tax_basis": invoice["subtotal"] - discount_amount,
+            "vat_rate": invoice.get("tva_rate", 0),
+            "vat_amount": invoice.get("tva_amount", 0),
+            "total": invoice["total"],
+        },
+        "payment": {
+            "terms_days": settings.get("payment_terms_days", 30),
+            "bank_iban": settings.get("bank_iban"),
+            "bank_bic": settings.get("bank_bic"),
+        },
+        "notes": invoice.get("notes"),
+    }
 
 
 # ────────────────────────────── Quotes ──────────────────────────────
