@@ -90,3 +90,45 @@ async def get_current_admin(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Database session error",
     )
+
+
+async def get_current_pro_user(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> str:
+    """Dependency that validates the current user has Pro access."""
+    from .database import get_db
+
+    token_data = verify_token(credentials.credentials)
+    user_id = token_data.sub
+
+    async for session in get_db():
+        # Check admin override
+        result = await session.execute(
+            text("SELECT pro_override FROM users WHERE id = :id"),
+            {"id": user_id},
+        )
+        row = result.fetchone()
+        if row and row.pro_override:
+            return user_id
+
+        # Check active subscription
+        result = await session.execute(
+            text("""
+                SELECT id FROM subscriptions
+                WHERE user_id = :user_id AND status IN ('active', 'trialing')
+                ORDER BY created_at DESC LIMIT 1
+            """),
+            {"user_id": user_id},
+        )
+        if result.fetchone():
+            return user_id
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pro access required",
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Database session error",
+    )

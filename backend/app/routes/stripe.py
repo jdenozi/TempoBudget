@@ -18,6 +18,7 @@ from ..models.subscription import (
     CreateCheckoutRequest,
     CheckoutResponse,
     PortalResponse,
+    ProAccessStatus,
 )
 from ..notifications import (
     send_payment_confirmation,
@@ -27,10 +28,52 @@ from ..notifications import (
 
 router = APIRouter()
 
+
+@router.get("/prices")
+async def get_prices():
+    """Get subscription prices for display."""
+    return {
+        "monthly": STRIPE_PRICE_MONTHLY_AMOUNT,
+        "annual": STRIPE_PRICE_ANNUAL_AMOUNT,
+    }
+
+
+@router.get("/pro-access", response_model=ProAccessStatus)
+async def get_pro_access_status(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if user has Pro access (via subscription or admin override)."""
+    # Check admin override
+    result = await db.execute(
+        text("SELECT pro_override FROM users WHERE id = :id"),
+        {"id": user_id},
+    )
+    row = result.fetchone()
+    if row and row.pro_override:
+        return ProAccessStatus(has_pro_access=True, reason="admin_override")
+
+    # Check active subscription
+    result = await db.execute(
+        text("""
+            SELECT status FROM subscriptions
+            WHERE user_id = :user_id AND status IN ('active', 'trialing')
+            ORDER BY created_at DESC LIMIT 1
+        """),
+        {"user_id": user_id},
+    )
+    if result.fetchone():
+        return ProAccessStatus(has_pro_access=True, reason="subscription")
+
+    return ProAccessStatus(has_pro_access=False, reason="none")
+
+
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_MONTHLY = os.getenv("STRIPE_PRICE_MONTHLY", "")
 STRIPE_PRICE_ANNUAL = os.getenv("STRIPE_PRICE_ANNUAL", "")
+STRIPE_PRICE_MONTHLY_AMOUNT = float(os.getenv("STRIPE_PRICE_MONTHLY_AMOUNT", "5.99"))
+STRIPE_PRICE_ANNUAL_AMOUNT = float(os.getenv("STRIPE_PRICE_ANNUAL_AMOUNT", "45.0"))
 
 # Lazy import stripe to avoid startup errors if not configured
 _stripe = None
@@ -142,6 +185,7 @@ async def create_checkout_session(
         success_url=request.success_url,
         cancel_url=request.cancel_url,
         metadata={"user_id": user_id, "plan_type": request.plan_type},
+        allow_promotion_codes=True,
     )
 
     return CheckoutResponse(checkout_url=session.url, session_id=session.id)
@@ -266,7 +310,7 @@ async def send_subscription_reminders(
 
         for row in rows:
             reminder_type = "expiring_soon" if row.cancel_at_period_end else "upcoming_renewal"
-            amount = 45.0 if row.plan_type == "annual" else 5.99
+            amount = STRIPE_PRICE_ANNUAL_AMOUNT if row.plan_type == "annual" else STRIPE_PRICE_MONTHLY_AMOUNT
 
             success = await send_payment_reminder(
                 user_email=row.email,
@@ -284,6 +328,34 @@ async def send_subscription_reminders(
                 results["errors"] += 1
 
     return results
+
+
+async def is_event_processed(event_id: str, db: AsyncSession) -> bool:
+    """Check if a Stripe event has already been processed."""
+    result = await db.execute(
+        text("SELECT id FROM stripe_webhook_events WHERE stripe_event_id = :event_id"),
+        {"event_id": event_id},
+    )
+    return result.fetchone() is not None
+
+
+async def mark_event_processed(event_id: str, event_type: str, db: AsyncSession):
+    """Mark a Stripe event as processed."""
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("""
+            INSERT INTO stripe_webhook_events (id, stripe_event_id, event_type, processed_at, created_at)
+            VALUES (:id, :stripe_event_id, :event_type, :processed_at, :created_at)
+        """),
+        {
+            "id": str(uuid4()),
+            "stripe_event_id": event_id,
+            "event_type": event_type,
+            "processed_at": now,
+            "created_at": now,
+        },
+    )
+    await db.commit()
 
 
 @router.post("/webhook")
@@ -311,6 +383,10 @@ async def stripe_webhook(
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
+    # Check idempotence: skip if already processed
+    if await is_event_processed(event["id"], db):
+        return {"status": "already_processed"}
+
     event_type = event["type"]
     data = event["data"]["object"]
 
@@ -326,6 +402,9 @@ async def stripe_webhook(
         await handle_invoice_paid(data, db)
     elif event_type == "invoice.payment_failed":
         await handle_payment_failed(data, db)
+
+    # Mark event as processed
+    await mark_event_processed(event["id"], event_type, db)
 
     return {"status": "success"}
 

@@ -3,6 +3,7 @@
 """Admin routes for user and subscription management."""
 
 import io
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -16,7 +17,10 @@ from ..database import get_db
 from ..models.subscription import (
     AdminQuote,
     AdminUserInfo,
+    CreateInvitationRequest,
     CreateQuoteRequest,
+    Invitation,
+    SetProOverrideRequest,
     Subscription,
     SubscriptionStats,
     UpdateQuoteRequest,
@@ -36,7 +40,7 @@ async def list_users(
     """List all users with their subscription status."""
     result = await db.execute(
         text("""
-            SELECT u.id, u.email, u.name, u.is_admin, u.created_at,
+            SELECT u.id, u.email, u.name, u.is_admin, u.pro_override, u.created_at,
                    s.id as sub_id, s.stripe_subscription_id, s.stripe_price_id,
                    s.plan_type, s.status as sub_status, s.current_period_start,
                    s.current_period_end, s.cancel_at_period_end, s.canceled_at,
@@ -77,6 +81,7 @@ async def list_users(
             email=row.email,
             name=row.name,
             is_admin=bool(row.is_admin),
+            pro_override=bool(row.pro_override),
             created_at=row.created_at,
             subscription=subscription,
         ))
@@ -93,7 +98,7 @@ async def get_user(
     """Get a specific user's details."""
     result = await db.execute(
         text("""
-            SELECT u.id, u.email, u.name, u.is_admin, u.created_at,
+            SELECT u.id, u.email, u.name, u.is_admin, u.pro_override, u.created_at,
                    s.id as sub_id, s.stripe_subscription_id, s.stripe_price_id,
                    s.plan_type, s.status as sub_status, s.current_period_start,
                    s.current_period_end, s.cancel_at_period_end, s.canceled_at,
@@ -136,6 +141,7 @@ async def get_user(
         email=row.email,
         name=row.name,
         is_admin=bool(row.is_admin),
+        pro_override=bool(row.pro_override),
         created_at=row.created_at,
         subscription=subscription,
     )
@@ -205,8 +211,9 @@ async def get_subscription_stats(
     annual_subscribers = row.annual or 0
 
     # Calculate MRR (Monthly Recurring Revenue)
-    monthly_price = 5.99
-    annual_price = 45.0
+    from .stripe import STRIPE_PRICE_MONTHLY_AMOUNT, STRIPE_PRICE_ANNUAL_AMOUNT
+    monthly_price = STRIPE_PRICE_MONTHLY_AMOUNT
+    annual_price = STRIPE_PRICE_ANNUAL_AMOUNT
     mrr = (monthly_subscribers * monthly_price) + (annual_subscribers * (annual_price / 12))
     arr = mrr * 12
 
@@ -237,6 +244,39 @@ async def get_subscription_stats(
 
 
 # ────────────────────────────── Quotes ──────────────────────────────
+
+QUOTE_PDF_LABELS = {
+    "fr": {
+        "quote": "Devis",
+        "client": "Client",
+        "email": "Email",
+        "company": "Société",
+        "date": "Date",
+        "valid_until": "Valide jusqu'au",
+        "description": "Description",
+        "qty": "Qté",
+        "unit_price": "Prix unitaire",
+        "total": "Total",
+        "notes": "Notes",
+        "subscription": "Abonnement Tempo Budget",
+        "filename_prefix": "devis",
+    },
+    "en": {
+        "quote": "Quote",
+        "client": "Client",
+        "email": "Email",
+        "company": "Company",
+        "date": "Date",
+        "valid_until": "Valid until",
+        "description": "Description",
+        "qty": "Qty",
+        "unit_price": "Unit price",
+        "total": "Total",
+        "notes": "Notes",
+        "subscription": "Tempo Budget Subscription",
+        "filename_prefix": "quote",
+    },
+}
 
 
 def _row_to_quote(row) -> AdminQuote:
@@ -421,10 +461,15 @@ async def delete_quote(
 @router.get("/quotes/{quote_id}/pdf")
 async def download_quote_pdf(
     quote_id: str,
+    lang: str = "fr",
     admin_id: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate and download a quote PDF."""
+    """Generate and download a quote PDF.
+
+    Args:
+        lang: Language for the PDF (fr or en). Defaults to fr.
+    """
     result = await db.execute(
         text("SELECT * FROM admin_quotes WHERE id = :id"),
         {"id": quote_id},
@@ -434,6 +479,9 @@ async def download_quote_pdf(
         raise HTTPException(status_code=404, detail="Quote not found")
 
     quote = _row_to_quote(row)
+
+    # Get labels for the requested language (default to French)
+    labels = QUOTE_PDF_LABELS.get(lang, QUOTE_PDF_LABELS["fr"])
 
     # Generate simple HTML for the quote
     html = f"""
@@ -457,29 +505,29 @@ async def download_quote_pdf(
     <body>
         <div class="header">
             <h1>Tempo Budget</h1>
-            <p>Devis #{quote.id[:8]}</p>
+            <p>{labels["quote"]} #{quote.id[:8]}</p>
         </div>
 
         <div class="info">
-            <p><strong>Client:</strong> {quote.prospect_name}</p>
-            <p><strong>Email:</strong> {quote.prospect_email}</p>
-            {"<p><strong>Société:</strong> " + quote.prospect_company + "</p>" if quote.prospect_company else ""}
-            <p><strong>Date:</strong> {quote.created_at[:10]}</p>
-            <p><strong>Valide jusqu'au:</strong> {quote.valid_until[:10]}</p>
+            <p><strong>{labels["client"]}:</strong> {quote.prospect_name}</p>
+            <p><strong>{labels["email"]}:</strong> {quote.prospect_email}</p>
+            {"<p><strong>" + labels["company"] + ":</strong> " + quote.prospect_company + "</p>" if quote.prospect_company else ""}
+            <p><strong>{labels["date"]}:</strong> {quote.created_at[:10]}</p>
+            <p><strong>{labels["valid_until"]}:</strong> {quote.valid_until[:10]}</p>
         </div>
 
         <table>
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th>Qté</th>
-                    <th>Prix unitaire</th>
-                    <th>Total</th>
+                    <th>{labels["description"]}</th>
+                    <th>{labels["qty"]}</th>
+                    <th>{labels["unit_price"]}</th>
+                    <th>{labels["total"]}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Abonnement Tempo Budget ({quote.plan_type})</td>
+                    <td>{labels["subscription"]} ({quote.plan_type})</td>
                     <td>{quote.quantity}</td>
                     <td>{quote.unit_price:.2f} €</td>
                     <td>{quote.total:.2f} €</td>
@@ -487,9 +535,9 @@ async def download_quote_pdf(
             </tbody>
         </table>
 
-        <p class="total">Total: {quote.total:.2f} €</p>
+        <p class="total">{labels["total"]}: {quote.total:.2f} €</p>
 
-        {"<div class='footer'><p><strong>Notes:</strong> " + quote.notes + "</p></div>" if quote.notes else ""}
+        {"<div class='footer'><p><strong>" + labels["notes"] + ":</strong> " + quote.notes + "</p></div>" if quote.notes else ""}
     </body>
     </html>
     """
@@ -501,10 +549,127 @@ async def download_quote_pdf(
     HTML(string=html).write_pdf(pdf_buffer)
     pdf_bytes = pdf_buffer.getvalue()
 
+    filename = f'{labels["filename_prefix"]}-{quote.id[:8]}.pdf'
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="devis-{quote.id[:8]}.pdf"'
+            "Content-Disposition": f'attachment; filename="{filename}"'
         },
     )
+
+
+# ────────────────────────────── Invitations ──────────────────────────────
+
+
+def _row_to_invitation(row) -> Invitation:
+    """Map a database row to an Invitation model."""
+    return Invitation(
+        id=row.id,
+        email=row.email,
+        token=row.token,
+        invited_by_user_id=row.invited_by_user_id,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+        used_at=row.used_at,
+        used_by_user_id=row.used_by_user_id,
+    )
+
+
+@router.get("/invitations", response_model=list[Invitation])
+async def list_invitations(
+    admin_id: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all invitations."""
+    result = await db.execute(
+        text("SELECT * FROM invitations ORDER BY created_at DESC")
+    )
+    return [_row_to_invitation(row) for row in result.fetchall()]
+
+
+@router.post("/invitations", response_model=Invitation, status_code=status.HTTP_201_CREATED)
+async def create_invitation(
+    request: CreateInvitationRequest,
+    admin_id: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new invitation."""
+    now = datetime.now(timezone.utc)
+    invitation_id = str(uuid4())
+    token = secrets.token_urlsafe(32)
+    expires_at = (now + timedelta(days=7)).isoformat()
+
+    await db.execute(
+        text("""
+            INSERT INTO invitations (
+                id, email, token, invited_by_user_id, created_at, expires_at
+            ) VALUES (
+                :id, :email, :token, :invited_by_user_id, :created_at, :expires_at
+            )
+        """),
+        {
+            "id": invitation_id,
+            "email": request.email,
+            "token": token,
+            "invited_by_user_id": admin_id,
+            "created_at": now.isoformat(),
+            "expires_at": expires_at,
+        },
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text("SELECT * FROM invitations WHERE id = :id"),
+        {"id": invitation_id},
+    )
+    return _row_to_invitation(result.fetchone())
+
+
+@router.delete("/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_invitation(
+    invitation_id: str,
+    admin_id: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete/revoke an invitation."""
+    result = await db.execute(
+        text("SELECT id FROM invitations WHERE id = :id"),
+        {"id": invitation_id},
+    )
+    if not result.fetchone():
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    await db.execute(
+        text("DELETE FROM invitations WHERE id = :id"),
+        {"id": invitation_id},
+    )
+    await db.commit()
+
+
+# ────────────────────────────── Pro Override ──────────────────────────────
+
+
+@router.put("/users/{user_id}/pro-override")
+async def set_pro_override(
+    user_id: str,
+    request: SetProOverrideRequest,
+    admin_id: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set or remove pro_override for a user."""
+    result = await db.execute(
+        text("SELECT id FROM users WHERE id = :id"),
+        {"id": user_id},
+    )
+    if not result.fetchone():
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("UPDATE users SET pro_override = :pro_override, updated_at = :updated_at WHERE id = :id"),
+        {"id": user_id, "pro_override": 1 if request.pro_override else 0, "updated_at": now},
+    )
+    await db.commit()
+
+    return {"user_id": user_id, "pro_override": request.pro_override}

@@ -87,16 +87,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Registers a new user account.
+   * Registers a new user account (requires invitation).
    * On success, stores the token and user data in state and localStorage.
    *
    * @param email - User's email address
    * @param name - User's display name
    * @param password - User's password
+   * @param invitationToken - Invitation token for registration
    * @returns The authentication response
    */
-  async function register(email: string, name: string, password: string) {
-    const response = await authAPI.register(email, name, password)
+  async function register(email: string, name: string, password: string, invitationToken: string) {
+    const response = await authAPI.register(email, name, password, invitationToken)
 
     token.value = response.token
     user.value = response.user

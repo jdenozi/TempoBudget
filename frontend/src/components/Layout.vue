@@ -64,6 +64,7 @@
 
             <div class="pro-toggle">
               <n-switch
+                v-if="subscriptionStore.hasProAccess"
                 :value="proStore.isProMode"
                 @update:value="handleProToggle"
                 :round="false"
@@ -71,6 +72,15 @@
                 <template #checked>Pro</template>
                 <template #unchecked>Pro</template>
               </n-switch>
+              <n-button
+                v-else
+                text
+                type="primary"
+                size="small"
+                @click="router.push('/pricing')"
+              >
+                {{ t('subscription.upgradeToPro') }}
+              </n-button>
             </div>
           </n-flex>
 
@@ -176,11 +186,13 @@ import { themeOverrides } from '@/theme'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { useProStore } from '@/stores/pro'
 import { useAuthStore } from '@/stores/auth'
+import { useSubscriptionStore } from '@/stores/subscription'
 
 const router = useRouter()
 const { t } = useI18n()
 const proStore = useProStore()
 const authStore = useAuthStore()
+const subscriptionStore = useSubscriptionStore()
 
 /** Whether the sidebar is collapsed */
 const collapsed = ref(false)
@@ -208,11 +220,13 @@ const handleAddClick = () => {
 
 const { isMobile } = useMobileDetect()
 
-onMounted(() => {
+onMounted(async () => {
   proStore.initProMode()
   // Sync activeKey with current route
   const currentRoute = router.currentRoute.value.name as string
   if (currentRoute) activeKey.value = currentRoute
+  // Fetch pro access status
+  await subscriptionStore.fetchProAccess()
 })
 
 /** Handle pro mode toggle */

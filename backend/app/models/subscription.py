@@ -2,7 +2,46 @@
 # SPDX-License-Identifier: MIT
 """Subscription and billing models."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+
+
+class Invitation(BaseModel):
+    """Invitation for user registration."""
+    id: str
+    email: str
+    token: str
+    invited_by_user_id: str
+    created_at: str
+    expires_at: str
+    used_at: str | None = None
+    used_by_user_id: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CreateInvitationRequest(BaseModel):
+    """Request to create an invitation."""
+    email: EmailStr
+
+
+class InvitationValidation(BaseModel):
+    """Result of invitation token validation."""
+    valid: bool
+    email: str | None = None
+    expired: bool = False
+    already_used: bool = False
+
+
+class ProAccessStatus(BaseModel):
+    """Pro access status for a user."""
+    has_pro_access: bool
+    reason: str  # 'subscription', 'admin_override', 'none'
+
+
+class SetProOverrideRequest(BaseModel):
+    """Request to set pro override for a user."""
+    pro_override: bool
 
 
 class StripeCustomer(BaseModel):
@@ -115,6 +154,7 @@ class AdminUserInfo(BaseModel):
     email: str
     name: str
     is_admin: bool
+    pro_override: bool = False
     created_at: str
     subscription: Subscription | None = None
 

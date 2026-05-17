@@ -64,6 +64,13 @@
           <n-descriptions-item v-if="selectedUser.subscription" :label="t('admin.periodEnd')">
             {{ formatDate(selectedUser.subscription.current_period_end) }}
           </n-descriptions-item>
+          <n-descriptions-item :label="t('admin.proOverride')">
+            <n-switch
+              :value="selectedUser.pro_override"
+              :loading="proOverrideLoading"
+              @update:value="(val) => toggleProOverride(selectedUser!, val)"
+            />
+          </n-descriptions-item>
         </n-descriptions>
 
         <template #footer>
@@ -78,12 +85,14 @@
 import { ref, computed, onMounted, h } from 'vue'
 import {
   NSpace, NFlex, NCard, NButton, NDataTable, NInput, NIcon, NTag,
-  NText, NModal, NDescriptions, NDescriptionsItem, NSpin,
-  type DataTableColumns
+  NText, NModal, NDescriptions, NDescriptionsItem, NSpin, NSwitch,
+  useMessage, type DataTableColumns
 } from 'naive-ui'
 import { SearchOutline, EyeOutline } from '@vicons/ionicons5'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type AdminUserInfo } from '@/services/api'
+
+const message = useMessage()
 
 const { t, locale } = useI18n()
 
@@ -92,6 +101,7 @@ const users = ref<AdminUserInfo[]>([])
 const searchQuery = ref('')
 const showUserModal = ref(false)
 const selectedUser = ref<AdminUserInfo | null>(null)
+const proOverrideLoading = ref(false)
 
 const pagination = {
   pageSize: 20,
@@ -130,6 +140,25 @@ const formatDate = (dateString: string | null | undefined) => {
   })
 }
 
+const toggleProOverride = async (user: AdminUserInfo, value: boolean) => {
+  proOverrideLoading.value = true
+  try {
+    await adminAPI.setProOverride(user.id, value)
+    user.pro_override = value
+    // Update in list as well
+    const listUser = users.value.find(u => u.id === user.id)
+    if (listUser) {
+      listUser.pro_override = value
+    }
+    message.success(value ? t('admin.proOverrideEnabled') : t('admin.proOverrideDisabled'))
+  } catch (error) {
+    console.error('Error toggling pro override:', error)
+    message.error(t('common.error'))
+  } finally {
+    proOverrideLoading.value = false
+  }
+}
+
 const columns = computed<DataTableColumns<AdminUserInfo>>(() => [
   {
     title: t('admin.name'),
@@ -162,6 +191,15 @@ const columns = computed<DataTableColumns<AdminUserInfo>>(() => [
       type: row.is_admin ? 'success' : 'default',
       size: 'small'
     }, () => row.is_admin ? t('common.yes') : t('common.no')),
+  },
+  {
+    title: t('admin.proOverride'),
+    key: 'pro_override',
+    width: 100,
+    render: (row) => h(NTag, {
+      type: row.pro_override ? 'info' : 'default',
+      size: 'small'
+    }, () => row.pro_override ? t('common.yes') : t('common.no')),
   },
   {
     title: t('admin.createdAt'),

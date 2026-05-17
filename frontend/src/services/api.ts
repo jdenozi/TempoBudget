@@ -241,6 +241,32 @@ export interface BudgetInvitationWithDetails {
 /**
  * Authentication API methods.
  */
+/** Invitation validation result */
+export interface InvitationValidation {
+  valid: boolean
+  email: string | null
+  expired: boolean
+  already_used: boolean
+}
+
+/** Invitation for registration */
+export interface Invitation {
+  id: string
+  email: string
+  token: string
+  invited_by_user_id: string
+  created_at: string
+  expires_at: string
+  used_at: string | null
+  used_by_user_id: string | null
+}
+
+/** Pro access status */
+export interface ProAccessStatus {
+  has_pro_access: boolean
+  reason: 'subscription' | 'admin_override' | 'none'
+}
+
 export const authAPI = {
   /**
    * Gets current user info from token.
@@ -252,17 +278,29 @@ export const authAPI = {
   },
 
   /**
-   * Registers a new user account.
+   * Validates an invitation token.
+   * @param token - The invitation token from the URL
+   * @returns Validation result
+   */
+  validateInvitation: async (token: string) => {
+    const response = await api.get<InvitationValidation>(`/auth/invitation/${token}`)
+    return response.data
+  },
+
+  /**
+   * Registers a new user account (requires invitation).
    * @param email - User's email address
    * @param name - User's display name
    * @param password - User's password (will be hashed server-side)
+   * @param invitationToken - Invitation token for registration
    * @returns Authentication response with token and user data
    */
-  register: async (email: string, name: string, password: string) => {
+  register: async (email: string, name: string, password: string, invitationToken: string) => {
     const response = await api.post<AuthResponse>('/auth/register', {
       email,
       name,
       password,
+      invitation_token: invitationToken,
     })
     return response.data
   },
@@ -1777,6 +1815,7 @@ export interface AdminUserInfo {
   email: string
   name: string
   is_admin: boolean
+  pro_override: boolean
   created_at: string
   subscription: Subscription | null
 }
@@ -1813,7 +1852,17 @@ export interface AdminQuote {
 // Stripe API Methods
 // ============================================================================
 
+export interface StripePrices {
+  monthly: number
+  annual: number
+}
+
 export const stripeAPI = {
+  getPrices: async () => {
+    const response = await api.get<StripePrices>('/stripe/prices')
+    return response.data
+  },
+
   createCheckout: async (data: { plan_type: 'monthly' | 'annual'; success_url: string; cancel_url: string }) => {
     const response = await api.post<CheckoutResponse>('/stripe/checkout', data)
     return response.data
@@ -1826,6 +1875,11 @@ export const stripeAPI = {
 
   createPortalSession: async () => {
     const response = await api.post<PortalResponse>('/stripe/portal')
+    return response.data
+  },
+
+  getProAccess: async () => {
+    const response = await api.get<ProAccessStatus>('/stripe/pro-access')
     return response.data
   },
 }
@@ -1898,8 +1952,29 @@ export const adminAPI = {
     await api.delete(`/admin/quotes/${quoteId}`)
   },
 
-  downloadQuotePdf: async (quoteId: string) => {
-    const response = await api.get(`/admin/quotes/${quoteId}/pdf`, { responseType: 'blob' })
+  downloadQuotePdf: async (quoteId: string, lang: 'fr' | 'en' = 'fr') => {
+    const response = await api.get(`/admin/quotes/${quoteId}/pdf`, { params: { lang }, responseType: 'blob' })
+    return response.data
+  },
+
+  // Invitations management
+  getInvitations: async () => {
+    const response = await api.get<Invitation[]>('/admin/invitations')
+    return response.data
+  },
+
+  createInvitation: async (email: string) => {
+    const response = await api.post<Invitation>('/admin/invitations', { email })
+    return response.data
+  },
+
+  deleteInvitation: async (invitationId: string) => {
+    await api.delete(`/admin/invitations/${invitationId}`)
+  },
+
+  // Pro override management
+  setProOverride: async (userId: string, proOverride: boolean) => {
+    const response = await api.put(`/admin/users/${userId}/pro-override`, { pro_override: proOverride })
     return response.data
   },
 }

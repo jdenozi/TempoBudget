@@ -4,14 +4,15 @@
     <section class="hero">
       <div class="hero-content">
         <img src="/logo.png" alt="Tempo Budget" class="hero-logo" />
+        <div class="beta-badge">{{ t('landing.invitationOnly') }}</div>
         <h1>{{ t('landing.title') }}</h1>
         <p class="hero-subtitle">{{ t('landing.subtitle') }}</p>
         <div class="hero-buttons">
-          <n-button type="primary" size="large" @click="router.push('/login')">
-            {{ t('landing.getStarted') }}
+          <n-button type="primary" size="large" @click="openMailto">
+            {{ t('landing.requestInvitation') }}
           </n-button>
-          <n-button size="large" quaternary @click="scrollToFeatures">
-            {{ t('landing.learnMore') }}
+          <n-button size="large" quaternary @click="router.push('/login')">
+            {{ t('landing.alreadyHaveInvitation') }}
           </n-button>
         </div>
       </div>
@@ -33,6 +34,30 @@
               <div class="mock-stat"></div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+      <h2>{{ t('landing.howItWorksTitle') }}</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-icon">1</div>
+          <h3>{{ t('landing.howItWorksStep1Title') }}</h3>
+          <p>{{ t('landing.howItWorksStep1Desc') }}</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-card">
+          <div class="step-icon">2</div>
+          <h3>{{ t('landing.howItWorksStep2Title') }}</h3>
+          <p>{{ t('landing.howItWorksStep2Desc') }}</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-card highlight">
+          <div class="step-icon pro">PRO</div>
+          <h3>{{ t('landing.howItWorksStep3Title') }}</h3>
+          <p>{{ t('landing.howItWorksStep3Desc') }}</p>
         </div>
       </div>
     </section>
@@ -77,6 +102,9 @@
           <li>{{ t('landing.proFeature4') }}</li>
           <li>{{ t('landing.proFeature5') }}</li>
         </ul>
+        <n-button type="primary" size="large" @click="router.push('/pricing')">
+          {{ t('subscription.subscribe') }}
+        </n-button>
       </div>
       <div class="pro-visual">
         <div class="tax-card">
@@ -116,8 +144,8 @@
             <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature4') }}</li>
             <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature5') }}</li>
           </ul>
-          <n-button size="large" block @click="router.push('/login')">
-            {{ t('landing.getStarted') }}
+          <n-button size="large" block @click="openMailto">
+            {{ t('landing.requestInvitation') }}
           </n-button>
         </div>
         <div class="pricing-card featured">
@@ -137,8 +165,8 @@
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
           </ul>
-          <n-button type="primary" size="large" block @click="router.push('/login')">
-            {{ t('landing.getStarted') }}
+          <n-button type="primary" size="large" block @click="router.push('/pricing')">
+            {{ t('subscription.subscribe') }}
           </n-button>
         </div>
       </div>
@@ -169,9 +197,14 @@
     <section class="cta-section">
       <h2>{{ t('landing.ctaTitle') }}</h2>
       <p>{{ t('landing.ctaSubtitle') }}</p>
-      <n-button type="primary" size="large" @click="router.push('/login')">
-        {{ t('landing.ctaButton') }}
-      </n-button>
+      <div class="cta-buttons">
+        <n-button type="primary" size="large" @click="openMailto">
+          {{ t('landing.ctaButton') }}
+        </n-button>
+        <n-button size="large" @click="router.push('/login')">
+          {{ t('landing.alreadyHaveInvitation') }}
+        </n-button>
+      </div>
     </section>
 
     <!-- Footer -->
@@ -199,8 +232,8 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 
-function scrollToFeatures() {
-  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+function openMailto() {
+  window.location.href = 'mailto:contact@tempo.finance?subject=Demande%20d%27invitation%20Tempo%20Budget'
 }
 </script>
 
@@ -231,7 +264,20 @@ function scrollToFeatures() {
 .hero-logo {
   width: 80px;
   height: 80px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+.beta-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .hero h1 {
@@ -327,6 +373,82 @@ function scrollToFeatures() {
   border-radius: 8px;
 }
 
+/* How It Works */
+.how-it-works {
+  padding: 80px 10%;
+  background: linear-gradient(180deg, #0a0a0a 0%, #0f0f1a 100%);
+  text-align: center;
+}
+
+.how-it-works h2 {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  margin-bottom: 60px;
+}
+
+.steps-grid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.step-card {
+  background: #1a1a2e;
+  border-radius: 16px;
+  padding: 32px;
+  width: 280px;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.step-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(99, 226, 183, 0.1);
+}
+
+.step-card.highlight {
+  border: 2px solid #63e2b7;
+  background: linear-gradient(180deg, #1a1a2e 0%, #1f2a1f 100%);
+}
+
+.step-icon {
+  width: 60px;
+  height: 60px;
+  background: #2a2a3e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #63e2b7;
+  margin: 0 auto 20px;
+}
+
+.step-icon.pro {
+  background: linear-gradient(135deg, #63e2b7, #18a058);
+  color: #000;
+  font-size: 0.9rem;
+}
+
+.step-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.step-card p {
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.step-arrow {
+  font-size: 2rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
 /* Features */
 .features {
   padding: 100px 10%;
@@ -412,6 +534,7 @@ function scrollToFeatures() {
 .pro-features {
   list-style: none;
   padding: 0;
+  margin-bottom: 24px;
 }
 
 .pro-features li {
@@ -641,6 +764,13 @@ function scrollToFeatures() {
   font-size: 1.1rem;
 }
 
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* Footer */
 .footer {
   padding: 40px 10%;
@@ -706,6 +836,24 @@ function scrollToFeatures() {
 
   .pro-features li {
     text-align: left;
+  }
+
+  .steps-grid {
+    flex-direction: column;
+  }
+
+  .step-arrow {
+    transform: rotate(90deg);
+  }
+
+  .step-card {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
   }
 }
 </style>

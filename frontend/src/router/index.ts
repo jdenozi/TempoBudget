@@ -20,6 +20,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSubscriptionStore } from '@/stores/subscription'
 import Layout from '@/components/Layout.vue'
 import LandingView from '@/views/LandingView.vue'
 import LoginView from '@/views/LoginView.vue'
@@ -126,81 +127,97 @@ const router = createRouter({
           path: 'pro',
           name: 'pro-dashboard',
           component: () => import('@/views/pro/ProDashboardView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/history',
           name: 'pro-history',
           component: () => import('@/views/pro/ProHistoryView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/charts',
           name: 'pro-charts',
           component: () => import('@/views/pro/ProChartsView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/clients',
           name: 'pro-clients',
           component: () => import('@/views/pro/ProClientsView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/products',
           name: 'pro-products',
           component: () => import('@/views/pro/ProProductsView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/coupons',
           name: 'pro-coupons',
           component: () => import('@/views/pro/ProCouponsView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/gift-cards',
           name: 'pro-gift-cards',
           component: () => import('@/views/pro/ProGiftCardsView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/invoices',
           name: 'pro-invoices',
           component: () => import('@/views/pro/ProInvoicesView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/invoices/new',
           name: 'pro-invoice-new',
           component: () => import('@/views/pro/ProInvoiceDetailView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/invoices/:id',
           name: 'pro-invoice-detail',
           component: () => import('@/views/pro/ProInvoiceDetailView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/quotes',
           name: 'pro-quotes',
           component: () => import('@/views/pro/ProQuotesView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/quotes/new',
           name: 'pro-quote-new',
           component: () => import('@/views/pro/ProQuoteDetailView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/quotes/:id',
           name: 'pro-quote-detail',
           component: () => import('@/views/pro/ProQuoteDetailView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/categories',
           name: 'pro-categories',
           component: () => import('@/views/pro/ProCategoriesView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/declaration',
           name: 'pro-declaration',
           component: () => import('@/views/pro/ProDeclarationView.vue'),
+          meta: { requiresPro: true },
         },
         {
           path: 'pro/recurring',
           name: 'pro-recurring',
           component: () => import('@/views/pro/ProRecurringView.vue'),
+          meta: { requiresPro: true },
         },
         // Admin routes
         {
@@ -221,6 +238,12 @@ const router = createRouter({
           component: () => import('@/views/admin/AdminQuotesView.vue'),
           meta: { requiresAdmin: true },
         },
+        {
+          path: 'admin/invitations',
+          name: 'admin-invitations',
+          component: () => import('@/views/admin/AdminInvitationsView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
   ],
@@ -230,9 +253,11 @@ const router = createRouter({
  * Navigation guard to protect routes requiring authentication.
  * Redirects unauthenticated users to OIDC login for protected routes.
  * Redirects authenticated users to /dashboard if they visit /login.
+ * Redirects non-Pro users to /pricing for Pro routes.
  */
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const subscriptionStore = useSubscriptionStore()
 
   // Allow public routes without authentication
   const publicPaths = ['/auth/success', '/welcome', '/pricing', '/subscription/cancel']
@@ -251,6 +276,18 @@ router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAdmin) && !authStore.user?.is_admin) {
     next('/dashboard')
     return
+  }
+
+  // Check Pro access for Pro routes
+  if (to.matched.some(record => record.meta.requiresPro)) {
+    // Fetch pro access status if not already loaded
+    if (!subscriptionStore.proAccess) {
+      await subscriptionStore.fetchProAccess()
+    }
+    if (!subscriptionStore.hasProAccess) {
+      next('/pricing')
+      return
+    }
   }
 
   if ((to.path === '/login' || to.path === '/welcome') && authStore.isAuthenticated) {

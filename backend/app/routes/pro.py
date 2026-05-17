@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import get_current_user
+from ..auth import get_current_pro_user
 from ..database import get_db
 from ..models import (
     ProProfile, UpdateProProfile,
@@ -89,7 +89,7 @@ def _row_to_pro_profile(r) -> ProProfile:
 
 @router.get("/profile", response_model=ProProfile)
 async def get_or_create_profile(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get the pro profile, creating it with default categories if it doesn't exist."""
@@ -137,7 +137,7 @@ async def get_or_create_profile(
 @router.put("/profile", response_model=ProProfile)
 async def update_profile(
     payload: UpdateProProfile,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update the pro profile."""
@@ -176,7 +176,7 @@ async def update_profile(
 
 @router.get("/clients", response_model=list[ProClient])
 async def get_clients(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pro clients."""
@@ -197,7 +197,7 @@ async def get_clients(
 @router.post("/clients", response_model=ProClient, status_code=status.HTTP_201_CREATED)
 async def create_client(
     payload: CreateProClient,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro client."""
@@ -239,7 +239,7 @@ async def create_client(
 async def update_client(
     client_id: str,
     payload: UpdateProClient,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a pro client."""
@@ -282,7 +282,7 @@ async def update_client(
 @router.delete("/clients/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_client(
     client_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro client."""
@@ -297,7 +297,7 @@ async def delete_client(
 
 @router.get("/categories", response_model=list[ProCategory])
 async def get_categories(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pro categories."""
@@ -314,7 +314,7 @@ async def get_categories(
 @router.post("/categories", response_model=ProCategory, status_code=status.HTTP_201_CREATED)
 async def create_category(
     payload: CreateProCategory,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro category."""
@@ -340,7 +340,7 @@ async def create_category(
 async def update_category(
     category_id: str,
     payload: UpdateProCategory,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a pro category."""
@@ -378,7 +378,7 @@ async def update_category(
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
     category_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro category (non-default only)."""
@@ -403,7 +403,7 @@ async def delete_category(
 
 @router.get("/products", response_model=list[ProProduct])
 async def get_products(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pro products/services."""
@@ -427,7 +427,7 @@ async def get_products(
 @router.post("/products", response_model=ProProduct, status_code=status.HTTP_201_CREATED)
 async def create_product(
     payload: CreateProProduct,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro product/service."""
@@ -470,7 +470,7 @@ async def create_product(
 async def update_product(
     product_id: str,
     payload: UpdateProProduct,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a pro product/service."""
@@ -514,7 +514,7 @@ async def update_product(
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro product/service."""
@@ -529,7 +529,7 @@ async def delete_product(
 
 @router.get("/coupons", response_model=list[ProCoupon])
 async def get_coupons(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pro coupons."""
@@ -549,7 +549,7 @@ async def get_coupons(
 @router.post("/coupons", response_model=ProCoupon, status_code=status.HTTP_201_CREATED)
 async def create_coupon(
     payload: CreateProCoupon,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro coupon."""
@@ -588,7 +588,7 @@ async def create_coupon(
 async def update_coupon(
     coupon_id: str,
     payload: UpdateProCoupon,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a pro coupon."""
@@ -629,7 +629,7 @@ async def update_coupon(
 @router.delete("/coupons/{coupon_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_coupon(
     coupon_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro coupon."""
@@ -644,7 +644,7 @@ async def delete_coupon(
 
 @router.get("/gift-cards", response_model=list[ProGiftCard])
 async def get_gift_cards(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pro gift cards."""
@@ -670,7 +670,7 @@ async def get_gift_cards(
 @router.post("/gift-cards", response_model=ProGiftCard, status_code=status.HTTP_201_CREATED)
 async def create_gift_card(
     payload: CreateProGiftCard,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro gift card."""
@@ -706,7 +706,7 @@ async def create_gift_card(
 @router.get("/gift-cards/{gift_card_id}", response_model=ProGiftCard)
 async def get_gift_card(
     gift_card_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single gift card."""
@@ -734,7 +734,7 @@ async def get_gift_card(
 @router.get("/gift-cards/{gift_card_id}/usages", response_model=list[ProGiftCardUsage])
 async def get_gift_card_usages(
     gift_card_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get usage history for a gift card."""
@@ -766,7 +766,7 @@ async def get_gift_card_usages(
 @router.delete("/gift-cards/{gift_card_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_gift_card(
     gift_card_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro gift card."""
@@ -781,7 +781,7 @@ async def delete_gift_card(
 
 @router.get("/transactions", response_model=list[ProTransaction])
 async def get_transactions(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
     start_date: str | None = Query(None),
     end_date: str | None = Query(None),
@@ -867,7 +867,7 @@ async def get_transactions(
 @router.post("/transactions", response_model=ProTransaction, status_code=status.HTTP_201_CREATED)
 async def create_transaction(
     payload: CreateProTransaction,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new pro transaction. If items are provided, title and amount are auto-calculated."""
@@ -1079,7 +1079,7 @@ async def create_transaction(
 @router.put("/transactions/declare", response_model=dict)
 async def batch_toggle_declared(
     payload: BatchToggleDeclared,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Batch toggle is_declared on transactions."""
@@ -1103,7 +1103,7 @@ async def batch_toggle_declared(
 async def update_transaction(
     transaction_id: str,
     payload: UpdateProTransaction,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a pro transaction."""
@@ -1154,7 +1154,7 @@ async def update_transaction(
 @router.delete("/transactions/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_transaction(
     transaction_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a pro transaction."""
@@ -1169,7 +1169,7 @@ async def delete_transaction(
 
 @router.get("/dashboard", response_model=ProDashboardSummary)
 async def get_dashboard(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get pro dashboard summary with aggregated data."""
@@ -1263,7 +1263,7 @@ MONTH_LABELS_FR = [
 
 @router.get("/declaration/periods", response_model=list[DeclarationPeriodSummary])
 async def get_declaration_periods(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
     year: int | None = Query(None),
 ):
@@ -1360,7 +1360,7 @@ def _get_urssaf_deadline(period_end: str, frequency: str) -> str:
 
 @router.get("/urssaf/schedule", response_model=list[UrssafScheduleItem])
 async def get_urssaf_schedule(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1630,7 +1630,7 @@ async def _get_client_dict(db: AsyncSession, client_id: str) -> dict:
 
 @router.get("/invoice-settings", response_model=ProInvoiceSettings)
 async def get_invoice_settings(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get or create invoice settings."""
@@ -1641,7 +1641,7 @@ async def get_invoice_settings(
 @router.put("/invoice-settings", response_model=ProInvoiceSettings)
 async def update_invoice_settings(
     payload: UpdateProInvoiceSettings,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update invoice settings."""
@@ -1673,7 +1673,7 @@ async def list_invoices(
     client_id: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List invoices with optional filters."""
@@ -1715,7 +1715,7 @@ async def list_invoices(
 @router.get("/invoices/{invoice_id}", response_model=ProInvoice)
 async def get_invoice(
     invoice_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single invoice with items."""
@@ -1741,7 +1741,7 @@ async def get_invoice(
 @router.post("/invoices", response_model=ProInvoice, status_code=status.HTTP_201_CREATED)
 async def create_invoice(
     payload: CreateProInvoice,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new invoice with auto-numbered ID."""
@@ -1787,7 +1787,7 @@ async def create_invoice(
 async def update_invoice(
     invoice_id: str,
     payload: UpdateProInvoice,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a draft invoice."""
@@ -1852,7 +1852,7 @@ async def update_invoice(
 @router.delete("/invoices/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_invoice(
     invoice_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a draft invoice."""
@@ -1873,7 +1873,7 @@ async def delete_invoice(
 async def update_invoice_status(
     invoice_id: str,
     payload: UpdateProInvoiceStatus,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update invoice status with transition validation."""
@@ -1967,7 +1967,7 @@ async def update_invoice_status(
 @router.put("/invoices/{invoice_id}/reminder", response_model=ProInvoice)
 async def mark_invoice_reminder(
     invoice_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Mark reminder sent on an invoice."""
@@ -1986,7 +1986,7 @@ async def mark_invoice_reminder(
 async def download_invoice_pdf(
     invoice_id: str,
     facturx: bool = False,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Download invoice as PDF.
@@ -2030,7 +2030,7 @@ async def download_invoice_pdf(
 @router.get("/invoices/{invoice_id}/export")
 async def export_invoice_for_pdp(
     invoice_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Export invoice data for PDP transmission via n8n.
@@ -2138,7 +2138,7 @@ async def list_quotes(
     client_id: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List quotes with optional filters."""
@@ -2179,7 +2179,7 @@ async def list_quotes(
 @router.get("/quotes/{quote_id}", response_model=ProQuote)
 async def get_quote(
     quote_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single quote with items."""
@@ -2205,7 +2205,7 @@ async def get_quote(
 @router.post("/quotes", response_model=ProQuote, status_code=status.HTTP_201_CREATED)
 async def create_quote(
     payload: CreateProQuote,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new quote."""
@@ -2251,7 +2251,7 @@ async def create_quote(
 async def update_quote(
     quote_id: str,
     payload: UpdateProQuote,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a draft quote."""
@@ -2314,7 +2314,7 @@ async def update_quote(
 @router.delete("/quotes/{quote_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_quote(
     quote_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a quote."""
@@ -2333,7 +2333,7 @@ async def delete_quote(
 async def update_quote_status(
     quote_id: str,
     payload: UpdateProQuoteStatus,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update quote status."""
@@ -2367,7 +2367,7 @@ async def update_quote_status(
 @router.post("/quotes/{quote_id}/convert-to-invoice", response_model=ProInvoice)
 async def convert_quote_to_invoice(
     quote_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Convert a quote to an invoice, linking both."""
@@ -2440,7 +2440,7 @@ async def convert_quote_to_invoice(
 @router.get("/quotes/{quote_id}/pdf")
 async def download_quote_pdf(
     quote_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Download quote as PDF."""
@@ -2479,7 +2479,7 @@ async def download_quote_pdf(
 
 @router.get("/recurring", response_model=list[ProRecurringTransaction])
 async def list_recurring(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all recurring pro transactions for the current user."""
@@ -2500,7 +2500,7 @@ async def list_recurring(
 @router.post("/recurring", response_model=ProRecurringTransaction, status_code=status.HTTP_201_CREATED)
 async def create_recurring(
     payload: CreateProRecurringTransaction,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a recurring pro transaction template."""
@@ -2543,7 +2543,7 @@ async def create_recurring(
 async def update_recurring(
     recurring_id: str,
     payload: UpdateProRecurringTransaction,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a recurring pro transaction template."""
@@ -2584,7 +2584,7 @@ async def update_recurring(
 @router.put("/recurring/{recurring_id}/toggle", response_model=ProRecurringTransaction)
 async def toggle_recurring(
     recurring_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle active state of a recurring pro transaction."""
@@ -2619,7 +2619,7 @@ async def toggle_recurring(
 @router.delete("/recurring/{recurring_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_recurring(
     recurring_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a recurring pro transaction template."""
@@ -2634,7 +2634,7 @@ async def delete_recurring(
 
 @router.post("/recurring/process", response_model=list[ProTransaction])
 async def process_recurring(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -2747,7 +2747,7 @@ async def process_recurring(
 
 @router.get("/thresholds", response_model=list[ProThreshold])
 async def list_thresholds(
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all revenue thresholds for the current user."""
@@ -2761,7 +2761,7 @@ async def list_thresholds(
 @router.post("/thresholds", response_model=ProThreshold, status_code=status.HTTP_201_CREATED)
 async def create_threshold(
     payload: CreateProThreshold,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new revenue threshold."""
@@ -2791,7 +2791,7 @@ async def create_threshold(
 async def update_threshold(
     threshold_id: str,
     payload: UpdateProThreshold,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update an existing threshold."""
@@ -2825,7 +2825,7 @@ async def update_threshold(
 @router.delete("/thresholds/{threshold_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_threshold(
     threshold_id: str,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a threshold."""
@@ -2845,7 +2845,7 @@ async def delete_threshold(
 async def tax_breakdown(
     period: str = "month",
     year: int | None = None,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a tax breakdown for the requested period using the user's regime.
@@ -2949,7 +2949,7 @@ _REGIME_COMPARISON_SPEC: list[tuple[str, dict]] = [
 async def regime_comparison(
     period: str = "year",
     year: int | None = None,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a side-by-side breakdown of every regime, computed from the user's
@@ -3090,7 +3090,7 @@ def _resolve_period_window(period: str, year_override: int | None):
 async def vat_summary(
     period: str = "month",
     year: int | None = None,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_pro_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Return TVA collected vs deductible for the requested period.

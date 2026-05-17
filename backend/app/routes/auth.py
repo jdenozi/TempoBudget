@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import create_token, get_current_user, hash_password, verify_password
 from ..database import get_db
 from ..models import AuthResponse, ChangePasswordRequest, CreateUser, LoginRequest, UpdateProfileRequest, User
+from ..models.subscription import InvitationValidation
 
 AVATAR_DIR = os.path.join(os.getenv("DATA_PATH", os.path.join(os.path.dirname(__file__), "..", "..", "data")), "avatars")
 ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -23,9 +24,61 @@ MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 MB
 router = APIRouter()
 
 
+@router.get("/invitation/{token}", response_model=InvitationValidation)
+async def validate_invitation(token: str, db: AsyncSession = Depends(get_db)):
+    """Validate an invitation token (public endpoint)."""
+    result = await db.execute(
+        text("SELECT id, email, expires_at, used_at FROM invitations WHERE token = :token"),
+        {"token": token}
+    )
+    inv = result.fetchone()
+
+    if not inv:
+        return InvitationValidation(valid=False)
+
+    if inv.used_at:
+        return InvitationValidation(valid=False, email=inv.email, already_used=True)
+
+    if datetime.fromisoformat(inv.expires_at) < datetime.now(timezone.utc):
+        return InvitationValidation(valid=False, email=inv.email, expired=True)
+
+    return InvitationValidation(valid=True, email=inv.email)
+
+
 @router.post("/register", response_model=AuthResponse)
 async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
-    """Register a new user account."""
+    """Register a new user account (requires valid invitation)."""
+    # Validate invitation token
+    result = await db.execute(
+        text("SELECT id, email, expires_at, used_at FROM invitations WHERE token = :token"),
+        {"token": payload.invitation_token}
+    )
+    inv = result.fetchone()
+
+    if not inv:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid invitation token"
+        )
+
+    if inv.used_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation already used"
+        )
+
+    if inv.email.lower() != payload.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email does not match invitation"
+        )
+
+    if datetime.fromisoformat(inv.expires_at) < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation expired"
+        )
+
     # Check if email already exists
     result = await db.execute(
         text("SELECT id FROM users WHERE email = :email"),
@@ -55,6 +108,13 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
             "updated_at": now,
         }
     )
+
+    # Mark invitation as used
+    await db.execute(
+        text("UPDATE invitations SET used_at = :now, used_by_user_id = :uid WHERE id = :id"),
+        {"now": now, "uid": user_id, "id": inv.id}
+    )
+
     await db.commit()
 
     # Fetch the created user
