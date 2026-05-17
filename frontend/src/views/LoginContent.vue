@@ -5,7 +5,7 @@
   Login Content Component
 
   Provides the login and registration forms for user authentication.
-  Includes form validation and error handling for auth operations.
+  Supports invitation-based free trial or direct subscription signup.
 -->
 
 <template>
@@ -78,6 +78,35 @@
 
     <!-- Registration Modal -->
     <n-modal v-model:show="showRegister" preset="card" :title="t('auth.register')" style="max-width: 400px;">
+      <!-- Invitation mode info -->
+      <n-alert
+        v-if="invitationToken"
+        type="success"
+        style="margin-bottom: 16px;"
+      >
+        {{ t('auth.freeTrialWithInvitation') }}
+      </n-alert>
+
+      <!-- Subscription mode info -->
+      <n-alert
+        v-else
+        type="info"
+        style="margin-bottom: 16px;"
+      >
+        {{ t('auth.subscriptionRequired') }}
+      </n-alert>
+
+      <!-- Invitation error -->
+      <n-alert
+        v-if="invitationError"
+        type="error"
+        style="margin-bottom: 16px;"
+        closable
+        @close="invitationError = null"
+      >
+        {{ invitationError }}
+      </n-alert>
+
       <n-form ref="registerFormRef" :model="registerData" :rules="registerRules">
         <n-form-item :label="t('auth.name')" path="name">
           <n-input v-model:value="registerData.name" :placeholder="t('auth.name')" />
@@ -87,6 +116,7 @@
           <n-input
             v-model:value="registerData.email"
             placeholder="email@example.com"
+            :disabled="!!invitationEmail"
           />
         </n-form-item>
 
@@ -105,7 +135,7 @@
           :loading="loading"
           @click="handleRegister"
         >
-          {{ t('auth.registerButton') }}
+          {{ invitationToken ? t('auth.registerButton') : t('auth.registerAndSubscribe') }}
         </n-button>
       </n-form>
     </n-modal>
@@ -118,9 +148,9 @@
  *
  * Features:
  * - Login form with email/password validation
- * - Registration modal with name/email/password validation
+ * - Registration with invitation token (free trial) or direct (requires subscription)
  * - Error handling for authentication failures
- * - Automatic redirect to dashboard on success
+ * - Automatic redirect based on registration mode
  */
 
 import { ref, onMounted } from 'vue'
@@ -131,6 +161,7 @@ import {
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { authAPI } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -141,8 +172,17 @@ const authStore = useAuthStore()
 /** Reason for being on login page (from query param) */
 const logoutReason = ref<string | null>(null)
 
-/** Check for logout reason on mount */
-onMounted(() => {
+/** Invitation token from URL */
+const invitationToken = ref<string | null>(null)
+
+/** Email from invitation (pre-filled) */
+const invitationEmail = ref<string | null>(null)
+
+/** Invitation validation error */
+const invitationError = ref<string | null>(null)
+
+/** Check for logout reason and invitation on mount */
+onMounted(async () => {
   const reason = route.query.reason as string | undefined
   if (reason === 'inactivity') {
     logoutReason.value = 'inactivity'
@@ -151,7 +191,38 @@ onMounted(() => {
     logoutReason.value = 'expired'
     message.warning('Your session has expired. Please log in again.')
   }
+
+  // Check for invitation token in URL
+  const token = route.query.token as string | undefined
+  if (token) {
+    await validateInvitation(token)
+    if (invitationToken.value) {
+      showRegister.value = true
+    }
+  }
 })
+
+/**
+ * Validates an invitation token from the URL.
+ */
+async function validateInvitation(token: string) {
+  try {
+    const result = await authAPI.validateInvitation(token)
+    if (result.valid) {
+      invitationToken.value = token
+      invitationEmail.value = result.email
+      registerData.value.email = result.email || ''
+    } else if (result.expired) {
+      invitationError.value = t('auth.expiredInvitation')
+    } else if (result.already_used) {
+      invitationError.value = t('auth.usedInvitation')
+    } else {
+      invitationError.value = t('auth.invalidInvitation')
+    }
+  } catch {
+    invitationError.value = t('auth.invalidInvitation')
+  }
+}
 
 /** Loading state for async operations */
 const loading = ref(false)
@@ -247,7 +318,8 @@ const handleRegisterClick = () => {
 
 /**
  * Handles registration form submission.
- * Validates form and attempts account creation.
+ * With invitation: creates account with free trial access
+ * Without invitation: creates account and redirects to pricing
  */
 const handleRegister = () => {
   registerFormRef.value?.validate(async (errors: any) => {
@@ -258,18 +330,36 @@ const handleRegister = () => {
       await authStore.register(
         registerData.value.email,
         registerData.value.name,
-        registerData.value.password
+        registerData.value.password,
+        invitationToken.value || undefined
       )
-      message.success('Account created! Welcome!')
+
       showRegister.value = false
-      router.push('/dashboard')
+
+      if (invitationToken.value) {
+        // Free trial with invitation - go to dashboard
+        message.success(t('auth.accountCreatedFreeTrial'))
+        router.push('/dashboard')
+      } else {
+        // No invitation - redirect to pricing to subscribe
+        message.info(t('auth.accountCreatedSubscribe'))
+        router.push('/pricing')
+      }
     } catch (error: any) {
       console.error('Register error:', error)
       const detail = error.response?.data?.detail
       if (detail === 'Email already registered') {
-        message.error('This email is already in use')
+        message.error(t('auth.emailAlreadyUsed'))
+      } else if (detail === 'Invalid invitation token') {
+        message.error(t('auth.invalidInvitation'))
+      } else if (detail === 'Invitation already used') {
+        message.error(t('auth.usedInvitation'))
+      } else if (detail === 'Email does not match invitation') {
+        message.error(t('auth.emailMismatch'))
+      } else if (detail === 'Invitation expired') {
+        message.error(t('auth.expiredInvitation'))
       } else {
-        message.error('Error creating account')
+        message.error(t('auth.registerError'))
       }
     } finally {
       loading.value = false

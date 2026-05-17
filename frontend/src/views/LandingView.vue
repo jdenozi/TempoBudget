@@ -7,11 +7,11 @@
         <h1>{{ t('landing.title') }}</h1>
         <p class="hero-subtitle">{{ t('landing.subtitle') }}</p>
         <div class="hero-buttons">
-          <n-button type="primary" size="large" @click="router.push('/login')">
-            {{ t('landing.getStarted') }}
+          <n-button type="primary" size="large" @click="router.push('/pricing')">
+            {{ t('landing.subscribeNow') }}
           </n-button>
-          <n-button size="large" quaternary @click="router.push('/pricing')">
-            {{ t('landing.seePricing') }}
+          <n-button size="large" @click="openMailto">
+            {{ t('landing.requestInvitation') }}
           </n-button>
         </div>
       </div>
@@ -223,11 +223,11 @@
       <h2>{{ t('landing.ctaTitle') }}</h2>
       <p>{{ t('landing.ctaSubtitle') }}</p>
       <div class="cta-buttons">
-        <n-button type="primary" size="large" @click="router.push('/login')">
-          {{ t('landing.getStarted') }}
+        <n-button type="primary" size="large" @click="router.push('/pricing')">
+          {{ t('landing.subscribeNow') }}
         </n-button>
-        <n-button size="large" @click="router.push('/pricing')">
-          {{ t('landing.seePricing') }}
+        <n-button size="large" @click="openMailto">
+          {{ t('landing.requestInvitation') }}
         </n-button>
       </div>
     </section>
@@ -287,6 +287,10 @@ const annualMonthlyPrice = computed(() => {
 onMounted(() => {
   subscriptionStore.fetchPrices()
 })
+
+function openMailto() {
+  window.location.href = 'mailto:contact@tempo.finance?subject=Demande%20d%27invitation%20Tempo%20Budget'
+}
 </script>
 
 <style scoped>
@@ -911,6 +915,24 @@ onMounted(() => {
   .cta-buttons {
     flex-direction: column;
     align-items: center;
+  }
+
+  .pricing-grid.three-cols {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pricing-card {
+    max-width: 100%;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero-buttons .n-button {
+    width: 100%;
   }
 }
 </style>

@@ -47,7 +47,50 @@ async def validate_invitation(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse)
 async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
-    """Register a new user account."""
+    """Register a new user account.
+
+    Two modes:
+    - With invitation_token: free trial access
+    - Without invitation_token: must subscribe to access features
+    """
+    has_valid_invitation = False
+    inv_id = None
+
+    # Validate invitation if provided
+    if payload.invitation_token:
+        result = await db.execute(
+            text("SELECT id, email, expires_at, used_at FROM invitations WHERE token = :token"),
+            {"token": payload.invitation_token}
+        )
+        inv = result.fetchone()
+
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid invitation token"
+            )
+
+        if inv.used_at:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation already used"
+            )
+
+        if inv.email.lower() != payload.email.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email does not match invitation"
+            )
+
+        if datetime.fromisoformat(inv.expires_at) < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation expired"
+            )
+
+        has_valid_invitation = True
+        inv_id = inv.id
+
     # Check if email already exists
     result = await db.execute(
         text("SELECT id FROM users WHERE email = :email"),
@@ -77,6 +120,13 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
             "updated_at": now,
         }
     )
+
+    # Mark invitation as used if provided
+    if has_valid_invitation and inv_id:
+        await db.execute(
+            text("UPDATE invitations SET used_at = :now, used_by_user_id = :uid WHERE id = :id"),
+            {"now": now, "uid": user_id, "id": inv_id}
+        )
 
     await db.commit()
 

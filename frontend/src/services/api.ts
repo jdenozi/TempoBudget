@@ -292,13 +292,15 @@ export const authAPI = {
    * @param email - User's email address
    * @param name - User's display name
    * @param password - User's password (will be hashed server-side)
+   * @param invitationToken - Optional invitation token for free trial
    * @returns Authentication response with token and user data
    */
-  register: async (email: string, name: string, password: string) => {
+  register: async (email: string, name: string, password: string, invitationToken?: string) => {
     const response = await api.post<AuthResponse>('/auth/register', {
       email,
       name,
       password,
+      invitation_token: invitationToken || null,
     })
     return response.data
   },

@@ -30,6 +30,7 @@ class CreateUser(BaseModel):
     email: EmailStr = Field(..., description="Email address for the new account")
     name: str = Field(..., min_length=1, description="Display name")
     password: str = Field(..., min_length=6, description="Plain-text password")
+    invitation_token: str | None = Field(None, description="Invitation token for free trial")
 
 
 class LoginRequest(BaseModel):
