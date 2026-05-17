@@ -6,7 +6,6 @@
 
   Provides the login and registration forms for user authentication.
   Includes form validation and error handling for auth operations.
-  Supports invitation-based registration.
 -->
 
 <template>
@@ -79,26 +78,7 @@
 
     <!-- Registration Modal -->
     <n-modal v-model:show="showRegister" preset="card" :title="t('auth.register')" style="max-width: 400px;">
-      <!-- Invitation validation alert -->
-      <n-alert
-        v-if="invitationError"
-        type="error"
-        style="margin-bottom: 16px;"
-        closable
-        @close="invitationError = null"
-      >
-        {{ invitationError }}
-      </n-alert>
-
-      <n-alert
-        v-if="!invitationToken"
-        type="warning"
-        style="margin-bottom: 16px;"
-      >
-        {{ t('auth.invitationRequired') }}
-      </n-alert>
-
-      <n-form v-if="invitationToken" ref="registerFormRef" :model="registerData" :rules="registerRules">
+      <n-form ref="registerFormRef" :model="registerData" :rules="registerRules">
         <n-form-item :label="t('auth.name')" path="name">
           <n-input v-model:value="registerData.name" :placeholder="t('auth.name')" />
         </n-form-item>
@@ -107,7 +87,6 @@
           <n-input
             v-model:value="registerData.email"
             placeholder="email@example.com"
-            :disabled="!!invitationEmail"
           />
         </n-form-item>
 
@@ -140,7 +119,6 @@
  * Features:
  * - Login form with email/password validation
  * - Registration modal with name/email/password validation
- * - Invitation token validation for registration
  * - Error handling for authentication failures
  * - Automatic redirect to dashboard on success
  */
@@ -153,7 +131,6 @@ import {
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { authAPI } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -164,17 +141,8 @@ const authStore = useAuthStore()
 /** Reason for being on login page (from query param) */
 const logoutReason = ref<string | null>(null)
 
-/** Invitation token from URL */
-const invitationToken = ref<string | null>(null)
-
-/** Email from invitation (pre-filled) */
-const invitationEmail = ref<string | null>(null)
-
-/** Invitation validation error */
-const invitationError = ref<string | null>(null)
-
-/** Validate invitation token on mount if present */
-onMounted(async () => {
+/** Check for logout reason on mount */
+onMounted(() => {
   const reason = route.query.reason as string | undefined
   if (reason === 'inactivity') {
     logoutReason.value = 'inactivity'
@@ -183,38 +151,7 @@ onMounted(async () => {
     logoutReason.value = 'expired'
     message.warning('Your session has expired. Please log in again.')
   }
-
-  // Check for invitation token in URL
-  const token = route.query.token as string | undefined
-  if (token) {
-    await validateInvitation(token)
-    if (invitationToken.value) {
-      showRegister.value = true
-    }
-  }
 })
-
-/**
- * Validates an invitation token from the URL.
- */
-async function validateInvitation(token: string) {
-  try {
-    const result = await authAPI.validateInvitation(token)
-    if (result.valid) {
-      invitationToken.value = token
-      invitationEmail.value = result.email
-      registerData.value.email = result.email || ''
-    } else if (result.expired) {
-      invitationError.value = t('auth.expiredInvitation')
-    } else if (result.already_used) {
-      invitationError.value = t('auth.usedInvitation')
-    } else {
-      invitationError.value = t('auth.invalidInvitation')
-    }
-  } catch {
-    invitationError.value = t('auth.invalidInvitation')
-  }
-}
 
 /** Loading state for async operations */
 const loading = ref(false)
@@ -302,13 +239,10 @@ const handleSSO = () => {
 
 /**
  * Handles click on register button.
- * Shows modal, displays message if no invitation token.
+ * Shows registration modal.
  */
 const handleRegisterClick = () => {
   showRegister.value = true
-  if (!invitationToken.value) {
-    invitationError.value = null
-  }
 }
 
 /**
@@ -316,11 +250,6 @@ const handleRegisterClick = () => {
  * Validates form and attempts account creation.
  */
 const handleRegister = () => {
-  if (!invitationToken.value) {
-    message.error(t('auth.invitationRequired'))
-    return
-  }
-
   registerFormRef.value?.validate(async (errors: any) => {
     if (errors) return
 
@@ -329,8 +258,7 @@ const handleRegister = () => {
       await authStore.register(
         registerData.value.email,
         registerData.value.name,
-        registerData.value.password,
-        invitationToken.value!
+        registerData.value.password
       )
       message.success('Account created! Welcome!')
       showRegister.value = false
@@ -340,14 +268,6 @@ const handleRegister = () => {
       const detail = error.response?.data?.detail
       if (detail === 'Email already registered') {
         message.error('This email is already in use')
-      } else if (detail === 'Invalid invitation token') {
-        message.error(t('auth.invalidInvitation'))
-      } else if (detail === 'Invitation already used') {
-        message.error(t('auth.usedInvitation'))
-      } else if (detail === 'Email does not match invitation') {
-        message.error(t('auth.emailMismatch'))
-      } else if (detail === 'Invitation expired') {
-        message.error(t('auth.expiredInvitation'))
       } else {
         message.error('Error creating account')
       }

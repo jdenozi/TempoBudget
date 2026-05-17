@@ -47,38 +47,7 @@ async def validate_invitation(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register", response_model=AuthResponse)
 async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
-    """Register a new user account (requires valid invitation)."""
-    # Validate invitation token
-    result = await db.execute(
-        text("SELECT id, email, expires_at, used_at FROM invitations WHERE token = :token"),
-        {"token": payload.invitation_token}
-    )
-    inv = result.fetchone()
-
-    if not inv:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid invitation token"
-        )
-
-    if inv.used_at:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invitation already used"
-        )
-
-    if inv.email.lower() != payload.email.lower():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email does not match invitation"
-        )
-
-    if datetime.fromisoformat(inv.expires_at) < datetime.now(timezone.utc):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invitation expired"
-        )
-
+    """Register a new user account."""
     # Check if email already exists
     result = await db.execute(
         text("SELECT id FROM users WHERE email = :email"),
@@ -107,12 +76,6 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
             "created_at": now,
             "updated_at": now,
         }
-    )
-
-    # Mark invitation as used
-    await db.execute(
-        text("UPDATE invitations SET used_at = :now, used_by_user_id = :uid WHERE id = :id"),
-        {"now": now, "uid": user_id, "id": inv.id}
     )
 
     await db.commit()
