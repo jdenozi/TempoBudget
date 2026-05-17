@@ -13,6 +13,11 @@ services:
       - ENVIRONMENT=production
       - DOCS_ENABLED=${DOCS_ENABLED:-false}
       - DB_PATH=/app/data/budget.db
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_MONTHLY=${STRIPE_PRICE_MONTHLY:-}
+      - STRIPE_PRICE_ANNUAL=${STRIPE_PRICE_ANNUAL:-}
+      - FRONTEND_URL=${FRONTEND_URL:-}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     restart: unless-stopped
     healthcheck:

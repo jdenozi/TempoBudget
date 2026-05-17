@@ -71,3 +71,7 @@ frontend/docs/
 budget-perso-*
 output
 import_transactions.py
+
+# Stripe keys (DO NOT COMMIT)
+private.key
+public.key

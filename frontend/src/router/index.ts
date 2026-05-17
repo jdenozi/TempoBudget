@@ -30,6 +30,9 @@ import HistoryView from '@/views/HistoryView.vue'
 import ChartsView from '@/views/ChartsView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import AuthCallbackView from '@/views/AuthCallbackView.vue'
+import PricingView from '@/views/PricingView.vue'
+import SubscriptionSuccessView from '@/views/SubscriptionSuccessView.vue'
+import SubscriptionCancelView from '@/views/SubscriptionCancelView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,6 +51,22 @@ const router = createRouter({
       path: '/auth/success',
       name: 'auth-callback',
       component: AuthCallbackView,
+    },
+    {
+      path: '/pricing',
+      name: 'pricing',
+      component: PricingView,
+    },
+    {
+      path: '/subscription/success',
+      name: 'subscription-success',
+      component: SubscriptionSuccessView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/subscription/cancel',
+      name: 'subscription-cancel',
+      component: SubscriptionCancelView,
     },
     {
       path: '/',
@@ -183,6 +202,25 @@ const router = createRouter({
           name: 'pro-recurring',
           component: () => import('@/views/pro/ProRecurringView.vue'),
         },
+        // Admin routes
+        {
+          path: 'admin',
+          name: 'admin-dashboard',
+          component: () => import('@/views/admin/AdminDashboardView.vue'),
+          meta: { requiresAdmin: true },
+        },
+        {
+          path: 'admin/users',
+          name: 'admin-users',
+          component: () => import('@/views/admin/AdminUsersView.vue'),
+          meta: { requiresAdmin: true },
+        },
+        {
+          path: 'admin/quotes',
+          name: 'admin-quotes',
+          component: () => import('@/views/admin/AdminQuotesView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
   ],
@@ -196,8 +234,9 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
-  // Allow auth callback and welcome page without authentication
-  if (to.path === '/auth/success' || to.path === '/welcome') {
+  // Allow public routes without authentication
+  const publicPaths = ['/auth/success', '/welcome', '/pricing', '/subscription/cancel']
+  if (publicPaths.includes(to.path)) {
     next()
     return
   }
@@ -206,7 +245,15 @@ router.beforeEach((to, from, next) => {
     // Redirect to landing page for unauthenticated users
     next('/welcome')
     return
-  } else if ((to.path === '/login' || to.path === '/welcome') && authStore.isAuthenticated) {
+  }
+
+  // Check admin access (use matched for nested routes)
+  if (to.matched.some(record => record.meta.requiresAdmin) && !authStore.user?.is_admin) {
+    next('/dashboard')
+    return
+  }
+
+  if ((to.path === '/login' || to.path === '/welcome') && authStore.isAuthenticated) {
     next('/dashboard')
   } else {
     next()

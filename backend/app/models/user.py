@@ -12,6 +12,7 @@ class User(BaseModel):
     name: str = Field(..., description="User's display name")
     avatar: str | None = Field(None, description="Optional avatar URL")
     phone: str | None = Field(None, description="Optional phone number")
+    is_admin: bool = Field(default=False, description="Whether user has admin privileges")
     created_at: str = Field(..., description="Timestamp when user was created")
     updated_at: str = Field(..., description="Timestamp when user was last updated")
 

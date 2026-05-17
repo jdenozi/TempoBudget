@@ -84,6 +84,7 @@ export interface User {
   name: string
   avatar?: string
   phone?: string
+  is_admin?: boolean
   created_at: string
   updated_at: string
 }
@@ -1726,6 +1727,179 @@ export const proQuotesAPI = {
   },
   downloadPdf: async (id: string) => {
     const response = await api.get(`/pro/quotes/${id}/pdf`, { responseType: 'blob' })
+    return response.data
+  },
+}
+
+// ============================================================================
+// Subscription Types
+// ============================================================================
+
+export interface Subscription {
+  id: string
+  user_id: string
+  stripe_subscription_id: string | null
+  stripe_price_id: string
+  plan_type: 'monthly' | 'annual'
+  status: 'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing'
+  current_period_start: string
+  current_period_end: string
+  cancel_at_period_end: boolean
+  canceled_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SubscriptionStatus {
+  has_subscription: boolean
+  subscription: Subscription | null
+  plan_type: string | null
+  status: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+}
+
+export interface CheckoutResponse {
+  checkout_url: string
+  session_id: string
+}
+
+export interface PortalResponse {
+  portal_url: string
+}
+
+// ============================================================================
+// Admin Types
+// ============================================================================
+
+export interface AdminUserInfo {
+  id: string
+  email: string
+  name: string
+  is_admin: boolean
+  created_at: string
+  subscription: Subscription | null
+}
+
+export interface SubscriptionStats {
+  total_users: number
+  total_subscribers: number
+  active_subscriptions: number
+  monthly_subscribers: number
+  annual_subscribers: number
+  mrr: number
+  arr: number
+  churn_rate: number
+}
+
+export interface AdminQuote {
+  id: string
+  created_by_user_id: string
+  prospect_name: string
+  prospect_email: string
+  prospect_company: string | null
+  plan_type: 'monthly' | 'annual'
+  quantity: number
+  unit_price: number
+  total: number
+  valid_until: string
+  notes: string | null
+  status: 'draft' | 'sent' | 'accepted' | 'expired'
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
+// Stripe API Methods
+// ============================================================================
+
+export const stripeAPI = {
+  createCheckout: async (data: { plan_type: 'monthly' | 'annual'; success_url: string; cancel_url: string }) => {
+    const response = await api.post<CheckoutResponse>('/stripe/checkout', data)
+    return response.data
+  },
+
+  getSubscription: async () => {
+    const response = await api.get<SubscriptionStatus>('/stripe/subscription')
+    return response.data
+  },
+
+  createPortalSession: async () => {
+    const response = await api.post<PortalResponse>('/stripe/portal')
+    return response.data
+  },
+}
+
+// ============================================================================
+// Admin API Methods
+// ============================================================================
+
+export const adminAPI = {
+  getUsers: async () => {
+    const response = await api.get<AdminUserInfo[]>('/admin/users')
+    return response.data
+  },
+
+  getUser: async (userId: string) => {
+    const response = await api.get<AdminUserInfo>(`/admin/users/${userId}`)
+    return response.data
+  },
+
+  getSubscriptions: async () => {
+    const response = await api.get<Subscription[]>('/admin/subscriptions')
+    return response.data
+  },
+
+  getSubscriptionStats: async () => {
+    const response = await api.get<SubscriptionStats>('/admin/subscriptions/stats')
+    return response.data
+  },
+
+  getQuotes: async () => {
+    const response = await api.get<AdminQuote[]>('/admin/quotes')
+    return response.data
+  },
+
+  createQuote: async (data: {
+    prospect_name: string
+    prospect_email: string
+    prospect_company?: string
+    plan_type: 'monthly' | 'annual'
+    quantity?: number
+    unit_price: number
+    valid_days?: number
+    notes?: string
+  }) => {
+    const response = await api.post<AdminQuote>('/admin/quotes', data)
+    return response.data
+  },
+
+  getQuote: async (quoteId: string) => {
+    const response = await api.get<AdminQuote>(`/admin/quotes/${quoteId}`)
+    return response.data
+  },
+
+  updateQuote: async (quoteId: string, data: {
+    prospect_name?: string
+    prospect_email?: string
+    prospect_company?: string
+    plan_type?: 'monthly' | 'annual'
+    quantity?: number
+    unit_price?: number
+    valid_until?: string
+    notes?: string
+    status?: 'draft' | 'sent' | 'accepted' | 'expired'
+  }) => {
+    const response = await api.put<AdminQuote>(`/admin/quotes/${quoteId}`, data)
+    return response.data
+  },
+
+  deleteQuote: async (quoteId: string) => {
+    await api.delete(`/admin/quotes/${quoteId}`)
+  },
+
+  downloadQuotePdf: async (quoteId: string) => {
+    const response = await api.get(`/admin/quotes/${quoteId}/pdf`, { responseType: 'blob' })
     return response.data
   },
 }

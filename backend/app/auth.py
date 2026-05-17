@@ -11,6 +11,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 JWT_ALGORITHM = "HS256"
@@ -62,3 +64,29 @@ async def get_current_user(
     return token_data.sub
 
 
+async def get_current_admin(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> str:
+    """Dependency that validates the current user is an admin."""
+    from .database import get_db
+
+    token_data = verify_token(credentials.credentials)
+    user_id = token_data.sub
+
+    async for session in get_db():
+        result = await session.execute(
+            text("SELECT is_admin FROM users WHERE id = :id"),
+            {"id": user_id},
+        )
+        row = result.fetchone()
+        if not row or not row.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required",
+            )
+        return user_id
+
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Database session error",
+    )

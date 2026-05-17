@@ -13,3 +13,4 @@ itsdangerous==2.1.2
 weasyprint==62.3
 pydyf==0.11.0
 factur-x==3.5
+stripe>=7.0.0

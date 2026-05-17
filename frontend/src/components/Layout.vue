@@ -165,7 +165,7 @@ import {
   UserOutlined, SettingOutlined, SyncOutlined, TeamOutlined,
   ShoppingOutlined, TagOutlined, GiftOutlined, SwapOutlined,
   FileTextOutlined, FileDoneOutlined, AppstoreOutlined, AuditOutlined,
-  ProjectOutlined
+  ProjectOutlined, ToolOutlined
 } from '@vicons/antd'
 import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
@@ -175,10 +175,12 @@ import HelpChat from './HelpChat.vue'
 import { themeOverrides } from '@/theme'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { useProStore } from '@/stores/pro'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t } = useI18n()
 const proStore = useProStore()
+const authStore = useAuthStore()
 
 /** Whether the sidebar is collapsed */
 const collapsed = ref(false)
@@ -226,117 +228,143 @@ const handleProToggle = (value: boolean) => {
 }
 
 /** Personal mode menu options */
-const personalMenuOptions = computed<MenuOption[]>(() => [
-  {
-    label: t('nav.dashboard'),
-    key: 'dashboard',
-    icon: () => h(DashboardOutlined)
-  },
-  {
-    label: t('nav.recurring'),
-    key: 'recurring',
-    icon: () => h(SyncOutlined)
-  },
-  {
-    label: t('nav.history'),
-    key: 'history',
-    icon: () => h(HistoryOutlined)
-  },
-  {
-    label: t('nav.charts'),
-    key: 'charts',
-    icon: () => h(BarChartOutlined)
-  },
-  {
-    label: t('nav.loans'),
-    key: 'loans',
-    icon: () => h(SwapOutlined)
-  },
-  {
-    label: t('nav.projects'),
-    key: 'projects',
-    icon: () => h(ProjectOutlined)
-  },
-  {
-    label: t('nav.profile'),
-    key: 'profile',
-    icon: () => h(UserOutlined)
+const personalMenuOptions = computed<MenuOption[]>(() => {
+  const options: MenuOption[] = [
+    {
+      label: t('nav.dashboard'),
+      key: 'dashboard',
+      icon: () => h(DashboardOutlined)
+    },
+    {
+      label: t('nav.recurring'),
+      key: 'recurring',
+      icon: () => h(SyncOutlined)
+    },
+    {
+      label: t('nav.history'),
+      key: 'history',
+      icon: () => h(HistoryOutlined)
+    },
+    {
+      label: t('nav.charts'),
+      key: 'charts',
+      icon: () => h(BarChartOutlined)
+    },
+    {
+      label: t('nav.loans'),
+      key: 'loans',
+      icon: () => h(SwapOutlined)
+    },
+    {
+      label: t('nav.projects'),
+      key: 'projects',
+      icon: () => h(ProjectOutlined)
+    },
+    {
+      label: t('nav.profile'),
+      key: 'profile',
+      icon: () => h(UserOutlined)
+    }
+  ]
+
+  // Add admin menu if user is admin
+  if (authStore.user?.is_admin) {
+    options.push({
+      label: t('nav.admin'),
+      key: 'admin-dashboard',
+      icon: () => h(ToolOutlined)
+    })
   }
-])
+
+  return options
+})
 
 /** Pro mode menu options */
-const proMenuOptions = computed<MenuOption[]>(() => [
-  {
-    label: t('nav.proDashboard'),
-    key: 'pro-dashboard',
-    icon: () => h(DashboardOutlined)
-  },
-  {
-    label: t('nav.proClients'),
-    key: 'pro-clients',
-    icon: () => h(TeamOutlined)
-  },
-  {
-    label: t('nav.proProducts'),
-    key: 'pro-products',
-    icon: () => h(ShoppingOutlined)
-  },
-  {
-    label: t('nav.proInvoices'),
-    key: 'pro-invoices',
-    icon: () => h(FileTextOutlined)
-  },
-  {
-    label: t('nav.proQuotes'),
-    key: 'pro-quotes',
-    icon: () => h(FileDoneOutlined)
-  },
-  {
-    label: t('nav.proCategories'),
-    key: 'pro-categories',
-    icon: () => h(AppstoreOutlined)
-  },
-  {
-    label: t('nav.proDeclaration'),
-    key: 'pro-declaration',
-    icon: () => h(AuditOutlined)
-  },
-  {
-    label: t('nav.proCoupons'),
-    key: 'pro-coupons',
-    icon: () => h(TagOutlined)
-  },
-  {
-    label: t('nav.proGiftCards'),
-    key: 'pro-gift-cards',
-    icon: () => h(GiftOutlined)
-  },
-  {
-    label: t('nav.projects'),
-    key: 'projects',
-    icon: () => h(ProjectOutlined)
-  },
-  {
-    label: t('nav.proRecurring'),
-    key: 'pro-recurring',
-    icon: () => h(SyncOutlined)
-  },
-  {
-    label: t('nav.proHistory'),
-    key: 'pro-history',
-    icon: () => h(HistoryOutlined)
-  },
-  {
-    label: t('nav.proCharts'),
-    key: 'pro-charts',
-    icon: () => h(BarChartOutlined)
-  },
-  {
-    label: t('nav.profile'),
-    key: 'profile',
-    icon: () => h(UserOutlined)
+const proMenuOptions = computed<MenuOption[]>(() => {
+  const options: MenuOption[] = [
+    {
+      label: t('nav.proDashboard'),
+      key: 'pro-dashboard',
+      icon: () => h(DashboardOutlined)
+    },
+    {
+      label: t('nav.proClients'),
+      key: 'pro-clients',
+      icon: () => h(TeamOutlined)
+    },
+    {
+      label: t('nav.proProducts'),
+      key: 'pro-products',
+      icon: () => h(ShoppingOutlined)
+    },
+    {
+      label: t('nav.proInvoices'),
+      key: 'pro-invoices',
+      icon: () => h(FileTextOutlined)
+    },
+    {
+      label: t('nav.proQuotes'),
+      key: 'pro-quotes',
+      icon: () => h(FileDoneOutlined)
+    },
+    {
+      label: t('nav.proCategories'),
+      key: 'pro-categories',
+      icon: () => h(AppstoreOutlined)
+    },
+    {
+      label: t('nav.proDeclaration'),
+      key: 'pro-declaration',
+      icon: () => h(AuditOutlined)
+    },
+    {
+      label: t('nav.proCoupons'),
+      key: 'pro-coupons',
+      icon: () => h(TagOutlined)
+    },
+    {
+      label: t('nav.proGiftCards'),
+      key: 'pro-gift-cards',
+      icon: () => h(GiftOutlined)
+    },
+    {
+      label: t('nav.projects'),
+      key: 'projects',
+      icon: () => h(ProjectOutlined)
+    },
+    {
+      label: t('nav.proRecurring'),
+      key: 'pro-recurring',
+      icon: () => h(SyncOutlined)
+    },
+    {
+      label: t('nav.proHistory'),
+      key: 'pro-history',
+      icon: () => h(HistoryOutlined)
+    },
+    {
+      label: t('nav.proCharts'),
+      key: 'pro-charts',
+      icon: () => h(BarChartOutlined)
+    },
+    {
+      label: t('nav.profile'),
+      key: 'profile',
+      icon: () => h(UserOutlined)
+    }
+  ]
+
+  // Add admin menu if user is admin
+  if (authStore.user?.is_admin) {
+    options.push({
+      label: t('nav.admin'),
+      key: 'admin-dashboard',
+      icon: () => h(ToolOutlined)
+    })
   }
-])
+
+  return options
+})
 
 /** Navigation menu options (switches based on pro mode) */
 const menuOptions = computed<MenuOption[]>(() =>

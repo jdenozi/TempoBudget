@@ -59,7 +59,7 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
 
     # Fetch the created user
     result = await db.execute(
-        text("SELECT id, email, name, avatar, phone, created_at, updated_at FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar, phone, is_admin, created_at, updated_at FROM users WHERE id = :id"),
         {"id": user_id}
     )
     row = result.fetchone()
@@ -69,6 +69,7 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
         name=row.name,
         avatar=row.avatar,
         phone=row.phone,
+        is_admin=bool(row.is_admin),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -81,7 +82,7 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate a user and return a JWT token."""
     result = await db.execute(
-        text("SELECT id, email, name, password_hash, avatar, phone, created_at, updated_at FROM users WHERE email = :email"),
+        text("SELECT id, email, name, password_hash, avatar, phone, is_admin, created_at, updated_at FROM users WHERE email = :email"),
         {"email": payload.email}
     )
     row = result.fetchone()
@@ -104,6 +105,7 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
         name=row.name,
         avatar=row.avatar,
         phone=row.phone,
+        is_admin=bool(row.is_admin),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -159,7 +161,7 @@ async def get_me(
 ):
     """Return the current authenticated user."""
     result = await db.execute(
-        text("SELECT id, email, name, avatar, phone, created_at, updated_at FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar, phone, is_admin, created_at, updated_at FROM users WHERE id = :id"),
         {"id": user_id},
     )
     row = result.fetchone()
@@ -167,7 +169,7 @@ async def get_me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return User(
         id=row.id, email=row.email, name=row.name,
-        avatar=row.avatar, phone=row.phone,
+        avatar=row.avatar, phone=row.phone, is_admin=bool(row.is_admin),
         created_at=row.created_at, updated_at=row.updated_at,
     )
 
@@ -202,13 +204,13 @@ async def update_profile(
     await db.commit()
 
     result = await db.execute(
-        text("SELECT id, email, name, avatar, phone, created_at, updated_at FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar, phone, is_admin, created_at, updated_at FROM users WHERE id = :id"),
         {"id": user_id},
     )
     row = result.fetchone()
     return User(
         id=row.id, email=row.email, name=row.name,
-        avatar=row.avatar, phone=row.phone,
+        avatar=row.avatar, phone=row.phone, is_admin=bool(row.is_admin),
         created_at=row.created_at, updated_at=row.updated_at,
     )
 
@@ -252,13 +254,13 @@ async def upload_avatar(
     await db.commit()
 
     result = await db.execute(
-        text("SELECT id, email, name, avatar, phone, created_at, updated_at FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar, phone, is_admin, created_at, updated_at FROM users WHERE id = :id"),
         {"id": user_id},
     )
     row = result.fetchone()
     return User(
         id=row.id, email=row.email, name=row.name,
-        avatar=row.avatar, phone=row.phone,
+        avatar=row.avatar, phone=row.phone, is_admin=bool(row.is_admin),
         created_at=row.created_at, updated_at=row.updated_at,
     )
 
