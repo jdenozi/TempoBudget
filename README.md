@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.12.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.13.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -83,16 +83,11 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.12.0)
+## Recent Changes (v2.13.0)
 
-* **ACRE support**: 50% cotisation reduction for the first year with start date tracking
-* **Pro setup wizard**: guided 4-step onboarding for new Pro users with required field validation
-* **Help chat**: pre-programmed responses and quick topics for user assistance
-* **URSSAF schedule**: payment deadlines and projections in the declaration view
-* **Pricing on landing page**: €4.99/month subscription with feature details
-* **Avatar generation**: DiceBear API integration for profile personalization (no upload needed)
-* **TNS cotisations breakdown**: detailed breakdown for all tax regimes
-* **Accessibility improvements**: aria-labels and clearer navigation
+* **Unit tests**: 57 tests covering useAvatar, HelpChat, ProSetupWizard validation, and URSSAF notifications
+* **URSSAF deadline notifications**: automatic alerts on Pro dashboard for upcoming/overdue deadlines (7d, 3d, 1d, today, overdue)
+* **Dismissible notifications**: alerts persist dismiss state in localStorage for 90 days
 
 ## License
 
