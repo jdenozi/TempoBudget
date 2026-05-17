@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.16.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.17.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -94,10 +94,11 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.16.0)
+## Recent Changes (v2.17.0)
 
-* **Dynamic pricing**: subscription prices fetched from backend API instead of hardcoded
-* **Webhook idempotence**: reliable Stripe event processing with deduplication table
+* **Open registration**: users can now sign up without an invitation
+* **Landing page redesign**: three pricing tiers (Free, Monthly, Annual) with dynamic prices
+* **Dynamic pricing**: subscription prices fetched from backend API
 
 ## License
 
