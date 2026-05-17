@@ -4,15 +4,14 @@
     <section class="hero">
       <div class="hero-content">
         <img src="/logo.png" alt="Tempo Budget" class="hero-logo" />
-        <div class="beta-badge">{{ t('landing.invitationOnly') }}</div>
         <h1>{{ t('landing.title') }}</h1>
         <p class="hero-subtitle">{{ t('landing.subtitle') }}</p>
         <div class="hero-buttons">
-          <n-button type="primary" size="large" @click="openMailto">
-            {{ t('landing.requestInvitation') }}
+          <n-button type="primary" size="large" @click="router.push('/login')">
+            {{ t('landing.getStarted') }}
           </n-button>
-          <n-button size="large" quaternary @click="router.push('/login')">
-            {{ t('landing.alreadyHaveInvitation') }}
+          <n-button size="large" quaternary @click="router.push('/pricing')">
+            {{ t('landing.seePricing') }}
           </n-button>
         </div>
       </div>
@@ -128,7 +127,8 @@
     <!-- Pricing Section -->
     <section class="pricing-section">
       <h2>{{ t('landing.pricingTitle') }}</h2>
-      <div class="pricing-grid">
+      <div class="pricing-grid three-cols">
+        <!-- Free Plan -->
         <div class="pricing-card">
           <div class="pricing-header">
             <h3>{{ t('landing.pricingFree') }}</h3>
@@ -144,19 +144,20 @@
             <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature4') }}</li>
             <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature5') }}</li>
           </ul>
-          <n-button size="large" block @click="openMailto">
-            {{ t('landing.requestInvitation') }}
+          <n-button size="large" block @click="router.push('/login')">
+            {{ t('landing.getStarted') }}
           </n-button>
         </div>
-        <div class="pricing-card featured">
-          <div class="pricing-badge">PRO</div>
+
+        <!-- Monthly Plan -->
+        <div class="pricing-card">
           <div class="pricing-header">
-            <h3>{{ t('landing.pricingPro') }}</h3>
+            <h3>{{ t('subscription.monthly') }}</h3>
             <div class="pricing-price">
-              <span class="price">{{ t('landing.pricingProPrice') }}</span>
-              <span class="period">{{ t('landing.pricingProPeriod') }}</span>
+              <span class="price">{{ monthlyPrice }} €</span>
+              <span class="period">/ {{ t('subscription.month') }}</span>
             </div>
-            <p class="pricing-desc">{{ t('landing.pricingProDesc') }}</p>
+            <p class="pricing-desc">{{ t('landing.pricingMonthlyDesc') }}</p>
           </div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature1') }}</li>
@@ -164,6 +165,30 @@
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature3') }}</li>
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
             <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
+          </ul>
+          <n-button type="primary" size="large" block @click="router.push('/pricing')">
+            {{ t('subscription.subscribe') }}
+          </n-button>
+        </div>
+
+        <!-- Annual Plan -->
+        <div class="pricing-card featured">
+          <div class="pricing-badge">{{ t('subscription.bestValue') }}</div>
+          <div class="pricing-header">
+            <h3>{{ t('subscription.annual') }}</h3>
+            <div class="pricing-price">
+              <span class="price">{{ annualPrice }} €</span>
+              <span class="period">/ {{ t('subscription.year') }}</span>
+            </div>
+            <p class="pricing-desc">{{ t('landing.pricingAnnualDesc', { monthly: annualMonthlyPrice }) }}</p>
+          </div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature1') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature2') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature3') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
+            <li><span class="check">✓</span> {{ t('subscription.prioritySupport') }}</li>
           </ul>
           <n-button type="primary" size="large" block @click="router.push('/pricing')">
             {{ t('subscription.subscribe') }}
@@ -198,11 +223,11 @@
       <h2>{{ t('landing.ctaTitle') }}</h2>
       <p>{{ t('landing.ctaSubtitle') }}</p>
       <div class="cta-buttons">
-        <n-button type="primary" size="large" @click="openMailto">
-          {{ t('landing.ctaButton') }}
+        <n-button type="primary" size="large" @click="router.push('/login')">
+          {{ t('landing.getStarted') }}
         </n-button>
-        <n-button size="large" @click="router.push('/login')">
-          {{ t('landing.alreadyHaveInvitation') }}
+        <n-button size="large" @click="router.push('/pricing')">
+          {{ t('landing.seePricing') }}
         </n-button>
       </div>
     </section>
@@ -225,16 +250,43 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { NButton } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { useSubscriptionStore } from '@/stores/subscription'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
+const subscriptionStore = useSubscriptionStore()
 
-function openMailto() {
-  window.location.href = 'mailto:contact@tempo.finance?subject=Demande%20d%27invitation%20Tempo%20Budget'
-}
+const monthlyPrice = computed(() => {
+  const price = subscriptionStore.prices?.monthly ?? 5.99
+  return price.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+})
+
+const annualPrice = computed(() => {
+  const price = subscriptionStore.prices?.annual ?? 45
+  return price.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  })
+})
+
+const annualMonthlyPrice = computed(() => {
+  const price = (subscriptionStore.prices?.annual ?? 45) / 12
+  return price.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+})
+
+onMounted(() => {
+  subscriptionStore.fetchPrices()
+})
 </script>
 
 <style scoped>
@@ -616,6 +668,11 @@ function openMailto() {
   justify-content: center;
   gap: 32px;
   flex-wrap: wrap;
+}
+
+.pricing-grid.three-cols {
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .pricing-card {
