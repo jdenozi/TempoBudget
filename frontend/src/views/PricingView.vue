@@ -21,7 +21,7 @@
           <div class="plan-header">
             <h2 class="plan-name">{{ t('subscription.monthly') }}</h2>
             <div class="plan-price">
-              <span class="price-amount">5,99 €</span>
+              <span class="price-amount">{{ monthlyPrice }} €</span>
               <span class="price-period">/ {{ t('subscription.month') }}</span>
             </div>
           </div>
@@ -54,7 +54,7 @@
           <div class="plan-header">
             <h2 class="plan-name">{{ t('subscription.annual') }}</h2>
             <div class="plan-price">
-              <span class="price-amount">45 €</span>
+              <span class="price-amount">{{ annualPrice }} €</span>
               <span class="price-period">/ {{ t('subscription.year') }}</span>
             </div>
             <n-tag type="success" size="small" class="savings-tag">
@@ -159,6 +159,16 @@ const checkingOut = ref<'monthly' | 'annual' | null>(null)
 const openingPortal = ref(false)
 const isMobile = ref(false)
 
+const monthlyPrice = computed(() => {
+  const price = subscriptionStore.prices?.monthly ?? 5.99
+  return price.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',')
+})
+
+const annualPrice = computed(() => {
+  const price = subscriptionStore.prices?.annual ?? 45
+  return price.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+})
+
 const features = computed(() => [
   t('subscription.featureUnlimited'),
   t('subscription.featureCharts'),
@@ -190,6 +200,9 @@ const checkMobile = () => {
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  // Fetch prices (public endpoint, no auth required)
+  subscriptionStore.fetchPrices()
 
   if (authStore.isAuthenticated) {
     loading.value = true
