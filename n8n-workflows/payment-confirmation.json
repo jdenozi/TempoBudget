@@ -1,0 +1,72 @@
+{
+  "name": "Tempo Budget - Payment Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tempo-payment-confirmation",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "tempo-payment-confirmation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst user = data.user;\nconst sub = data.subscription;\n\nconst planName = sub.plan_type === 'annual' ? 'Annuel' : 'Mensuel';\nconst periodEnd = sub.period_end ? new Date(sub.period_end).toLocaleDateString('fr-FR') : '';\n\nconst emailBody = `Bonjour ${user.name},\n\nMerci pour votre abonnement à Tempo Budget !\n\nVotre paiement de ${sub.amount.toFixed(2)} ${sub.currency} a bien été reçu.\n\nDétails de votre abonnement :\n- Plan : ${planName}\n- Montant : ${sub.amount.toFixed(2)} ${sub.currency}\n${periodEnd ? '- Prochaine échéance : ' + periodEnd : ''}\n\nVous pouvez accéder à votre tableau de bord dès maintenant :\nhttps://tempo-finance.com/dashboard\n\nPour gérer votre abonnement (factures, moyen de paiement, résiliation) :\nhttps://tempo-finance.com/settings\n\nCordialement,\nL'équipe Tempo Budget`;\n\nreturn {\n  json: {\n    to: user.email,\n    subject: `Confirmation de paiement - Tempo Budget`,\n    body: emailBody\n  }\n};"
+      },
+      "id": "code-prepare",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [690, 300],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Prepare Email", "type": "main", "index": 0 }]]
+    },
+    "Prepare Email": {
+      "main": [[{ "node": "Send Email", "type": "main", "index": 0 }]]
+    },
+    "Send Email": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Tempo Budget" }]
+}

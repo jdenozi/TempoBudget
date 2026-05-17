@@ -1,0 +1,72 @@
+{
+  "name": "Tempo Budget - Payment Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tempo-payment-reminder",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "tempo-payment-reminder"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst user = data.user;\nconst sub = data.subscription;\nconst reminderType = data.reminder_type;\n\nlet subject, body;\n\nif (reminderType === 'payment_failed') {\n  subject = 'Action requise - Échec de paiement Tempo Budget';\n  body = `Bonjour ${user.name},\n\nNous n'avons pas pu traiter votre paiement de ${sub.amount_due.toFixed(2)} ${sub.currency} pour votre abonnement Tempo Budget.\n\nPour éviter une interruption de service, merci de mettre à jour votre moyen de paiement :\nhttps://tempo-finance.com/settings\n\nSi vous avez des questions, n'hésitez pas à nous contacter.\n\nCordialement,\nL'équipe Tempo Budget`;\n} else if (reminderType === 'expiring_soon') {\n  subject = 'Votre abonnement Tempo Budget expire bientôt';\n  body = `Bonjour ${user.name},\n\nVotre abonnement Tempo Budget expire le ${sub.due_date}.\n\nPour continuer à profiter de toutes les fonctionnalités, renouvelez votre abonnement :\nhttps://tempo-finance.com/settings\n\nCordialement,\nL'équipe Tempo Budget`;\n} else {\n  subject = 'Renouvellement prochain - Tempo Budget';\n  body = `Bonjour ${user.name},\n\nVotre abonnement Tempo Budget sera renouvelé dans ${sub.days_until_due} jour(s).\n\nMontant : ${sub.amount_due.toFixed(2)} ${sub.currency}\nDate : ${sub.due_date}\n\nPour gérer votre abonnement :\nhttps://tempo-finance.com/settings\n\nCordialement,\nL'équipe Tempo Budget`;\n}\n\nreturn { json: { to: user.email, subject, body } };"
+      },
+      "id": "code-prepare",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [690, 300],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Prepare Email", "type": "main", "index": 0 }]]
+    },
+    "Prepare Email": {
+      "main": [[{ "node": "Send Email", "type": "main", "index": 0 }]]
+    },
+    "Send Email": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Tempo Budget" }]
+}

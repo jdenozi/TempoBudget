@@ -1,0 +1,122 @@
+{
+  "name": "Tempo Budget - Pro Invoice Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tempo-pro-invoice",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "tempo-pro-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decode base64 PDF\nconst pdfBase64 = $input.first().json.pdf_base64;\nconst pdfBuffer = Buffer.from(pdfBase64, 'base64');\n\n// Prepare email data\nconst invoice = $input.first().json.invoice;\nconst client = $input.first().json.client;\nconst seller = $input.first().json.seller;\nconst payment = $input.first().json.payment;\n\n// Format items for email body\nlet itemsList = '';\nif (invoice.items && invoice.items.length > 0) {\n  itemsList = invoice.items.map(item => \n    `- ${item.description}: ${item.quantity} x ${item.total.toFixed(2)} €`\n  ).join('\\n');\n}\n\n// Build email body\nconst emailBody = `Bonjour ${client.name},\n\nVeuillez trouver ci-joint votre facture ${invoice.number}.\n\nDétails :\n- Date d'émission : ${invoice.date}\n- Date d'échéance : ${invoice.due_date}\n- Montant total : ${invoice.total.toFixed(2)} ${invoice.currency}\n\n${itemsList ? 'Prestations :\\n' + itemsList + '\\n\\n' : ''}${payment.bank_iban ? 'Coordonnées bancaires :\\nIBAN : ' + payment.bank_iban + (payment.bank_bic ? '\\nBIC : ' + payment.bank_bic : '') + '\\n\\n' : ''}${invoice.notes ? 'Notes : ' + invoice.notes + '\\n\\n' : ''}Cordialement,\n${seller.company || seller.name}\n${seller.phone ? 'Tél : ' + seller.phone : ''}\n${seller.email}`;\n\nreturn {\n  json: {\n    to: client.email,\n    subject: `Facture ${invoice.number} - ${seller.company || seller.name}`,\n    body: emailBody,\n    invoiceNumber: invoice.number,\n    sellerEmail: seller.email\n  },\n  binary: {\n    attachment: {\n      data: pdfBase64,\n      mimeType: 'application/pdf',\n      fileName: `${invoice.number}.pdf`\n    }\n  }\n};"
+      },
+      "id": "code-prepare-email",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {
+          "attachments": "attachment",
+          "replyTo": "={{ $json.sellerEmail }}"
+        }
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [690, 300],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Invoice sent to ' + $json.to }) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Unknown error' }) }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Tempo Budget"
+    }
+  ],
+  "triggerCount": 0,
+  "pinData": {}
+}
