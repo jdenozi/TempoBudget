@@ -607,7 +607,21 @@
       "totalDue": "Total dû",
       "projection": "Projection",
       "projectionNote": "Estimé sur la base de vos revenus récents",
-      "noData": "Configurez votre profil pro pour voir l'échéancier"
+      "noData": "Configurez votre profil pro pour voir l'échéancier",
+      "notifications": {
+        "overdueTitle": "Échéance URSSAF dépassée",
+        "overdueMessage": "L'échéance {period} est en retard de {days} jours. Montant dû : {amount} €",
+        "todayTitle": "Échéance URSSAF aujourd'hui",
+        "todayMessage": "L'échéance {period} est due aujourd'hui. Montant : {amount} €",
+        "tomorrowTitle": "Échéance URSSAF demain",
+        "tomorrowMessage": "L'échéance {period} est due demain. Montant : {amount} €",
+        "soonTitle": "Échéance URSSAF proche",
+        "soonMessage": "L'échéance {period} est due dans {days} jours. Montant : {amount} €",
+        "upcomingTitle": "Échéance URSSAF à venir",
+        "upcomingMessage": "L'échéance {period} est due dans {days} jours. Montant : {amount} €",
+        "dismiss": "Ignorer",
+        "viewSchedule": "Voir l'échéancier"
+      }
     },
     "products": {
       "title": "Catalogue Produits & Services",

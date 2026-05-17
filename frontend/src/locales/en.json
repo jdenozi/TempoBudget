@@ -607,7 +607,21 @@
       "totalDue": "Total due",
       "projection": "Projection",
       "projectionNote": "Estimated based on your recent income",
-      "noData": "Set up your pro profile to see the schedule"
+      "noData": "Set up your pro profile to see the schedule",
+      "notifications": {
+        "overdueTitle": "URSSAF deadline overdue",
+        "overdueMessage": "The {period} deadline is {days} days overdue. Amount due: {amount} €",
+        "todayTitle": "URSSAF deadline today",
+        "todayMessage": "The {period} deadline is due today. Amount: {amount} €",
+        "tomorrowTitle": "URSSAF deadline tomorrow",
+        "tomorrowMessage": "The {period} deadline is due tomorrow. Amount: {amount} €",
+        "soonTitle": "URSSAF deadline approaching",
+        "soonMessage": "The {period} deadline is due in {days} days. Amount: {amount} €",
+        "upcomingTitle": "URSSAF deadline upcoming",
+        "upcomingMessage": "The {period} deadline is due in {days} days. Amount: {amount} €",
+        "dismiss": "Dismiss",
+        "viewSchedule": "View schedule"
+      }
     },
     "products": {
       "title": "Products & Services Catalogue",

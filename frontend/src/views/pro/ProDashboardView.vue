@@ -11,6 +11,9 @@
     </div>
 
     <template v-else>
+      <!-- URSSAF Deadline Notifications -->
+      <UrssafNotifications :deadlines="urssafSchedule" />
+
       <!-- Setup Profile Alert -->
       <n-card v-if="proStore.proProfile && !proStore.proProfile.siret" size="small" style="border-left: 3px solid #2080f0;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -584,8 +587,9 @@ import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } fr
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import { proProfileAPI, type TaxBreakdown, type RegimeComparisonRow, type VatSummary } from '@/services/api'
+import { proProfileAPI, proDeclarationAPI, type TaxBreakdown, type RegimeComparisonRow, type VatSummary, type UrssafScheduleItem } from '@/services/api'
 import ProSetupWizard from '@/components/pro/ProSetupWizard.vue'
+import UrssafNotifications from '@/components/pro/UrssafNotifications.vue'
 
 const { t } = useI18n()
 const proStore = useProStore()
@@ -778,6 +782,7 @@ onMounted(async () => {
 
   await loadBreakdown()
   await loadVatSummary()
+  await loadUrssafSchedule()
 
   // Show setup wizard for new users who haven't configured their profile
   if (proStore.proProfile && !proStore.proProfile.siret && !proStore.proProfile.company_name) {
@@ -858,6 +863,18 @@ async function loadVatSummary() {
 }
 
 watch(vatPeriod, loadVatSummary)
+
+// ── URSSAF notifications ──
+
+const urssafSchedule = ref<UrssafScheduleItem[]>([])
+
+async function loadUrssafSchedule() {
+  try {
+    urssafSchedule.value = await proDeclarationAPI.getUrssafSchedule()
+  } catch {
+    urssafSchedule.value = []
+  }
+}
 
 // ── Regime comparison ──
 
