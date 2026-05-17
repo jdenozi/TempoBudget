@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.14.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.15.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -94,13 +94,13 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.14.0)
+## Recent Changes (v2.15.0)
 
-* **Stripe subscriptions**: monthly and annual plans with secure Checkout integration
-* **Customer portal**: self-service billing, invoices, and cancellation
-* **Admin dashboard**: subscription metrics (MRR, ARR, churn), user management
-* **B2B quotes**: create quotes for prospects with PDF export
-* **Pricing page**: plan comparison with feature highlights and FAQ
+* **Invitation-based registration**: secure sign-up via unique invitation links
+* **Pro access system**: subscription or admin override grants Pro features
+* **Admin invitations panel**: create, track, and revoke invitations
+* **Pro route protection**: backend and frontend guards for Pro features
+* **Landing page update**: clear invitation flow and subscription information
 
 ## License
 
