@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.13.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.14.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -33,6 +33,17 @@
 * **Projected remaining**: See remaining budget after projected expenses
 * **Statistics**: Breakdown by tags (credit, needs, leisure, savings)
 * **Charts**: Visual representation of spending patterns
+
+### Subscriptions & Billing
+* **Stripe integration**: secure payment processing with Checkout
+* **Flexible plans**: monthly (5.99€) or annual (45€) subscriptions
+* **Customer portal**: self-service billing management (invoices, payment methods, cancellation)
+* **Automated reminders**: email notifications for upcoming renewals and failed payments
+
+### Admin Dashboard
+* **Subscription metrics**: MRR, ARR, churn rate, active subscribers
+* **User management**: view all users with subscription status
+* **B2B quotes**: create and manage quotes with PDF export
 
 ### Pro Mode (self-employed / auto-entrepreneur)
 * **Multi-regime support**: Pick your legal form — Micro-entrepreneur, Sole proprietorship (real), EURL (with IR/IS option), SASU, SAS — each with its own tax engine
@@ -83,11 +94,13 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.13.0)
+## Recent Changes (v2.14.0)
 
-* **Unit tests**: 57 tests covering useAvatar, HelpChat, ProSetupWizard validation, and URSSAF notifications
-* **URSSAF deadline notifications**: automatic alerts on Pro dashboard for upcoming/overdue deadlines (7d, 3d, 1d, today, overdue)
-* **Dismissible notifications**: alerts persist dismiss state in localStorage for 90 days
+* **Stripe subscriptions**: monthly and annual plans with secure Checkout integration
+* **Customer portal**: self-service billing, invoices, and cancellation
+* **Admin dashboard**: subscription metrics (MRR, ARR, churn), user management
+* **B2B quotes**: create quotes for prospects with PDF export
+* **Pricing page**: plan comparison with feature highlights and FAQ
 
 ## License
 
