@@ -339,6 +339,10 @@ export const useProStore = defineStore('pro', () => {
     return updated
   }
 
+  async function sendInvoiceEmail(id: string) {
+    return await proInvoicesAPI.sendEmail(id)
+  }
+
   async function downloadInvoicePdf(id: string, facturx = false) {
     return await proInvoicesAPI.downloadPdf(id, facturx)
   }
@@ -541,6 +545,7 @@ export const useProStore = defineStore('pro', () => {
     deleteInvoice,
     updateInvoiceStatus,
     markInvoiceReminder,
+    sendInvoiceEmail,
     downloadInvoicePdf,
     // Quotes
     fetchQuotes,

@@ -14,6 +14,7 @@
         <n-dropdown :options="pdfOptions" @select="handlePdfSelect">
           <n-button type="info">PDF ▼</n-button>
         </n-dropdown>
+        <n-button v-if="invoice.status !== 'draft' && hasClientEmail" type="primary" :loading="sendingEmail" @click="handleSendEmail">{{ t('pro.invoices.sendByEmail') }}</n-button>
         <n-button @click="showSettingsModal = true">⚙</n-button>
       </n-space>
     </div>
@@ -192,10 +193,16 @@ const { isMobile } = useMobileDetect()
 const isNew = computed(() => route.name === 'pro-invoice-new')
 const invoice = ref<ProInvoice | null>(null)
 const saving = ref(false)
+const sendingEmail = ref(false)
 const showPayModal = ref(false)
 const showSettingsModal = ref(false)
 
 const isDraft = computed(() => isNew.value || invoice.value?.status === 'draft')
+const hasClientEmail = computed(() => {
+  if (!invoice.value) return false
+  const client = proStore.proClients.find(c => c.id === invoice.value?.client_id)
+  return !!client?.email
+})
 
 interface ItemForm {
   product_id: string | null
@@ -328,6 +335,20 @@ async function handleReminder() {
   await proStore.markInvoiceReminder(invoice.value!.id)
   message.success(t('pro.invoices.reminderSent'))
   await loadInvoice()
+}
+
+async function handleSendEmail() {
+  sendingEmail.value = true
+  try {
+    await proStore.sendInvoiceEmail(invoice.value!.id)
+    message.success(t('pro.invoices.emailSent'))
+    await loadInvoice()
+  } catch (e: any) {
+    message.error(t('pro.invoices.emailError'))
+    console.error('Email send error:', e)
+  } finally {
+    sendingEmail.value = false
+  }
 }
 
 const pdfOptions = computed(() => [

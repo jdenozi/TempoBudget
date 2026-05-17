@@ -13,6 +13,7 @@ import httpx
 N8N_WEBHOOK_PAYMENT_CONFIRMATION = os.getenv("N8N_WEBHOOK_PAYMENT_CONFIRMATION", "")
 N8N_WEBHOOK_PAYMENT_REMINDER = os.getenv("N8N_WEBHOOK_PAYMENT_REMINDER", "")
 N8N_WEBHOOK_INVOICE = os.getenv("N8N_WEBHOOK_INVOICE", "")
+N8N_WEBHOOK_PRO_INVOICE = os.getenv("N8N_WEBHOOK_PRO_INVOICE", "")
 N8N_WEBHOOK_SECRET = os.getenv("N8N_WEBHOOK_SECRET", "")
 
 
@@ -154,3 +155,60 @@ async def send_invoice(
         },
     }
     return await _send_webhook(N8N_WEBHOOK_INVOICE, payload)
+
+
+async def send_pro_invoice_to_client(
+    seller_email: str,
+    seller_name: str,
+    seller_company: str | None,
+    seller_phone: str | None,
+    client_email: str,
+    client_name: str,
+    invoice_number: str,
+    invoice_date: str,
+    due_date: str,
+    total: float,
+    currency: str = "EUR",
+    pdf_base64: str | None = None,
+    items_summary: list[dict] | None = None,
+    notes: str | None = None,
+    bank_iban: str | None = None,
+    bank_bic: str | None = None,
+) -> bool:
+    """Send Pro invoice to client via n8n.
+
+    This sends the invoice PDF and details to the Pro user's client.
+    The n8n workflow should:
+    1. Receive the payload
+    2. Decode the PDF from base64
+    3. Send email to client_email with PDF attached
+    """
+    payload = {
+        "event": "pro_invoice",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "seller": {
+            "email": seller_email,
+            "name": seller_name,
+            "company": seller_company,
+            "phone": seller_phone,
+        },
+        "client": {
+            "email": client_email,
+            "name": client_name,
+        },
+        "invoice": {
+            "number": invoice_number,
+            "date": invoice_date,
+            "due_date": due_date,
+            "total": total,
+            "currency": currency,
+            "items": items_summary or [],
+            "notes": notes,
+        },
+        "payment": {
+            "bank_iban": bank_iban,
+            "bank_bic": bank_bic,
+        },
+        "pdf_base64": pdf_base64,
+    }
+    return await _send_webhook(N8N_WEBHOOK_PRO_INVOICE, payload)

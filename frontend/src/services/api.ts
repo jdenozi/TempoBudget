@@ -1714,6 +1714,10 @@ export const proInvoicesAPI = {
     const response = await api.put<ProInvoice>(`/pro/invoices/${id}/reminder`)
     return response.data
   },
+  sendEmail: async (id: string) => {
+    const response = await api.post(`/pro/invoices/${id}/send-email`)
+    return response.data
+  },
   downloadPdf: async (id: string, facturx = false) => {
     const response = await api.get(`/pro/invoices/${id}/pdf`, {
       responseType: 'blob',

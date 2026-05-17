@@ -34,6 +34,8 @@ from ..models import (
 )
 from ..services.tax_engines import get_engine, PeriodInput
 from ..pdf_generator import generate_invoice_pdf, generate_quote_pdf
+from ..notifications import send_pro_invoice_to_client
+import base64
 
 router = APIRouter()
 
@@ -2025,6 +2027,88 @@ async def download_invoice_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/invoices/{invoice_id}/send-email")
+async def send_invoice_email(
+    invoice_id: str,
+    user_id: str = Depends(get_current_pro_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send invoice to client via email (n8n webhook).
+
+    Generates the PDF and sends it along with invoice details to the n8n webhook
+    which handles the actual email delivery to the client.
+    """
+    result = await db.execute(
+        text("SELECT * FROM pro_invoices WHERE id = :id AND user_id = :user_id"),
+        {"id": invoice_id, "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice = dict(row._mapping)
+
+    # Get client info
+    client = await _get_client_dict(db, invoice["client_id"])
+    if not client.get("email"):
+        raise HTTPException(status_code=400, detail="Client has no email address")
+
+    # Get items
+    items_result = await db.execute(
+        text("SELECT * FROM pro_invoice_items WHERE invoice_id = :id ORDER BY sort_order"),
+        {"id": invoice_id},
+    )
+    items = [dict(r._mapping) for r in items_result.fetchall()]
+
+    # Get seller profile and settings
+    profile = await _get_profile_for_pdf(db, user_id)
+    settings = await _get_or_create_invoice_settings(db, user_id)
+
+    # Generate PDF
+    pdf_bytes = generate_invoice_pdf(
+        invoice=invoice, items=items, profile=profile, settings=settings, client=client,
+        facturx=True,
+    )
+    pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+
+    # Prepare items summary
+    items_summary = [
+        {"description": item["description"], "quantity": item["quantity"], "total": item["total"]}
+        for item in items
+    ]
+
+    # Send via n8n webhook
+    success = await send_pro_invoice_to_client(
+        seller_email=profile.get("email", ""),
+        seller_name=profile.get("name", ""),
+        seller_company=profile.get("company_name"),
+        seller_phone=profile.get("phone"),
+        client_email=client["email"],
+        client_name=client["name"],
+        invoice_number=invoice["invoice_number"],
+        invoice_date=invoice["issue_date"],
+        due_date=invoice["due_date"],
+        total=invoice["total"],
+        pdf_base64=pdf_base64,
+        items_summary=items_summary,
+        notes=invoice.get("notes"),
+        bank_iban=settings.get("bank_iban"),
+        bank_bic=settings.get("bank_bic"),
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send invoice email")
+
+    # Update invoice to track email was sent
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        text("UPDATE pro_invoices SET email_sent_at = :now, updated_at = :now WHERE id = :id"),
+        {"id": invoice_id, "now": now},
+    )
+    await db.commit()
+
+    return {"success": True, "message": "Invoice sent to client"}
 
 
 @router.get("/invoices/{invoice_id}/export")
