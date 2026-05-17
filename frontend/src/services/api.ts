@@ -1027,8 +1027,19 @@ export interface ProProfile {
   postal_code: string | null
   city: string | null
   country: string
+  acre_enabled: number
+  acre_start_date: string | null
   created_at: string
   updated_at: string
+}
+
+export interface CotisationsDetail {
+  maladie_maternite: number
+  retraite_base: number
+  retraite_complementaire: number
+  invalidite_deces: number
+  allocations_familiales: number
+  csg_crds: number
 }
 
 export interface TaxBreakdown {
@@ -1049,6 +1060,7 @@ export interface TaxBreakdown {
   net_after_taxes: number
   personal_take_home: number
   notes: string[]
+  cotisations_detail: CotisationsDetail | null
 }
 
 export interface ProClient {
@@ -1136,6 +1148,21 @@ export interface DeclarationPeriodSummary {
   total_transactions: number
   declared_transactions: number
   cotisations_estimated: number
+}
+
+export interface UrssafScheduleItem {
+  period_label: string
+  period_start: string
+  period_end: string
+  deadline: string
+  days_remaining: number
+  status: 'past' | 'current' | 'upcoming'
+  turnover: number
+  cotisations: number
+  cfp: number
+  ir_vl: number
+  total_due: number
+  is_projection: boolean
 }
 
 export interface ProCoupon {
@@ -1593,6 +1620,10 @@ export const proDeclarationAPI = {
   },
   batchToggleDeclared: async (transaction_ids: string[], is_declared: number) => {
     const response = await api.put('/pro/transactions/declare', { transaction_ids, is_declared })
+    return response.data
+  },
+  getUrssafSchedule: async () => {
+    const response = await api.get<UrssafScheduleItem[]>('/pro/urssaf/schedule')
     return response.data
   },
 }

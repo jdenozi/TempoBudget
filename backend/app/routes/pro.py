@@ -22,7 +22,7 @@ from ..models import (
     ProCoupon, CreateProCoupon, UpdateProCoupon,
     ProGiftCard, CreateProGiftCard, ProGiftCardUsage,
     ProDashboardSummary,
-    BatchToggleDeclared, DeclarationPeriodSummary,
+    BatchToggleDeclared, DeclarationPeriodSummary, UrssafScheduleItem,
     ProInvoiceSettings, UpdateProInvoiceSettings,
     ProInvoice, CreateProInvoice, UpdateProInvoice, UpdateProInvoiceStatus,
     ProInvoiceItem, CreateProInvoiceItem,
@@ -150,7 +150,8 @@ async def update_profile(
                    "tns_cotisations_rate", "salary_gross_monthly", "dividends_yearly", "eurl_tax_option",
                    "is_subject_to_vat", "vat_rate", "vat_number",
                    "company_name", "company_address", "company_email", "company_phone",
-                   "street", "postal_code", "city", "country"):
+                   "street", "postal_code", "city", "country",
+                   "acre_enabled", "acre_start_date"):
         value = getattr(payload, field)
         if value is not None:
             updates.append(f"{field} = :{field}")
@@ -1331,6 +1332,187 @@ async def get_declaration_periods(
         ))
 
     return summaries
+
+
+# ────────────────────────────── URSSAF Schedule ──────────────────────────────
+
+
+# URSSAF declaration deadlines (day of month after period ends)
+# Quarterly: last day of month following the quarter end (M+1)
+# Monthly: last day of month following the activity month
+URSSAF_DEADLINE_DAY = 30  # Generally last working day; simplified to 30
+
+
+def _get_urssaf_deadline(period_end: str, frequency: str) -> str:
+    """Calculate URSSAF declaration deadline for a period."""
+    from datetime import date, timedelta
+    import calendar
+
+    end_date = date.fromisoformat(period_end)
+    # Deadline is end of month following the period end
+    # period_end is exclusive (first day of next period), so we go one month further
+    deadline_year = end_date.year
+    deadline_month = end_date.month
+    # Get last day of that month
+    last_day = calendar.monthrange(deadline_year, deadline_month)[1]
+    return f"{deadline_year}-{deadline_month:02d}-{last_day:02d}"
+
+
+@router.get("/urssaf/schedule", response_model=list[UrssafScheduleItem])
+async def get_urssaf_schedule(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get URSSAF declaration schedule with deadlines and estimated amounts.
+    Includes past periods (current year), current period, and projections for future periods.
+    """
+    from datetime import date, timedelta
+
+    today = date.today()
+    current_year = today.year
+
+    # Get full profile
+    profile_result = await db.execute(
+        text("SELECT * FROM pro_profiles WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    )
+    profile = profile_result.fetchone()
+    if not profile:
+        return []
+
+    frequency = profile.declaration_frequency or "quarterly"
+    rate = profile.cotisation_rate or 21.1
+    cfp_rate = profile.cfp_rate or 0.1  # Default CFP
+    vl_enabled = profile.versement_liberatoire_enabled == 1
+    vl_rate = profile.versement_liberatoire_rate or 1.0  # Default VL rate for services
+
+    # Build periods for current year and next year (for projections)
+    def build_periods(year: int, freq: str):
+        periods = []
+        if freq == "monthly":
+            for m in range(1, 13):
+                start = f"{year}-{m:02d}-01"
+                if m == 12:
+                    end = f"{year + 1}-01-01"
+                else:
+                    end = f"{year}-{m + 1:02d}-01"
+                label = f"{MONTH_LABELS_FR[m]} {year}"
+                periods.append((start, end, label))
+        else:
+            for q in range(1, 5):
+                sm = (q - 1) * 3 + 1
+                start = f"{year}-{sm:02d}-01"
+                if q == 4:
+                    end = f"{year + 1}-01-01"
+                else:
+                    em = sm + 3
+                    end = f"{year}-{em:02d}-01"
+                periods.append((start, end, f"T{q} {year}"))
+        return periods
+
+    all_periods = build_periods(current_year, frequency) + build_periods(current_year + 1, frequency)
+
+    # Get actual turnover for current year per period
+    turnover_result = await db.execute(
+        text("""
+            SELECT
+                strftime('%Y-%m', date) as month,
+                COALESCE(SUM(amount), 0) as turnover
+            FROM pro_transactions
+            WHERE user_id = :user_id
+              AND transaction_type = 'income'
+              AND date >= :year_start
+            GROUP BY month
+        """),
+        {"user_id": user_id, "year_start": f"{current_year}-01-01"},
+    )
+    monthly_turnover = {row.month: row.turnover for row in turnover_result.fetchall()}
+
+    # Calculate average monthly turnover for projections (based on last 6 months with data)
+    avg_result = await db.execute(
+        text("""
+            SELECT COALESCE(AVG(monthly_total), 0) as avg_monthly
+            FROM (
+                SELECT strftime('%Y-%m', date) as month, SUM(amount) as monthly_total
+                FROM pro_transactions
+                WHERE user_id = :user_id
+                  AND transaction_type = 'income'
+                  AND date >= date('now', '-6 months')
+                GROUP BY month
+                HAVING monthly_total > 0
+            )
+        """),
+        {"user_id": user_id},
+    )
+    avg_row = avg_result.fetchone()
+    avg_monthly = avg_row.avg_monthly if avg_row else 0
+
+    schedule = []
+    for p_start, p_end, label in all_periods:
+        deadline = _get_urssaf_deadline(p_end, frequency)
+        deadline_date = date.fromisoformat(deadline)
+        start_date = date.fromisoformat(p_start)
+        end_date = date.fromisoformat(p_end)
+
+        days_remaining = (deadline_date - today).days
+
+        # Determine status
+        if deadline_date < today:
+            status = "past"
+        elif start_date <= today < end_date:
+            status = "current"
+        else:
+            status = "upcoming"
+
+        # Calculate turnover
+        is_projection = False
+        if status == "past" or status == "current":
+            # Sum actual turnover for months in this period
+            turnover = 0.0
+            m = start_date
+            while m < end_date:
+                month_key = m.strftime("%Y-%m")
+                turnover += monthly_turnover.get(month_key, 0)
+                # Move to next month
+                if m.month == 12:
+                    m = date(m.year + 1, 1, 1)
+                else:
+                    m = date(m.year, m.month + 1, 1)
+        else:
+            # Projection: use average monthly turnover
+            is_projection = True
+            months_in_period = 3 if frequency == "quarterly" else 1
+            turnover = avg_monthly * months_in_period
+
+        # Calculate contributions
+        cotisations = round(turnover * (rate / 100), 2)
+        cfp = round(turnover * (cfp_rate / 100), 2)
+        ir_vl = round(turnover * (vl_rate / 100), 2) if vl_enabled else 0.0
+        total_due = round(cotisations + cfp + ir_vl, 2)
+
+        # Only include relevant periods (current year + next 2 periods for projections)
+        if start_date.year < current_year:
+            continue
+        if is_projection and len([s for s in schedule if s.is_projection]) >= 4:
+            continue
+
+        schedule.append(UrssafScheduleItem(
+            period_label=label,
+            period_start=p_start,
+            period_end=p_end,
+            deadline=deadline,
+            days_remaining=days_remaining,
+            status=status,
+            turnover=round(turnover, 2),
+            cotisations=cotisations,
+            cfp=cfp,
+            ir_vl=ir_vl,
+            total_due=total_due,
+            is_projection=is_projection,
+        ))
+
+    return schedule
 
 
 # ────────────────────────────── Invoice Helpers ──────────────────────────────

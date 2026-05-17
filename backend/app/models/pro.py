@@ -38,6 +38,8 @@ class ProProfile(BaseModel):
     postal_code: str | None = Field(None, description="Postal code (Factur-X)")
     city: str | None = Field(None, description="City (Factur-X)")
     country: str = Field("FR", description="Country code ISO 3166-1 alpha-2 (Factur-X)")
+    acre_enabled: int = Field(0, description="Whether ACRE is active (50% reduction on cotisations)")
+    acre_start_date: str | None = Field(None, description="ACRE start date (business creation date)")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
 
@@ -77,6 +79,8 @@ class UpdateProProfile(BaseModel):
     postal_code: str | None = None
     city: str | None = None
     country: str | None = None
+    acre_enabled: int | None = Field(None, ge=0, le=1)
+    acre_start_date: str | None = None
 
 
 class ProClient(BaseModel):
@@ -397,6 +401,22 @@ class DeclarationPeriodSummary(BaseModel):
     cotisations_estimated: float = Field(0, description="Estimated cotisations on declared income")
 
 
+class UrssafScheduleItem(BaseModel):
+    """A single URSSAF declaration deadline with estimated amounts."""
+    period_label: str = Field(..., description="Period label, e.g. 'T1 2026'")
+    period_start: str = Field(..., description="Period start date")
+    period_end: str = Field(..., description="Period end date")
+    deadline: str = Field(..., description="Declaration deadline date")
+    days_remaining: int = Field(..., description="Days until deadline (negative if past)")
+    status: str = Field(..., description="Status: past/current/upcoming")
+    turnover: float = Field(0, description="Actual or projected turnover")
+    cotisations: float = Field(0, description="Estimated cotisations")
+    cfp: float = Field(0, description="CFP contribution")
+    ir_vl: float = Field(0, description="IR versement libératoire (if applicable)")
+    total_due: float = Field(0, description="Total amount due")
+    is_projection: bool = Field(False, description="True if this is a projection based on trends")
+
+
 # ────────────────────────────── Invoice Settings ──────────────────────────────
 
 
@@ -698,6 +718,16 @@ class UpdateProThreshold(BaseModel):
 # ── Tax breakdown (multi-regime) ──
 
 
+class CotisationsDetail(BaseModel):
+    """Detailed breakdown of social contributions (indicative)."""
+    maladie_maternite: float = 0.0       # Maladie-maternité
+    retraite_base: float = 0.0           # Retraite de base
+    retraite_complementaire: float = 0.0 # Retraite complémentaire
+    invalidite_deces: float = 0.0        # Invalidité-décès
+    allocations_familiales: float = 0.0  # Allocations familiales
+    csg_crds: float = 0.0                # CSG/CRDS
+
+
 class TaxBreakdown(BaseModel):
     """Detailed view of all prélèvements (cotisations + taxes) for one period.
 
@@ -722,6 +752,7 @@ class TaxBreakdown(BaseModel):
     net_after_taxes: float = 0.0
     personal_take_home: float = 0.0
     notes: list[str] = []
+    cotisations_detail: CotisationsDetail | None = None
 
 
 class RegimeComparisonRow(BaseModel):

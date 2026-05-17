@@ -9,6 +9,63 @@
       />
     </div>
 
+    <!-- URSSAF Schedule -->
+    <n-card :title="t('pro.urssaf.scheduleTitle')" size="small">
+      <n-empty v-if="urssafSchedule.length === 0" :description="t('pro.urssaf.noData')" />
+      <div v-else class="urssaf-schedule">
+        <div
+          v-for="item in urssafSchedule"
+          :key="item.period_start"
+          class="schedule-item"
+          :class="[item.status, { projection: item.is_projection }]"
+        >
+          <div class="schedule-header">
+            <div class="period-info">
+              <strong>{{ item.period_label }}</strong>
+              <n-tag v-if="item.is_projection" size="tiny" type="info">{{ t('pro.urssaf.projection') }}</n-tag>
+            </div>
+            <div class="deadline-info">
+              <span class="deadline-label">{{ t('pro.urssaf.deadline') }}:</span>
+              <span class="deadline-date">{{ formatDate(item.deadline) }}</span>
+              <n-tag
+                size="tiny"
+                :type="item.days_remaining < 0 ? 'error' : item.days_remaining <= 7 ? 'warning' : 'default'"
+              >
+                <template v-if="item.days_remaining === 0">{{ t('pro.urssaf.today') }}</template>
+                <template v-else-if="item.days_remaining < 0">{{ t('pro.urssaf.daysOverdue', { days: Math.abs(item.days_remaining) }) }}</template>
+                <template v-else>{{ t('pro.urssaf.daysRemaining', { days: item.days_remaining }) }}</template>
+              </n-tag>
+            </div>
+          </div>
+          <div class="schedule-amounts">
+            <div class="amount-row">
+              <span>{{ t('pro.urssaf.turnover') }}</span>
+              <strong>{{ item.turnover.toFixed(2) }} €</strong>
+            </div>
+            <div class="amount-row">
+              <span>{{ t('pro.urssaf.cotisations') }}</span>
+              <span>{{ item.cotisations.toFixed(2) }} €</span>
+            </div>
+            <div v-if="item.cfp > 0" class="amount-row">
+              <span>{{ t('pro.urssaf.cfp') }}</span>
+              <span>{{ item.cfp.toFixed(2) }} €</span>
+            </div>
+            <div v-if="item.ir_vl > 0" class="amount-row">
+              <span>{{ t('pro.urssaf.irVl') }}</span>
+              <span>{{ item.ir_vl.toFixed(2) }} €</span>
+            </div>
+            <div class="amount-row total">
+              <strong>{{ t('pro.urssaf.totalDue') }}</strong>
+              <strong class="total-amount">{{ item.total_due.toFixed(2) }} €</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="hasProjections" class="projection-note">
+        ⓘ {{ t('pro.urssaf.projectionNote') }}
+      </div>
+    </n-card>
+
     <!-- Period Summary Cards -->
     <n-grid :cols="isMobile ? 1 : 2" :x-gap="12" :y-gap="12">
       <n-gi v-for="period in proStore.declarationPeriods" :key="period.period_start">
@@ -153,7 +210,7 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import type { ProTransaction } from '@/services/api'
+import { proDeclarationAPI, type ProTransaction, type UrssafScheduleItem } from '@/services/api'
 
 const { t } = useI18n()
 const proStore = useProStore()
@@ -164,6 +221,24 @@ const currentYear = new Date().getFullYear()
 const selectedYear = ref(currentYear)
 const selectedPeriodStart = ref<string | null>(null)
 const selectedPeriodEnd = ref<string | null>(null)
+
+// URSSAF Schedule
+const urssafSchedule = ref<UrssafScheduleItem[]>([])
+
+const hasProjections = computed(() => urssafSchedule.value.some(item => item.is_projection))
+
+async function loadUrssafSchedule() {
+  try {
+    urssafSchedule.value = await proDeclarationAPI.getUrssafSchedule()
+  } catch {
+    urssafSchedule.value = []
+  }
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 const yearOptions = computed(() => {
   const years = []
@@ -297,6 +372,7 @@ onMounted(async () => {
   await Promise.all([
     proStore.fetchProfile(),
     proStore.fetchDeclarationPeriods(selectedYear.value),
+    loadUrssafSchedule(),
   ])
 })
 </script>
@@ -305,5 +381,97 @@ onMounted(async () => {
 .period-active {
   border-color: #2080f0 !important;
   border-width: 2px;
+}
+
+/* URSSAF Schedule */
+.urssaf-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 12px 16px;
+  border-left: 3px solid #555;
+}
+
+.schedule-item.past {
+  border-left-color: #666;
+  opacity: 0.7;
+}
+
+.schedule-item.current {
+  border-left-color: #18a058;
+  background: rgba(24, 160, 88, 0.08);
+}
+
+.schedule-item.upcoming {
+  border-left-color: #2080f0;
+}
+
+.schedule-item.projection {
+  border-style: dashed;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.period-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deadline-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.deadline-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.deadline-date {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.schedule-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px 16px;
+}
+
+.amount-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amount-row.total {
+  grid-column: 1 / -1;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 4px;
+}
+
+.total-amount {
+  color: #f0a020;
+}
+
+.projection-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

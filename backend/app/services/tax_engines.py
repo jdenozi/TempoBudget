@@ -41,6 +41,24 @@ def _period_factor(period: str) -> float:
     return 1.0  # year
 
 
+def _is_acre_active(profile: dict) -> bool:
+    """Check if ACRE is currently active (within first year of business)."""
+    from datetime import date
+    if not profile.get("acre_enabled"):
+        return False
+    start_date_str = profile.get("acre_start_date")
+    if not start_date_str:
+        return False
+    try:
+        start_date = date.fromisoformat(start_date_str)
+        # ACRE lasts for the first 4 quarters (approximately 1 year)
+        today = date.today()
+        days_since_start = (today - start_date).days
+        return days_since_start <= 365  # ~1 year
+    except ValueError:
+        return False
+
+
 def _annualize(amount: float, period: str) -> float:
     """Scale a per-period amount to its yearly equivalent."""
     return amount / _period_factor(period)
@@ -77,6 +95,63 @@ class PeriodInput:
 
 
 @dataclass
+class CotisationsDetail:
+    """Detailed breakdown of social contributions."""
+    maladie_maternite: float = 0.0       # Maladie-maternité
+    retraite_base: float = 0.0           # Retraite de base
+    retraite_complementaire: float = 0.0 # Retraite complémentaire
+    invalidite_deces: float = 0.0        # Invalidité-décès
+    allocations_familiales: float = 0.0  # Allocations familiales
+    csg_crds: float = 0.0                # CSG/CRDS
+
+
+# Typical breakdown percentages for micro-entrepreneur (approximation)
+# These are indicative - the actual breakdown varies by caisse
+_MICRO_COTIS_BREAKDOWN = {
+    "maladie_maternite": 0.07,          # ~7% du taux global
+    "retraite_base": 0.45,              # ~45%
+    "retraite_complementaire": 0.07,    # ~7%
+    "invalidite_deces": 0.006,          # ~0.6%
+    "allocations_familiales": 0.0,      # 0% (exonération totale < seuil)
+    "csg_crds": 0.414,                  # ~41.4% (9.7% du CA = ~46% du 21.2%)
+}
+
+# TNS breakdown (EI/EURL) - rates on benefice
+_TNS_COTIS_RATES = {
+    "maladie_maternite": 0.065,         # 6.5% (taux réduit) à 6.5%
+    "retraite_base": 0.1775,            # 17.75% jusqu'au PASS
+    "retraite_complementaire": 0.07,    # 7%
+    "invalidite_deces": 0.013,          # 1.3%
+    "allocations_familiales": 0.0,      # 0% (exonération < 110% PASS)
+    "csg_crds": 0.097,                  # 9.7%
+}
+
+
+def _compute_micro_cotis_detail(total_cotis: float) -> CotisationsDetail:
+    """Compute indicative breakdown for micro-entrepreneur."""
+    return CotisationsDetail(
+        maladie_maternite=round(total_cotis * _MICRO_COTIS_BREAKDOWN["maladie_maternite"], 2),
+        retraite_base=round(total_cotis * _MICRO_COTIS_BREAKDOWN["retraite_base"], 2),
+        retraite_complementaire=round(total_cotis * _MICRO_COTIS_BREAKDOWN["retraite_complementaire"], 2),
+        invalidite_deces=round(total_cotis * _MICRO_COTIS_BREAKDOWN["invalidite_deces"], 2),
+        allocations_familiales=0.0,
+        csg_crds=round(total_cotis * _MICRO_COTIS_BREAKDOWN["csg_crds"], 2),
+    )
+
+
+def _compute_tns_cotis_detail(benefice: float) -> CotisationsDetail:
+    """Compute detailed TNS cotisations on benefice."""
+    return CotisationsDetail(
+        maladie_maternite=round(benefice * _TNS_COTIS_RATES["maladie_maternite"], 2),
+        retraite_base=round(benefice * _TNS_COTIS_RATES["retraite_base"], 2),
+        retraite_complementaire=round(benefice * _TNS_COTIS_RATES["retraite_complementaire"], 2),
+        invalidite_deces=round(benefice * _TNS_COTIS_RATES["invalidite_deces"], 2),
+        allocations_familiales=0.0,
+        csg_crds=round(benefice * _TNS_COTIS_RATES["csg_crds"], 2),
+    )
+
+
+@dataclass
 class TaxBreakdown:
     """Detailed view of all prélèvements for one period."""
 
@@ -99,6 +174,8 @@ class TaxBreakdown:
     # = net_after_taxes for non-incorporated regimes (the user IS the company).
     # = (net_salary − personal IR) + (dividends − dividend tax) for incorporated.
     personal_take_home: float = 0.0
+    # Detailed breakdown of cotisations (indicative)
+    cotisations_detail: CotisationsDetail | None = None
 
 
 class TaxEngine(ABC):
@@ -114,13 +191,17 @@ class TaxEngine(ABC):
 # ── Micro-entrepreneur ──────────────────────────────────────────────────────
 
 
+# Micro-entrepreneur defaults by activity type (2024 rates)
+# CFP = Contribution Formation Professionnelle
+# VL = Versement Libératoire IR
+# Abattement = forfaitaire pour IR classique
 _MICRO_DEFAULTS_BY_ACTIVITY: dict[str, dict[str, float]] = {
-    "vente":            {"cfp": 0.001, "vl": 0.010, "abattement": 0.71},
-    "commercant":       {"cfp": 0.001, "vl": 0.010, "abattement": 0.71},
-    "services":         {"cfp": 0.003, "vl": 0.017, "abattement": 0.50},
-    "artisan":          {"cfp": 0.003, "vl": 0.017, "abattement": 0.50},
-    "liberal":          {"cfp": 0.002, "vl": 0.022, "abattement": 0.34},
-    "location_meublee": {"cfp": 0.001, "vl": 0.010, "abattement": 0.50},
+    "vente":            {"cfp": 0.001, "vl": 0.010, "abattement": 0.71},  # BIC vente
+    "commercant":       {"cfp": 0.001, "vl": 0.010, "abattement": 0.71},  # BIC commerce
+    "services":         {"cfp": 0.003, "vl": 0.017, "abattement": 0.50},  # BIC services
+    "artisan":          {"cfp": 0.003, "vl": 0.017, "abattement": 0.50},  # BIC artisan
+    "liberal":          {"cfp": 0.002, "vl": 0.022, "abattement": 0.34},  # BNC CIPAV
+    "location_meublee": {"cfp": 0.001, "vl": 0.010, "abattement": 0.50},  # Location meublée
 }
 
 
@@ -139,12 +220,19 @@ class MicroEngine(TaxEngine):
         notes: list[str] = []
         activity = profile.get("activity_type") or "services"
 
+        # Check ACRE status
+        acre_active = _is_acre_active(profile)
+        acre_factor = 0.5 if acre_active else 1.0
+
         cot_rate = (profile.get("cotisation_rate") or 21.2) / 100
-        cotisations = period.declared_turnover * cot_rate
+        cotisations = period.declared_turnover * cot_rate * acre_factor
 
         cfp_rate = profile.get("cfp_rate")
         cfp_rate = cfp_rate / 100 if cfp_rate is not None else _default_for(activity, "cfp")
         cfp = period.declared_turnover * cfp_rate
+
+        if acre_active:
+            notes.append("ACRE actif : réduction de 50% sur les cotisations sociales.")
 
         ir_vl: float | None = None
         ir_class: float | None = None
@@ -167,6 +255,9 @@ class MicroEngine(TaxEngine):
         total = cotisations + cfp + (ir_vl or 0) + (ir_class or 0)
         net = period.turnover - total
 
+        # Compute indicative breakdown of cotisations
+        cotis_detail = _compute_micro_cotis_detail(cotisations)
+
         return TaxBreakdown(
             period=period.period,
             turnover=period.turnover,
@@ -182,6 +273,7 @@ class MicroEngine(TaxEngine):
             net_after_taxes=net,
             notes=notes,
             personal_take_home=net,
+            cotisations_detail=cotis_detail,
         )
 
 
@@ -199,8 +291,15 @@ class _RealRegimeIR(TaxEngine):
         notes: list[str] = []
         benefice = max(0.0, period.turnover - period.expenses)
 
+        # Check ACRE status
+        acre_active = _is_acre_active(profile)
+        acre_factor = 0.5 if acre_active else 1.0
+
         tns_rate = (profile.get("tns_cotisations_rate") or 45.0) / 100
-        cotisations = benefice * tns_rate
+        cotisations = benefice * tns_rate * acre_factor
+
+        if acre_active:
+            notes.append("ACRE actif : réduction de 50% sur les cotisations sociales.")
 
         ir_class: float | None = None
         tmi = profile.get("foyer_tmi")
@@ -211,6 +310,9 @@ class _RealRegimeIR(TaxEngine):
 
         total = cotisations + (ir_class or 0)
         net = period.turnover - period.expenses - total
+
+        # Compute detailed TNS cotisations breakdown
+        cotis_detail = _compute_tns_cotis_detail(benefice * acre_factor)
 
         return TaxBreakdown(
             period=period.period,
@@ -227,6 +329,7 @@ class _RealRegimeIR(TaxEngine):
             net_after_taxes=net,
             notes=notes,
             personal_take_home=net,
+            cotisations_detail=cotis_detail,
         )
 
 
@@ -271,6 +374,10 @@ class _ManagedSocietyEngine(TaxEngine):
         salary_monthly = profile.get("salary_gross_monthly") or 0.0
         salary_period = salary_monthly * (12 * _period_factor(period.period))
 
+        # ACRE only applies to TNS (gérant majoritaire EURL), not assimilé-salarié
+        acre_active = _is_acre_active(profile) and not self.is_assimile_salarie
+        acre_factor = 0.5 if acre_active else 1.0
+
         if self.is_assimile_salarie:
             # SASU/SAS: split employer / employee charges, employee charges are
             # withheld from the gross salary (net = gross − employee).
@@ -282,9 +389,12 @@ class _ManagedSocietyEngine(TaxEngine):
             # EURL au IS: gérant majoritaire TNS. Cotisations payées par la société
             # par-dessus la rémunération ; le gérant reçoit l'intégralité de sa rému.
             tns_rate = (profile.get("tns_cotisations_rate") or 45.0) / 100
-            employer_charges = salary_period * tns_rate
+            employer_charges = salary_period * tns_rate * acre_factor
             cotisations = employer_charges
             net_salary = salary_period
+
+        if acre_active:
+            notes.append("ACRE actif : réduction de 50% sur les cotisations sociales.")
 
         # Bénéfice imposable à l'IS : CA − charges − rémunération − cotisations société
         benefice = max(0.0, period.turnover - period.expenses - salary_period - employer_charges)
@@ -316,6 +426,11 @@ class _ManagedSocietyEngine(TaxEngine):
         # Personal take-home: what the dirigeant pockets after all personal taxes.
         personal = (net_salary - (ir_class or 0)) + (dividends_period - dividends_taxes)
 
+        # TNS breakdown for EURL-IS gérant, None for assimilé-salarié
+        cotis_detail = None
+        if not self.is_assimile_salarie and salary_period > 0:
+            cotis_detail = _compute_tns_cotis_detail(salary_period * acre_factor)
+
         return TaxBreakdown(
             period=period.period,
             turnover=period.turnover,
@@ -332,6 +447,7 @@ class _ManagedSocietyEngine(TaxEngine):
             notes=notes,
             net_salary=net_salary if salary_monthly > 0 else None,
             personal_take_home=personal,
+            cotisations_detail=cotis_detail,
         )
 
 

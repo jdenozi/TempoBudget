@@ -404,6 +404,21 @@
           </n-form-item>
         </template>
 
+        <!-- ACRE -->
+        <n-divider style="margin: 8px 0 16px;">{{ t('pro.profile.acreSection') }}</n-divider>
+        <n-form-item :label="t('pro.profile.acreEnabled')">
+          <n-switch :value="profileForm.acre_enabled === 1" @update:value="(v: boolean) => profileForm.acre_enabled = v ? 1 : 0" />
+        </n-form-item>
+        <template v-if="profileForm.acre_enabled === 1">
+          <n-form-item :label="t('pro.profile.acreStartDate')">
+            <n-date-picker v-model:value="acreStartDateTimestamp" type="date" style="width: 100%;" />
+          </n-form-item>
+          <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
+            ⓘ {{ t('pro.profile.acreNote') }}
+            <span v-if="isAcreExpired" style="color: #f0a020;"> — {{ t('pro.profile.acreExpired') }}</span>
+          </div>
+        </template>
+
         <!-- TVA -->
         <n-divider style="margin: 8px 0 16px;">TVA</n-divider>
         <n-form-item :label="t('pro.profile.isSubjectToVat')">
@@ -548,6 +563,12 @@
         </div>
       </n-space>
     </n-modal>
+
+    <!-- Setup Wizard for new users -->
+    <ProSetupWizard
+      v-model:show="showSetupWizard"
+      @complete="handleSetupComplete"
+    />
   </n-space>
 </template>
 
@@ -556,19 +577,22 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   NSpace, NCard, NGrid, NGi, NStatistic, NIcon, NProgress,
   NList, NListItem, NThing, NTag, NEmpty, NButton, NRadioGroup, NRadioButton,
-  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch, NDivider, NSpin
+  NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch, NDivider, NSpin,
+  NDatePicker
 } from 'naive-ui'
 import { TrendingUpOutline, TrendingDownOutline, WalletOutline, CashOutline } from '@vicons/ionicons5'
 import { useI18n } from 'vue-i18n'
 import { useProStore } from '@/stores/pro'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { proProfileAPI, type TaxBreakdown, type RegimeComparisonRow, type VatSummary } from '@/services/api'
+import ProSetupWizard from '@/components/pro/ProSetupWizard.vue'
 
 const { t } = useI18n()
 const proStore = useProStore()
 const { isMobile } = useMobileDetect()
 
 const showProfileModal = ref(false)
+const showSetupWizard = ref(false)
 
 const profileForm = ref({
   siret: '',
@@ -593,17 +617,43 @@ const profileForm = ref({
   company_address: '',
   company_email: '',
   company_phone: '',
+  acre_enabled: 0 as number,
+  acre_start_date: null as string | null,
+})
+
+// ACRE date picker helpers
+const acreStartDateTimestamp = computed({
+  get: () => {
+    if (!profileForm.value.acre_start_date) return null
+    return new Date(profileForm.value.acre_start_date).getTime()
+  },
+  set: (val: number | null) => {
+    if (val === null) {
+      profileForm.value.acre_start_date = null
+    } else {
+      profileForm.value.acre_start_date = new Date(val).toISOString().slice(0, 10)
+    }
+  }
+})
+
+const isAcreExpired = computed(() => {
+  if (!profileForm.value.acre_start_date) return false
+  const startDate = new Date(profileForm.value.acre_start_date)
+  const today = new Date()
+  const daysSinceStart = (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+  return daysSinceStart > 365
 })
 
 /** Activity types with their default cotisation rates and thresholds */
+// Taux de cotisations micro-entrepreneur 2024 (source: URSSAF)
 const ACTIVITY_PRESETS: Record<string, { rate: number; threshold: number }> = {
-  services: { rate: 21.2, threshold: 77700 },
-  liberal: { rate: 21.1, threshold: 77700 },
-  vente: { rate: 12.3, threshold: 188700 },
-  artisan: { rate: 21.2, threshold: 77700 },
-  commercant: { rate: 12.3, threshold: 188700 },
+  services: { rate: 21.2, threshold: 77700 },       // BIC prestations de services
+  liberal: { rate: 23.1, threshold: 77700 },        // BNC professions libérales CIPAV
+  vente: { rate: 12.3, threshold: 188700 },         // BIC vente de marchandises
+  artisan: { rate: 21.2, threshold: 77700 },        // BIC artisan
+  commercant: { rate: 12.3, threshold: 188700 },    // BIC commerçant
   agent_commercial: { rate: 21.2, threshold: 77700 },
-  location_meublee: { rate: 6.0, threshold: 188700 },
+  location_meublee: { rate: 6.0, threshold: 188700 }, // Location meublée classée
   restauration: { rate: 21.2, threshold: 77700 },
   transport: { rate: 21.2, threshold: 77700 },
   activite_mixte: { rate: 21.2, threshold: 188700 },
@@ -721,11 +771,18 @@ onMounted(async () => {
       company_address: proStore.proProfile.company_address || '',
       company_email: proStore.proProfile.company_email || '',
       company_phone: proStore.proProfile.company_phone || '',
+      acre_enabled: proStore.proProfile.acre_enabled || 0,
+      acre_start_date: proStore.proProfile.acre_start_date || null,
     }
   }
 
   await loadBreakdown()
   await loadVatSummary()
+
+  // Show setup wizard for new users who haven't configured their profile
+  if (proStore.proProfile && !proStore.proProfile.siret && !proStore.proProfile.company_name) {
+    showSetupWizard.value = true
+  }
 })
 
 async function saveProfile() {
@@ -827,6 +884,46 @@ async function openCompareModal() {
 watch([comparePeriod, compareYear], () => {
   if (showCompareModal.value) loadComparison()
 })
+
+// ── Setup Wizard ──
+
+async function handleSetupComplete() {
+  // Reload profile and dashboard after setup
+  await proStore.fetchProfile()
+  await proStore.fetchDashboard()
+
+  // Update local form with new profile data
+  if (proStore.proProfile) {
+    profileForm.value = {
+      siret: proStore.proProfile.siret || '',
+      legal_form: proStore.proProfile.legal_form || 'micro',
+      activity_type: proStore.proProfile.activity_type,
+      cotisation_rate: proStore.proProfile.cotisation_rate,
+      declaration_frequency: proStore.proProfile.declaration_frequency,
+      revenue_threshold: proStore.proProfile.revenue_threshold,
+      cfp_rate: proStore.proProfile.cfp_rate,
+      versement_liberatoire_enabled: proStore.proProfile.versement_liberatoire_enabled || 0,
+      versement_liberatoire_rate: proStore.proProfile.versement_liberatoire_rate,
+      ir_abattement_rate: proStore.proProfile.ir_abattement_rate,
+      foyer_tmi: proStore.proProfile.foyer_tmi,
+      tns_cotisations_rate: proStore.proProfile.tns_cotisations_rate ?? 45.0,
+      salary_gross_monthly: proStore.proProfile.salary_gross_monthly ?? 0,
+      dividends_yearly: proStore.proProfile.dividends_yearly ?? 0,
+      eurl_tax_option: proStore.proProfile.eurl_tax_option ?? 'ir',
+      is_subject_to_vat: proStore.proProfile.is_subject_to_vat || 0,
+      vat_rate: proStore.proProfile.vat_rate || 20.0,
+      vat_number: proStore.proProfile.vat_number || '',
+      company_name: proStore.proProfile.company_name || '',
+      company_address: proStore.proProfile.company_address || '',
+      company_email: proStore.proProfile.company_email || '',
+      company_phone: proStore.proProfile.company_phone || '',
+      acre_enabled: proStore.proProfile.acre_enabled || 0,
+      acre_start_date: proStore.proProfile.acre_start_date || null,
+    }
+  }
+
+  await loadBreakdown()
+}
 
 const currentRegimeKey = computed<string>(() => {
   const lf = proStore.proProfile?.legal_form ?? 'micro'

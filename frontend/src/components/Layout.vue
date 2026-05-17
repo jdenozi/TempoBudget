@@ -53,6 +53,7 @@
               text
               @click="showDrawer = true"
               class="mobile-menu-btn"
+              :aria-label="t('nav.menu')"
             >
               ☰
             </n-button>
@@ -78,6 +79,8 @@
             circle
             @click="handleAddClick"
             size="large"
+            :aria-label="t('nav.addTransaction')"
+            :title="t('nav.addTransaction')"
           >
             +
           </n-button>
@@ -90,7 +93,7 @@
 
       <!-- Mobile Menu Drawer -->
       <n-drawer v-model:show="showDrawer" :width="280" placement="left">
-        <n-drawer-content :title="t('common.filter')" closable body-content-style="display: flex; flex-direction: column; height: 100%;">
+        <n-drawer-content :title="t('nav.menu')" closable body-content-style="display: flex; flex-direction: column; height: 100%;">
           <n-menu
             :options="menuOptions"
             v-model:value="activeKey"
@@ -130,6 +133,9 @@
 
       <!-- Release Notes Modal -->
       <ReleaseNotesModal v-model:show="showReleaseNotes" />
+
+      <!-- Help Chat -->
+      <HelpChat />
     </n-layout>
   </n-config-provider>
     </n-message-provider>
@@ -165,6 +171,7 @@ import type { MenuOption } from 'naive-ui'
 import AddTransactionForm from './AddTransactionForm.vue'
 import ProTransactionForm from './pro/ProTransactionForm.vue'
 import ReleaseNotesModal from './modals/ReleaseNotesModal.vue'
+import HelpChat from './HelpChat.vue'
 import { themeOverrides } from '@/theme'
 import { useMobileDetect } from '@/composables/useMobileDetect'
 import { useProStore } from '@/stores/pro'

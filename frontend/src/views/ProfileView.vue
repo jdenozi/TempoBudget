@@ -37,30 +37,22 @@
 
       <n-space vertical size="large">
         <!-- Avatar -->
-        <n-flex align="center" :size="16">
-          <div class="avatar-wrapper" @click="triggerAvatarUpload">
-            <n-avatar
-              :size="isMobile ? 80 : 100"
-              round
-              :src="avatarSrc || undefined"
-            >
-              <template v-if="!avatarSrc">{{ userInitials }}</template>
-            </n-avatar>
-            <div class="avatar-overlay">
-              <n-icon :component="CameraOutline" :size="22" />
-            </div>
-            <n-spin v-if="uploadingAvatar" :size="20" class="avatar-spinner" />
-          </div>
-          <n-button size="small" :loading="uploadingAvatar" @click="triggerAvatarUpload">
-            {{ t('profile.changePhoto') }}
-          </n-button>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            class="file-input"
-            @change="handleAvatarChange"
+        <n-flex align="center" :size="16" wrap>
+          <n-avatar
+            :size="isMobile ? 80 : 100"
+            round
+            :src="generatedAvatarUrl"
           />
+          <n-space vertical :size="8">
+            <n-text depth="3">{{ t('profile.avatarStyle') }}</n-text>
+            <n-select
+              v-model:value="avatarStyle"
+              :options="avatarStyleOptions"
+              size="small"
+              style="width: 140px;"
+              @update:value="handleAvatarStyleChange"
+            />
+          </n-space>
         </n-flex>
 
         <!-- User Details -->
@@ -354,13 +346,14 @@ import { useRouter } from 'vue-router'
 import {
   NSpace, NFlex, NCard, NAvatar, NButton, NDescriptions, NDescriptionsItem,
   NGrid, NGi, NStatistic, NText, NDivider, NAlert, NPopconfirm,
-  NTag, NModal, NForm, NFormItem, NInput, NSelect, NSpin, NIcon, useMessage,
+  NTag, NModal, NForm, NFormItem, NInput, NSelect, NIcon, useMessage,
   type FormInst, type FormRules
 } from 'naive-ui'
 import {
-  CameraOutline, LanguageOutline, TimeOutline, LockClosedOutline,
+  LanguageOutline, TimeOutline, LockClosedOutline,
   ShieldCheckmarkOutline, LogOutOutline,
 } from '@vicons/ionicons5'
+import { useAvatar, type AvatarStyle } from '@/composables/useAvatar'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useBudgetStore } from '@/stores/budget'
@@ -396,6 +389,22 @@ const inactivityOptions = INACTIVITY_OPTIONS.map(opt => ({
 const isMobile = ref(false)
 const invitations = ref<BudgetInvitationWithDetails[]>([])
 const processingInvitation = ref<string | null>(null)
+
+// Avatar generation
+const { getAvatarUrl, getAvatarStyles } = useAvatar()
+const avatarStyle = ref<AvatarStyle>(
+  (localStorage.getItem('avatarStyle') as AvatarStyle) || 'initials'
+)
+const avatarStyleOptions = getAvatarStyles().map(s => ({ label: s.label, value: s.value }))
+
+const generatedAvatarUrl = computed(() => {
+  const name = authStore.user?.name || authStore.user?.email || 'User'
+  return getAvatarUrl(name, avatarStyle.value, 100)
+})
+
+const handleAvatarStyleChange = (style: AvatarStyle) => {
+  localStorage.setItem('avatarStyle', style)
+}
 const projectInvitations = computed(() => projectStore.projectInvitations)
 const processingProjectInvitation = ref<string | null>(null)
 const showChangePassword = ref(false)
@@ -405,8 +414,6 @@ const passwordFormRef = ref<FormInst | null>(null)
 /** Profile editing state */
 const editing = ref(false)
 const savingProfile = ref(false)
-const uploadingAvatar = ref(false)
-const fileInputRef = ref<HTMLInputElement | null>(null)
 const editForm = ref({ name: '', phone: '' })
 
 const startEditing = () => {
@@ -435,33 +442,6 @@ const saveProfile = async () => {
     message.error(t('errors.generic'))
   } finally {
     savingProfile.value = false
-  }
-}
-
-const triggerAvatarUpload = () => {
-  fileInputRef.value?.click()
-}
-
-const handleAvatarChange = async (event: Event) => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  if (file.size > 2 * 1024 * 1024) {
-    message.error(t('profile.avatarTooLarge'))
-    return
-  }
-
-  uploadingAvatar.value = true
-  try {
-    await authStore.uploadAvatar(file)
-    message.success(t('profile.avatarUpdated'))
-  } catch (error) {
-    console.error('Error uploading avatar:', error)
-    message.error(t('errors.generic'))
-  } finally {
-    uploadingAvatar.value = false
-    input.value = ''
   }
 }
 
@@ -546,24 +526,6 @@ const transactionsThisMonth = computed(() => {
 
 const totalCategories = computed(() => budgetStore.categories.length)
 const totalRecurring = computed(() => budgetStore.recurringTransactions.length)
-
-const avatarSrc = computed(() => {
-  const user = authStore.user
-  if (!user?.avatar) return ''
-  const separator = user.avatar.includes('?') ? '&' : '?'
-  return `${user.avatar}${separator}v=${encodeURIComponent(user.updated_at || '')}`
-})
-
-const userInitials = computed(() => {
-  const name = authStore.user?.name || authStore.user?.email || '?'
-  const parts = name.trim().split(/\s+/)
-  const first = parts[0]
-  const last = parts[parts.length - 1]
-  if (parts.length >= 2 && first && last && first.length > 0 && last.length > 0) {
-    return (first.charAt(0) + last.charAt(0)).toUpperCase()
-  }
-  return name.slice(0, 2).toUpperCase()
-})
 
 const handleAcceptInvitation = async (id: string) => {
   processingInvitation.value = id
@@ -668,38 +630,6 @@ const handleChangePassword = async () => {
 .page-title {
   margin: 0;
   font-size: clamp(20px, 5vw, 28px);
-}
-.avatar-wrapper {
-  position: relative;
-  cursor: pointer;
-  border-radius: 50%;
-  overflow: hidden;
-  line-height: 0;
-}
-.avatar-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-  pointer-events: none;
-  border-radius: 50%;
-}
-.avatar-wrapper:hover .avatar-overlay {
-  opacity: 1;
-}
-.avatar-spinner {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-.file-input {
-  display: none;
 }
 .settings-row {
   display: flex;

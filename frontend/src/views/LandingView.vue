@@ -97,6 +97,53 @@
       </div>
     </section>
 
+    <!-- Pricing Section -->
+    <section class="pricing-section">
+      <h2>{{ t('landing.pricingTitle') }}</h2>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>{{ t('landing.pricingFree') }}</h3>
+            <div class="pricing-price">
+              <span class="price">0 €</span>
+            </div>
+            <p class="pricing-desc">{{ t('landing.pricingFreeDesc') }}</p>
+          </div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature1') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature2') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature3') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature4') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature5') }}</li>
+          </ul>
+          <n-button size="large" block @click="router.push('/login')">
+            {{ t('landing.getStarted') }}
+          </n-button>
+        </div>
+        <div class="pricing-card featured">
+          <div class="pricing-badge">PRO</div>
+          <div class="pricing-header">
+            <h3>{{ t('landing.pricingPro') }}</h3>
+            <div class="pricing-price">
+              <span class="price">{{ t('landing.pricingProPrice') }}</span>
+              <span class="period">{{ t('landing.pricingProPeriod') }}</span>
+            </div>
+            <p class="pricing-desc">{{ t('landing.pricingProDesc') }}</p>
+          </div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature1') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature2') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature3') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
+          </ul>
+          <n-button type="primary" size="large" block @click="router.push('/login')">
+            {{ t('landing.getStarted') }}
+          </n-button>
+        </div>
+      </div>
+    </section>
+
     <!-- Factur-X Section -->
     <section class="facturx-section">
       <div class="facturx-badge">2026</div>
@@ -427,6 +474,103 @@ function scrollToFeatures() {
 .amount.positive {
   color: #63e2b7;
   font-size: 1.2rem;
+}
+
+/* Pricing Section */
+.pricing-section {
+  padding: 100px 10%;
+  background: #0f0f1a;
+  text-align: center;
+}
+
+.pricing-section h2 {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  margin-bottom: 60px;
+}
+
+.pricing-grid {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.pricing-card {
+  background: #1a1a2e;
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 340px;
+  text-align: left;
+  position: relative;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.pricing-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.pricing-card.featured {
+  border: 2px solid #63e2b7;
+  background: linear-gradient(180deg, #1a1a2e 0%, #1f2a1f 100%);
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -12px;
+  right: 24px;
+  background: linear-gradient(135deg, #63e2b7, #18a058);
+  color: #000;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.pricing-header h3 {
+  font-size: 1.5rem;
+  margin: 0 0 8px;
+}
+
+.pricing-price {
+  margin-bottom: 8px;
+}
+
+.pricing-price .price {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #63e2b7;
+}
+
+.pricing-price .period {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.pricing-desc {
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 24px;
+  font-size: 0.95rem;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.pricing-features li {
+  padding: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricing-features .check {
+  color: #63e2b7;
+  font-weight: 700;
 }
 
 /* Factur-X Section */
