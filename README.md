@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.10.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.11.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -83,15 +83,13 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.10.0)
+## Recent Changes (v2.11.0)
 
-* Pro mode: *Compare regimes* modal — runs every regime (Micro / EI réel / EURL IR-IS / SASU / SAS) on your current activity, ranks by personal take-home, highlights the optimal regime
-* Pro mode: inline "switch regime" hint on the dashboard tax breakdown — clickable when a different regime would let you net more for the period
-* Pro mode: dashboard *Tracked limits* card with a progress bar per user-defined threshold (period-aware, colour-coded by proximity)
-* Pro mode: tax breakdown now exposes *Net to you* (= net salary − personal IR + dividends after flat tax for incorporated regimes; equals net-after-taxes for non-incorporated)
-* Pro mode: tax-deductible flag on expense transactions, surfaced as a switch in the form and a warning chip in history; only deductible charges enter the bénéfice computation for EI / EURL / SASU / SAS
-* Pro mode: dashboard "Estimated contributions" card now uses the active regime's engine instead of the micro formula (correct figures for SASU / SAS / EURL)
-* Pro mode: year selector on the dashboard tax breakdown and the regime comparison modal — review past-year totals when filing taxes
+* **Factur-X e-invoicing**: generate compliant PDF/A-3 invoices with embedded XML (EN 16931 / Factur-X BASIC profile) — ready for the French 2026 e-invoicing mandate
+* **Client enrichment**: SIREN, VAT number, and structured address fields for B2B invoicing compliance
+* **PDP export endpoint**: JSON export for transmission to e-invoicing platforms via n8n or similar automation tools
+* **Public landing page**: new `/welcome` page showcasing features for visitors before login
+* **VAT tracking**: per-transaction VAT rate with dashboard summary (v2.10.0 → v2.11.0 includes this from previous commit)
 
 ## License
 
