@@ -21,6 +21,9 @@
             <span class="button-hint">{{ t('landing.freeTrialHint') }}</span>
           </div>
         </div>
+        <a href="mailto:j-denozi@outlook.com?subject=Question%20Tempo%20Budget" class="question-link">
+          {{ t('landing.haveQuestion') }}
+        </a>
       </div>
       <div class="hero-visual">
         <div class="mockup">
@@ -296,7 +299,7 @@ onMounted(() => {
 })
 
 function openMailto() {
-  window.location.href = 'mailto:contact@tempo.finance?subject=Demande%20d%27invitation%20Tempo%20Budget'
+  window.location.href = 'mailto:j-denozi@outlook.com?subject=Demande%20d%27invitation%20Tempo%20Budget'
 }
 </script>
 
@@ -383,6 +386,19 @@ function openMailto() {
 .button-hint {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.question-link {
+  margin-top: 24px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.question-link:hover {
+  color: #63e2b7;
+  text-decoration: underline;
 }
 
 .hero-visual {
