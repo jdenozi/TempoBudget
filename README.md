@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.18.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.19.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -94,12 +94,13 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.18.0)
+## Recent Changes (v2.19.0)
 
-* **Invitation-based free trial**: request an invitation to try for free
-* **Direct subscription**: subscribe immediately with monthly or annual plans
-* **Clear landing page**: two options explained upfront with hints
-* **Mobile-responsive pricing**: three-column grid adapts to mobile
+* **7-day free trial**: automatic trial for all new signups, no invitation required
+* **Revamped landing page**: professional focus on e-invoicing compliance (2026 law)
+* **Trial badge**: displays remaining trial days in the header
+* **n8n sync tooling**: script and Claude hook to sync workflow templates
+* **Simplified pricing**: two plans (monthly/annual) with clear value proposition
 
 ## License
 
