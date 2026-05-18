@@ -36,7 +36,8 @@ class InvitationValidation(BaseModel):
 class ProAccessStatus(BaseModel):
     """Pro access status for a user."""
     has_pro_access: bool
-    reason: str  # 'subscription', 'admin_override', 'none'
+    reason: str  # 'subscription', 'admin_override', 'trial', 'none'
+    trial_ends_at: str | None = None  # ISO timestamp if reason is 'trial'
 
 
 class SetProOverrideRequest(BaseModel):

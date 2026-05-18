@@ -25,6 +25,14 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 
   const hasProAccess = computed(() => proAccess.value?.has_pro_access ?? false)
   const proAccessReason = computed(() => proAccess.value?.reason ?? 'none')
+  const trialEndsAt = computed(() => proAccess.value?.trial_ends_at ?? null)
+  const trialDaysRemaining = computed(() => {
+    if (!proAccess.value?.trial_ends_at) return null
+    const endDate = new Date(proAccess.value.trial_ends_at)
+    const now = new Date()
+    const diffMs = endDate.getTime() - now.getTime()
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
+  })
 
   const planType = computed(() => status.value?.plan_type)
   const subscriptionStatus = computed(() => status.value?.status)
@@ -91,6 +99,8 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     hasActiveSubscription,
     hasProAccess,
     proAccessReason,
+    trialEndsAt,
+    trialDaysRemaining,
     planType,
     subscriptionStatus,
     currentPeriodEnd,

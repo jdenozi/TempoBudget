@@ -78,22 +78,12 @@
 
     <!-- Registration Modal -->
     <n-modal v-model:show="showRegister" preset="card" :title="t('auth.register')" style="max-width: 400px;">
-      <!-- Invitation mode info -->
+      <!-- Free trial info -->
       <n-alert
-        v-if="invitationToken"
         type="success"
         style="margin-bottom: 16px;"
       >
-        {{ t('auth.freeTrialWithInvitation') }}
-      </n-alert>
-
-      <!-- Subscription mode info -->
-      <n-alert
-        v-else
-        type="info"
-        style="margin-bottom: 16px;"
-      >
-        {{ t('auth.subscriptionRequired') }}
+        {{ t('auth.freeTrialInfo') }}
       </n-alert>
 
       <!-- Invitation error -->
@@ -135,7 +125,7 @@
           :loading="loading"
           @click="handleRegister"
         >
-          {{ invitationToken ? t('auth.registerButton') : t('auth.registerAndSubscribe') }}
+          {{ t('auth.startFreeTrial') }}
         </n-button>
       </n-form>
     </n-modal>
@@ -162,6 +152,10 @@ import {
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authAPI } from '@/services/api'
+
+const props = defineProps<{
+  openRegister?: boolean
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -199,6 +193,11 @@ onMounted(async () => {
     if (invitationToken.value) {
       showRegister.value = true
     }
+  }
+
+  // Open register modal if requested via prop (from /register route)
+  if (props.openRegister) {
+    showRegister.value = true
   }
 })
 
@@ -336,15 +335,9 @@ const handleRegister = () => {
 
       showRegister.value = false
 
-      if (invitationToken.value) {
-        // Free trial with invitation - go to dashboard
-        message.success(t('auth.accountCreatedFreeTrial'))
-        router.push('/dashboard')
-      } else {
-        // No invitation - redirect to pricing to subscribe
-        message.info(t('auth.accountCreatedSubscribe'))
-        router.push('/pricing')
-      }
+      // Free trial - go to dashboard
+      message.success(t('auth.accountCreatedFreeTrial'))
+      router.push('/dashboard')
     } catch (error: any) {
       console.error('Register error:', error)
       const detail = error.response?.data?.detail

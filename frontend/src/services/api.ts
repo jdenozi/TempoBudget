@@ -264,7 +264,8 @@ export interface Invitation {
 /** Pro access status */
 export interface ProAccessStatus {
   has_pro_access: boolean
-  reason: 'subscription' | 'admin_override' | 'none'
+  reason: 'subscription' | 'admin_override' | 'trial' | 'none'
+  trial_ends_at?: string | null
 }
 
 export const authAPI = {

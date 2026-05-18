@@ -11,7 +11,7 @@
 <template>
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
-      <LoginContent />
+      <LoginContent :open-register="openRegister" />
     </n-message-provider>
   </n-config-provider>
 </template>
@@ -25,4 +25,8 @@
 import { NConfigProvider, NMessageProvider, darkTheme } from 'naive-ui'
 import LoginContent from './LoginContent.vue'
 import { themeOverrides } from '@/theme'
+
+defineProps<{
+  openRegister?: boolean
+}>()
 </script>

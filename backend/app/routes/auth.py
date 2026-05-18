@@ -3,7 +3,7 @@
 """Authentication routes."""
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
@@ -103,21 +103,26 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
         )
 
     user_id = str(uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
     password_hash = hash_password(payload.password)
+
+    # All new users get a 7-day free trial
+    trial_ends_at = (now + timedelta(days=7)).isoformat()
 
     await db.execute(
         text("""
-            INSERT INTO users (id, email, name, password_hash, created_at, updated_at)
-            VALUES (:id, :email, :name, :password_hash, :created_at, :updated_at)
+            INSERT INTO users (id, email, name, password_hash, trial_ends_at, created_at, updated_at)
+            VALUES (:id, :email, :name, :password_hash, :trial_ends_at, :created_at, :updated_at)
         """),
         {
             "id": user_id,
             "email": payload.email,
             "name": payload.name,
             "password_hash": password_hash,
-            "created_at": now,
-            "updated_at": now,
+            "trial_ends_at": trial_ends_at,
+            "created_at": now_iso,
+            "updated_at": now_iso,
         }
     )
 
@@ -125,7 +130,7 @@ async def register(payload: CreateUser, db: AsyncSession = Depends(get_db)):
     if has_valid_invitation and inv_id:
         await db.execute(
             text("UPDATE invitations SET used_at = :now, used_by_user_id = :uid WHERE id = :id"),
-            {"now": now, "uid": user_id, "id": inv_id}
+            {"now": now_iso, "uid": user_id, "id": inv_id}
         )
 
     await db.commit()

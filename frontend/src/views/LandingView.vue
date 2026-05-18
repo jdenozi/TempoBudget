@@ -6,19 +6,17 @@
         <img src="/logo.png" alt="Tempo Budget" class="hero-logo" />
         <h1>{{ t('landing.title') }}</h1>
         <p class="hero-subtitle">{{ t('landing.subtitle') }}</p>
-        <p class="hero-explanation">{{ t('landing.twoOptions') }}</p>
         <div class="hero-buttons">
           <div class="hero-button-group">
-            <n-button type="primary" size="large" @click="router.push('/pricing')">
-              {{ t('landing.subscribeNow') }}
-            </n-button>
-            <span class="button-hint">{{ t('landing.immediateAccess') }}</span>
-          </div>
-          <div class="hero-button-group">
-            <n-button size="large" @click="openMailto">
-              {{ t('landing.requestInvitation') }}
+            <n-button type="primary" size="large" @click="router.push('/register')">
+              {{ t('landing.startTrial') }}
             </n-button>
             <span class="button-hint">{{ t('landing.freeTrialHint') }}</span>
+          </div>
+          <div class="hero-button-group">
+            <n-button size="large" @click="router.push('/pricing')">
+              {{ t('landing.seePricing') }}
+            </n-button>
           </div>
         </div>
         <a href="mailto:j-denozi@outlook.com?subject=Question%20Tempo%20Budget" class="question-link">
@@ -64,7 +62,7 @@
         </div>
         <div class="step-arrow">→</div>
         <div class="step-card highlight">
-          <div class="step-icon pro">PRO</div>
+          <div class="step-icon">3</div>
           <h3>{{ t('landing.howItWorksStep3Title') }}</h3>
           <p>{{ t('landing.howItWorksStep3Desc') }}</p>
         </div>
@@ -117,18 +115,18 @@
       </div>
       <div class="pro-visual">
         <div class="tax-card">
-          <div class="tax-header">{{ t('landing.taxPreview') }}</div>
+          <div class="tax-header example-badge">{{ t('landing.taxPreview') }}</div>
           <div class="tax-row">
-            <span>URSSAF</span>
-            <span class="amount">-1 234 €</span>
+            <span>URSSAF (21,2 %)</span>
+            <span class="amount">-318 €</span>
           </div>
           <div class="tax-row">
-            <span>{{ t('landing.incomeTax') }}</span>
-            <span class="amount">-567 €</span>
+            <span>{{ t('landing.incomeTax') }} (1,7 %)</span>
+            <span class="amount">-26 €</span>
           </div>
           <div class="tax-row highlight">
             <span>{{ t('landing.netToYou') }}</span>
-            <span class="amount positive">4 199 €</span>
+            <span class="amount positive">1 156 €</span>
           </div>
         </div>
       </div>
@@ -137,28 +135,8 @@
     <!-- Pricing Section -->
     <section class="pricing-section">
       <h2>{{ t('landing.pricingTitle') }}</h2>
-      <div class="pricing-grid three-cols">
-        <!-- Free Plan -->
-        <div class="pricing-card">
-          <div class="pricing-header">
-            <h3>{{ t('landing.pricingFree') }}</h3>
-            <div class="pricing-price">
-              <span class="price">0 €</span>
-            </div>
-            <p class="pricing-desc">{{ t('landing.pricingFreeDesc') }}</p>
-          </div>
-          <ul class="pricing-features">
-            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature1') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature2') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature3') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature4') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingFreeFeature5') }}</li>
-          </ul>
-          <n-button size="large" block @click="router.push('/login')">
-            {{ t('landing.getStarted') }}
-          </n-button>
-        </div>
-
+      <p class="pricing-intro">{{ t('landing.pricingIntro') }}</p>
+      <div class="pricing-grid two-cols">
         <!-- Monthly Plan -->
         <div class="pricing-card">
           <div class="pricing-header">
@@ -170,14 +148,14 @@
             <p class="pricing-desc">{{ t('landing.pricingMonthlyDesc') }}</p>
           </div>
           <ul class="pricing-features">
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature1') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature2') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature3') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature1') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature2') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature3') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature4') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature5') }}</li>
           </ul>
-          <n-button type="primary" size="large" block @click="router.push('/pricing')">
-            {{ t('subscription.subscribe') }}
+          <n-button type="primary" size="large" block @click="router.push('/register')">
+            {{ t('landing.startTrial') }}
           </n-button>
         </div>
 
@@ -193,15 +171,15 @@
             <p class="pricing-desc">{{ t('landing.pricingAnnualDesc', { monthly: annualMonthlyPrice }) }}</p>
           </div>
           <ul class="pricing-features">
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature1') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature2') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature3') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature4') }}</li>
-            <li><span class="check">✓</span> {{ t('landing.pricingProFeature5') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature1') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature2') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature3') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature4') }}</li>
+            <li><span class="check">✓</span> {{ t('landing.pricingFeature5') }}</li>
             <li><span class="check">✓</span> {{ t('subscription.prioritySupport') }}</li>
           </ul>
-          <n-button type="primary" size="large" block @click="router.push('/pricing')">
-            {{ t('subscription.subscribe') }}
+          <n-button type="primary" size="large" block @click="router.push('/register')">
+            {{ t('landing.startTrial') }}
           </n-button>
         </div>
       </div>
@@ -233,11 +211,8 @@
       <h2>{{ t('landing.ctaTitle') }}</h2>
       <p>{{ t('landing.ctaSubtitle') }}</p>
       <div class="cta-buttons">
-        <n-button type="primary" size="large" @click="router.push('/pricing')">
-          {{ t('landing.subscribeNow') }}
-        </n-button>
-        <n-button size="large" @click="openMailto">
-          {{ t('landing.requestInvitation') }}
+        <n-button type="primary" size="large" @click="router.push('/register')">
+          {{ t('landing.startTrial') }}
         </n-button>
       </div>
     </section>
@@ -297,10 +272,6 @@ const annualMonthlyPrice = computed(() => {
 onMounted(() => {
   subscriptionStore.fetchPrices()
 })
-
-function openMailto() {
-  window.location.href = 'mailto:j-denozi@outlook.com?subject=Demande%20d%27invitation%20Tempo%20Budget'
-}
 </script>
 
 <style scoped>
@@ -672,6 +643,16 @@ function openMailto() {
   margin-bottom: 20px;
 }
 
+.tax-header.example-badge {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: #000;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
 .tax-row {
   display: flex;
   justify-content: space-between;
@@ -719,6 +700,20 @@ function openMailto() {
 .pricing-grid.three-cols {
   max-width: 1100px;
   margin: 0 auto;
+}
+
+.pricing-grid.two-cols {
+  max-width: 750px;
+  margin: 0 auto;
+}
+
+.pricing-intro {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  margin-bottom: 40px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .pricing-card {
@@ -959,7 +954,8 @@ function openMailto() {
     align-items: center;
   }
 
-  .pricing-grid.three-cols {
+  .pricing-grid.three-cols,
+  .pricing-grid.two-cols {
     flex-direction: column;
     align-items: center;
   }

@@ -49,6 +49,12 @@ const router = createRouter({
       component: LoginView,
     },
     {
+      path: '/register',
+      name: 'register',
+      component: LoginView,
+      props: { openRegister: true },
+    },
+    {
       path: '/auth/success',
       name: 'auth-callback',
       component: AuthCallbackView,

@@ -72,8 +72,17 @@
                 <template #checked>Pro</template>
                 <template #unchecked>Pro</template>
               </n-switch>
+              <n-tag
+                v-if="subscriptionStore.proAccessReason === 'trial' && subscriptionStore.trialDaysRemaining !== null"
+                :type="subscriptionStore.trialDaysRemaining <= 2 ? 'warning' : 'info'"
+                size="small"
+                round
+                class="trial-badge"
+              >
+                {{ t('subscription.trialDaysLeft', { days: subscriptionStore.trialDaysRemaining }) }}
+              </n-tag>
               <n-button
-                v-else
+                v-if="!subscriptionStore.hasProAccess"
                 text
                 type="primary"
                 size="small"
@@ -464,6 +473,13 @@ const buildDate = __BUILD_DATE__
 
 .pro-toggle {
   margin-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trial-badge {
+  font-size: 11px;
 }
 
 .mobile-menu-btn {

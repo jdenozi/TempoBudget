@@ -43,15 +43,26 @@ async def get_pro_access_status(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Check if user has Pro access (via subscription or admin override)."""
-    # Check admin override
+    """Check if user has Pro access (via subscription, trial, or admin override)."""
+    # Check admin override and trial
     result = await db.execute(
-        text("SELECT pro_override FROM users WHERE id = :id"),
+        text("SELECT pro_override, trial_ends_at FROM users WHERE id = :id"),
         {"id": user_id},
     )
     row = result.fetchone()
-    if row and row.pro_override:
-        return ProAccessStatus(has_pro_access=True, reason="admin_override")
+    if row:
+        if row.pro_override:
+            return ProAccessStatus(has_pro_access=True, reason="admin_override")
+
+        # Check if user is in active trial period
+        if row.trial_ends_at:
+            trial_end = datetime.fromisoformat(row.trial_ends_at)
+            if trial_end > datetime.now(timezone.utc):
+                return ProAccessStatus(
+                    has_pro_access=True,
+                    reason="trial",
+                    trial_ends_at=row.trial_ends_at,
+                )
 
     # Check active subscription
     result = await db.execute(
