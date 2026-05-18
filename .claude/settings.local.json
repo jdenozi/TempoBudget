@@ -1,0 +1,85 @@
+{
+  "env": {
+    "TEMPOBUDGET_ROOT": "/home/debian/TempoBudget"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/debian/TempoBudget/.claude/hooks/check-n8n.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/debian/TempoBudget/.claude/hooks/auto-deploy.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker start:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker stats:*)",
+      "Bash(docker network:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker cp:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker images:*)",
+      "Bash(docker pull:*)",
+      "Bash(curl:*)",
+      "Bash(jq:*)",
+      "Bash(git:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(free:*)",
+      "Bash(df:*)",
+      "Bash(uptime:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(tar:*)",
+      "Bash(gzip:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python3:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pip:*)",
+      "Bash(uvx:*)",
+      "Bash(gh:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "Bash(for:*)",
+      "Bash(do [ -s \"$f\" ])",
+      "Bash(done)",
+      "Bash(python -m pytest:*)",
+      "Bash(pip3 install:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:www.economie.gouv.fr)",
+      "WebFetch(domain:budget.tempo-finance.com)",
+      "Bash(python:*)",
+      "Bash(xargs:*)",
+      "Bash(./deploy.sh:*)"
+    ]
+  }
+}
