@@ -22,14 +22,17 @@ const app = createApp(App)
 const pinia = createPinia()
 
 app.use(pinia)
-app.use(router)
 app.use(i18n)
 
-// Initialize stores from localStorage
+// Initialize stores from localStorage BEFORE router
+// This ensures auth state is restored before navigation guards run
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 authStore.init()
 settingsStore.init()
+
+// Router must be added AFTER auth init to avoid race condition
+app.use(router)
 
 // Setup API interceptors (for auto-logout on 401)
 setupApiInterceptors(authStore, router)
