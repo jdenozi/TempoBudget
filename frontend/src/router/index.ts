@@ -273,8 +273,8 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Redirect to landing page for unauthenticated users
-    next('/welcome')
+    // Redirect to login for unauthenticated users
+    next('/login')
     return
   }
 
