@@ -459,10 +459,7 @@ const formRules = computed<FormRules>(() => ({
     trigger: 'change',
   },
   client_id: {
-    required: true,
-    message: isExpense.value
-      ? t('pro.transactions.supplierRequired')
-      : t('pro.transactions.clientRequired'),
+    required: false,
     trigger: 'change',
   },
 }))
