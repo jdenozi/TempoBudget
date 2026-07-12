@@ -149,6 +149,12 @@
                       <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                       <n-text depth="3">{{ tx.date }}</n-text>
                       <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
+                      <n-popconfirm @positive-click="handleDeleteTx(tx)">
+                        <template #trigger>
+                          <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                        </template>
+                        {{ t('transaction.deleteTransactionConfirm') }}
+                      </n-popconfirm>
                     </n-flex>
                   </n-flex>
                 </div>
@@ -219,9 +225,16 @@
                   <n-avatar v-else :size="20" round>{{ tx.payer_name.charAt(0).toUpperCase() }}</n-avatar>
                   <n-text depth="3">{{ tx.payer_name }}</n-text>
                 </n-flex>
+                <n-tag v-else-if="projectStore.members.length > 1" size="small" type="info">{{ t('project.commonExpense') }}</n-tag>
                 <n-tag size="small" :type="tx.source === 'pro' ? 'info' : 'default'">{{ tx.source }}</n-tag>
                 <n-text depth="3">{{ tx.date }}</n-text>
                 <n-button size="tiny" @click="openTxEditModal(tx)">{{ t('common.edit') }}</n-button>
+                <n-popconfirm @positive-click="handleDeleteTx(tx)">
+                  <template #trigger>
+                    <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                  </template>
+                  {{ t('transaction.deleteTransactionConfirm') }}
+                </n-popconfirm>
               </n-flex>
             </n-flex>
           </div>
@@ -324,6 +337,9 @@
         <n-form-item :label="t('transaction.date')">
           <n-date-picker v-model:value="txForm.date" type="date" style="width: 100%" />
         </n-form-item>
+        <n-form-item v-if="editingTx?.source === 'personal' && payerOptions.length > 0" :label="t('project.paidBy')">
+          <n-select v-model:value="txForm.paid_by_user_id" :options="payerOptions" clearable />
+        </n-form-item>
         <n-form-item :label="t('transaction.comment')">
           <n-input v-model:value="txForm.comment" type="textarea" />
         </n-form-item>
@@ -413,6 +429,7 @@ const txForm = ref({
   transaction_type: 'expense' as 'expense' | 'income',
   date: null as number | null,
   comment: '',
+  paid_by_user_id: null as string | null,
 })
 
 const toggleCategory = (id: string) => {
@@ -456,6 +473,14 @@ const categoryOptions = computed(() =>
   (project.value?.categories || []).map(c => ({ label: `${c.name} (${c.planned_amount.toFixed(2)} €)`, value: c.id }))
 )
 
+const payerOptions = computed(() => {
+  const members = projectStore.members.map(m => ({ label: m.user_name, value: m.user_id }))
+  if (members.length > 1) {
+    return [{ label: t('project.commonExpense'), value: '__common__' }, ...members]
+  }
+  return members
+})
+
 const categoriesPlannedTotal = computed(() =>
   (project.value?.categories || []).reduce((sum, c) => sum + c.planned_amount, 0)
 )
@@ -473,16 +498,18 @@ interface PayerSummary {
 
 const paidByBreakdown = computed<PayerSummary[]>(() => {
   const map = new Map<string, PayerSummary>()
+  const hasMultipleMembers = projectStore.members.length > 1
   for (const tx of projectStore.projectTransactions) {
     if (tx.transaction_type !== 'expense') continue
-    const key = tx.payer_user_id || '__unknown__'
+    const key = tx.payer_user_id || '__common__'
     const existing = map.get(key)
     if (existing) {
       existing.total += tx.amount
     } else {
+      const isCommon = !tx.payer_user_id && hasMultipleMembers
       map.set(key, {
         user_id: tx.payer_user_id,
-        name: tx.payer_name,
+        name: isCommon ? t('project.commonExpense') : tx.payer_name,
         avatar: tx.payer_avatar,
         total: tx.amount,
       })
@@ -636,12 +663,18 @@ const handleDeleteExpense = async (expenseId: string) => {
 
 const openTxEditModal = (tx: ProjectTransaction) => {
   editingTx.value = tx
+  const hasMultipleMembers = projectStore.members.length > 1
+  let payerId: string | null = tx.payer_user_id || null
+  if (hasMultipleMembers && !tx.payer_user_id) {
+    payerId = '__common__'
+  }
   txForm.value = {
     title: tx.title,
     amount: tx.amount,
     transaction_type: (tx.transaction_type === 'income' ? 'income' : 'expense'),
     date: new Date(tx.date).getTime(),
     comment: tx.comment || '',
+    paid_by_user_id: payerId,
   }
   showTxEditModal.value = true
 }
@@ -650,7 +683,14 @@ const handleSaveTx = async () => {
   if (!editingTx.value || !txForm.value.date || !txForm.value.title) return
   saving.value = true
   try {
-    const data = {
+    const data: {
+      title: string
+      amount: number
+      transaction_type: string
+      date: string
+      comment?: string
+      paid_by_user_id?: string | null
+    } = {
       title: txForm.value.title,
       amount: txForm.value.amount,
       transaction_type: txForm.value.transaction_type,
@@ -660,11 +700,33 @@ const handleSaveTx = async () => {
     if (editingTx.value.source === 'pro') {
       await proTransactionsAPI.update(editingTx.value.id, data)
     } else {
+      if (txForm.value.paid_by_user_id && txForm.value.paid_by_user_id !== '__common__') {
+        data.paid_by_user_id = txForm.value.paid_by_user_id
+      } else if (txForm.value.paid_by_user_id === '__common__') {
+        data.paid_by_user_id = null
+      }
       await transactionsAPI.update(editingTx.value.id, data)
     }
     message.success(t('transaction.transactionUpdated'))
     showTxEditModal.value = false
     editingTx.value = null
+    await loadData()
+  } catch {
+    message.error(t('errors.generic'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const handleDeleteTx = async (tx: ProjectTransaction) => {
+  saving.value = true
+  try {
+    if (tx.source === 'pro') {
+      await proTransactionsAPI.delete(tx.id)
+    } else {
+      await transactionsAPI.delete(tx.id)
+    }
+    message.success(t('transaction.transactionDeleted'))
     await loadData()
   } catch {
     message.error(t('errors.generic'))

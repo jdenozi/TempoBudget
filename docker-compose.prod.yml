@@ -37,8 +37,8 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-dev}
         BUILD_DATE: ${BUILD_DATE:-}
-    ports:
-      - "${PORT:-3000}:80"
+    expose:
+      - "80"
     depends_on:
       backend:
         condition: service_healthy
@@ -46,6 +46,12 @@ services:
     networks:
       - tempo-network
       - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tempobudget.rule=Host(`budget.tempo-finance.com`)"
+      - "traefik.http.routers.tempobudget.entrypoints=websecure"
+      - "traefik.http.routers.tempobudget.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tempobudget.loadbalancer.server.port=80"
 
 networks:
   tempo-network:
