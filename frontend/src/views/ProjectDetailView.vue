@@ -337,6 +337,9 @@
         <n-form-item :label="t('transaction.date')">
           <n-date-picker v-model:value="txForm.date" type="date" style="width: 100%" />
         </n-form-item>
+        <n-form-item :label="t('project.projectCategory')">
+          <n-select v-model:value="txForm.project_category_id" :options="categoryOptions" clearable />
+        </n-form-item>
         <n-form-item v-if="editingTx?.source === 'personal' && payerOptions.length > 0" :label="t('project.paidBy')">
           <n-select v-model:value="txForm.paid_by_user_id" :options="payerOptions" clearable />
         </n-form-item>
@@ -430,6 +433,7 @@ const txForm = ref({
   date: null as number | null,
   comment: '',
   paid_by_user_id: null as string | null,
+  project_category_id: null as string | null,
 })
 
 const toggleCategory = (id: string) => {
@@ -675,6 +679,7 @@ const openTxEditModal = (tx: ProjectTransaction) => {
     date: new Date(tx.date).getTime(),
     comment: tx.comment || '',
     paid_by_user_id: payerId,
+    project_category_id: tx.project_category_id || null,
   }
   showTxEditModal.value = true
 }
@@ -690,12 +695,14 @@ const handleSaveTx = async () => {
       date: string
       comment?: string
       paid_by_user_id?: string | null
+      project_category_id?: string | null
     } = {
       title: txForm.value.title,
       amount: txForm.value.amount,
       transaction_type: txForm.value.transaction_type,
       date: formatDate(txForm.value.date),
       comment: txForm.value.comment || undefined,
+      project_category_id: txForm.value.project_category_id,
     }
     if (editingTx.value.source === 'pro') {
       await proTransactionsAPI.update(editingTx.value.id, data)
