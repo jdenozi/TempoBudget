@@ -208,15 +208,15 @@ const formatCurrency = (value: number) => {
 const getProgressColor = (pct: number) => {
   if (pct <= 70) return '#22c55e'      // vert
   if (pct <= 90) return '#f59e0b'      // orange
-  if (pct <= 100) return '#ef4444'     // rouge
-  return '#dc2626'                      // rouge foncé
+  if (pct <= 100) return '#3b82f6'     // bleu (objectif atteint)
+  return '#ef4444'                      // rouge (dépassement)
 }
 
 const getProgressGradient = (pct: number) => {
   if (pct <= 70) return 'linear-gradient(90deg, #22c55e, #4ade80)'
   if (pct <= 90) return 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-  if (pct <= 100) return 'linear-gradient(90deg, #ef4444, #f87171)'
-  return 'linear-gradient(90deg, #dc2626, #ef4444)'
+  if (pct <= 100) return 'linear-gradient(90deg, #3b82f6, #60a5fa)'  // bleu
+  return 'linear-gradient(90deg, #ef4444, #f87171)'                   // rouge
 }
 
 const chartOptions = computed(() => ({
