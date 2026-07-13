@@ -37,21 +37,18 @@
     </n-flex>
 
     <template v-else>
-      <!-- Summary -->
-      <BudgetSummaryCard
+      <!-- Summary Dashboard -->
+      <BudgetDashboardHeader
         :total-income="totalIncome"
         :total-income-received="totalIncomeReceived"
         :total-budget="totalBudget"
         :total-spent="totalSpent"
-        :total-spent-all="totalSpentAll"
         :remaining="remaining"
         :remaining-from-income="remainingFromIncome"
         :percentage="percentage"
-        :balance="balance"
-        :total-projected="totalProjected"
-        :projected-remaining="projectedRemaining"
-        :projected-remaining-from-income="projectedRemainingFromIncome"
         :projected-percentage="projectedPercentage"
+        :balance="balance"
+        :categories-data="categoriesDataForChart"
         :is-mobile="isMobile"
       />
 
@@ -176,7 +173,7 @@ import { useAuthStore } from '@/stores/auth'
 import { budgetMembersAPI, budgetsAPI, recurringAPI, type BudgetMemberWithUser, type MemberBalance } from '@/services/api'
 
 // Components
-import { BudgetSummaryCard, BalancesCard, TagStatisticsCard, CategoryCard, MembersCard, MemberBudgetSummaryCard } from '@/components/budget'
+import { BudgetDashboardHeader, BalancesCard, TagStatisticsCard, CategoryCard, MembersCard, MemberBudgetSummaryCard } from '@/components/budget'
 import { AddCategoryModal, EditCategoryModal, InviteMemberModal } from '@/components/modals'
 
 const router = useRouter()
@@ -389,6 +386,15 @@ const projectedPercentage = computed(() => totalBudget.value > 0 ? (totalProject
 
 // Balance (expected income - expected expenses)
 const balance = computed(() => totalIncome.value - totalBudget.value)
+
+// Categories data for donut chart (expense categories only)
+const categoriesDataForChart = computed(() => {
+  return expenseCategories.value.map(c => ({
+    name: c.name,
+    amount: c.amount,
+    spent: c.spent
+  }))
+})
 
 // Tag statistics
 const VALID_TAGS = ['crédit', 'besoin', 'loisir', 'épargne']

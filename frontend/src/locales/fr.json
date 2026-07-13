@@ -118,7 +118,10 @@
     "spentBudgeted": "Dépensé (budgétisé)",
     "spentTotal": "Dépensé (total)",
     "monthlyRecap": "Bilan du mois",
-    "topExpenseCategories": "Top catégories de dépenses"
+    "topExpenseCategories": "Top catégories de dépenses",
+    "used": "utilisé",
+    "budgetProgress": "Progression du budget",
+    "noData": "Aucune donnée"
   },
   "category": {
     "title": "Catégorie",
