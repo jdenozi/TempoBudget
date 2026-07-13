@@ -34,3 +34,4 @@ class UpdateCategory(BaseModel):
     name: str | None = Field(None, description="New name for the category")
     amount: float | None = Field(None, ge=0, description="New allocated amount")
     tags: list[str] | None = Field(None, description="New tags for the category")
+    parent_id: str | None = Field(None, description="New parent category ID (to move subcategory)")

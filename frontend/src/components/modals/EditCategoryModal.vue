@@ -12,19 +12,24 @@
           <n-input v-model:value="formData.name" :placeholder="t('category.categoryName')" />
         </n-form-item>
 
+        <!-- Parent category selector for subcategories -->
+        <n-form-item v-if="formData.isSubcategory && parentCategoryOptions.length > 0" :label="t('category.parentCategory')">
+          <n-select
+            v-model:value="formData.parentId"
+            :options="parentCategoryOptions"
+            :placeholder="t('category.selectParent')"
+          />
+        </n-form-item>
+
         <n-form-item :label="t('budget.amount')">
           <n-input-number
             v-model:value="formData.amount"
             :min="0"
-            :max="formData.isSubcategory ? maxAmount : undefined"
             :precision="2"
             style="width: 100%;"
           >
             <template #suffix>€</template>
           </n-input-number>
-          <template v-if="formData.isSubcategory && maxAmount !== undefined" #feedback>
-            {{ t('budget.remaining') }}: {{ maxAmount.toFixed(2) }} €
-          </template>
         </n-form-item>
 
         <n-form-item label="Tags">
@@ -56,7 +61,7 @@
 import { ref, watch } from 'vue'
 import {
   NModal, NCard, NForm, NFormItem, NInput, NInputNumber,
-  NCheckboxGroup, NCheckbox, NSpace, NButton
+  NCheckboxGroup, NCheckbox, NSpace, NButton, NSelect
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 
@@ -68,6 +73,12 @@ interface CategoryData {
   amount: number
   tags: string[]
   isSubcategory: boolean
+  parentId?: string | null
+}
+
+interface ParentOption {
+  label: string
+  value: string
 }
 
 interface Props {
@@ -75,10 +86,12 @@ interface Props {
   isMobile: boolean
   loading: boolean
   category: CategoryData | null
-  maxAmount?: number
+  parentCategoryOptions?: ParentOption[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  parentCategoryOptions: () => []
+})
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
@@ -91,6 +104,7 @@ const formData = ref<CategoryData>({
   amount: 0,
   tags: [],
   isSubcategory: false,
+  parentId: null,
 })
 
 watch(() => props.category, (newVal) => {

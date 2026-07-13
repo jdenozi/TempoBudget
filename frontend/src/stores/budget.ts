@@ -121,7 +121,7 @@ export const useBudgetStore = defineStore('budget', () => {
    * @param data - Fields to update
    * @returns The updated category
    */
-  async function updateCategory(id: string, data: { name?: string; amount?: number; tags?: string[] }) {
+  async function updateCategory(id: string, data: { name?: string; amount?: number; tags?: string[]; parent_id?: string | null }) {
     const category = categories.value.find(c => c.id === id)
     const budgetId = category?.budget_id
     await categoriesAPI.update(id, data)

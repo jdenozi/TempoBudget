@@ -141,7 +141,6 @@
       :parent-category-options="parentCategoryOptions"
       :loading="addingCategory"
       :initial-parent-id="initialParentId"
-      :max-amount="addCategoryMaxAmount"
       ref="addCategoryModalRef"
       @submit="handleAddCategory"
     />
@@ -151,7 +150,7 @@
       :is-mobile="isMobile"
       :loading="editingCategory"
       :category="editCategoryData"
-      :max-amount="editCategoryMaxAmount"
+      :parent-category-options="parentCategoryOptionsForEdit"
       @submit="handleEditCategory"
     />
 
@@ -211,16 +210,6 @@ const editCategoryData = ref<{
   isSubcategory: boolean
   parentId?: string | null
 } | null>(null)
-
-// Computed for max amount in modals
-const addCategoryMaxAmount = computed(() => {
-  return getAvailableBudget(initialParentId.value)
-})
-
-const editCategoryMaxAmount = computed(() => {
-  if (!editCategoryData.value?.parentId) return undefined
-  return getAvailableBudget(editCategoryData.value.parentId, editCategoryData.value.id)
-})
 
 // Computed
 const isOwner = computed(() => {
@@ -349,6 +338,11 @@ const incomeCategories = computed(() => parentCategories.value.filter(c => isInc
 const expenseCategories = computed(() => parentCategories.value.filter(c => !isIncomeCategory(c)))
 
 const parentCategoryOptions = computed(() => {
+  return parentCategories.value.map(c => ({ label: c.name, value: c.id }))
+})
+
+// Options for editing subcategory - all parent categories
+const parentCategoryOptionsForEdit = computed(() => {
   return parentCategories.value.map(c => ({ label: c.name, value: c.id }))
 })
 
@@ -543,17 +537,21 @@ const handleAddCategory = async (data: { name: string; amount: number; parentId:
   }
 }
 
-const handleEditCategory = async (data: { id: string; name: string; amount: number; tags: string[]; isSubcategory: boolean }) => {
+const handleEditCategory = async (data: { id: string; name: string; amount: number; tags: string[]; isSubcategory: boolean; parentId?: string | null }) => {
   if (!data.name) {
     message.error('Please enter a name')
     return
   }
   editingCategory.value = true
   try {
-    const updateData: { name?: string; amount?: number; tags?: string[] } = {
+    const updateData: { name?: string; amount?: number; tags?: string[]; parent_id?: string | null } = {
       name: data.name,
       amount: data.amount,
       tags: data.tags || []
+    }
+    // Include parent_id if this is a subcategory
+    if (data.isSubcategory && data.parentId) {
+      updateData.parent_id = data.parentId
     }
     await budgetStore.updateCategory(data.id, updateData)
     message.success('Category updated!')

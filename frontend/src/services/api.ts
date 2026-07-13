@@ -381,10 +381,10 @@ export const categoriesAPI = {
   /**
    * Updates an existing category.
    * @param id - Category unique identifier
-   * @param data - Fields to update (name and/or amount)
+   * @param data - Fields to update (name, amount, tags, or parent_id)
    * @returns The updated category
    */
-  update: async (id: string, data: { name?: string; amount?: number; tags?: string[] }) => {
+  update: async (id: string, data: { name?: string; amount?: number; tags?: string[]; parent_id?: string | null }) => {
     const response = await api.put<Category>(`/categories/${id}`, data)
     return response.data
   },
@@ -725,16 +725,37 @@ export const projectsAPI = {
     const response = await api.get<ProjectCategoryWithSpent[]>(`/projects/${projectId}/categories`)
     return response.data
   },
-  createCategory: async (projectId: string, data: { name: string; planned_amount: number }) => {
+  createCategory: async (projectId: string, data: { name: string; planned_amount: number; notes?: string }) => {
     const response = await api.post<ProjectCategory>(`/projects/${projectId}/categories`, data)
     return response.data
   },
-  updateCategory: async (projectId: string, categoryId: string, data: { name?: string; planned_amount?: number }) => {
+  updateCategory: async (projectId: string, categoryId: string, data: { name?: string; planned_amount?: number; notes?: string }) => {
     const response = await api.put<ProjectCategory>(`/projects/${projectId}/categories/${categoryId}`, data)
     return response.data
   },
   deleteCategory: async (projectId: string, categoryId: string) => {
     await api.delete(`/projects/${projectId}/categories/${categoryId}`)
+  },
+  // Category tasks
+  getCategoryTasks: async (projectId: string, categoryId: string) => {
+    const response = await api.get<ProjectCategoryTask[]>(`/projects/${projectId}/categories/${categoryId}/tasks`)
+    return response.data
+  },
+  createCategoryTask: async (projectId: string, categoryId: string, data: { title: string; due_date?: string | null }) => {
+    const response = await api.post<ProjectCategoryTask>(`/projects/${projectId}/categories/${categoryId}/tasks`, data)
+    return response.data
+  },
+  updateCategoryTask: async (projectId: string, categoryId: string, taskId: string, data: { title?: string; is_completed?: boolean; due_date?: string | null }) => {
+    const response = await api.put<ProjectCategoryTask>(`/projects/${projectId}/categories/${categoryId}/tasks/${taskId}`, data)
+    return response.data
+  },
+  deleteCategoryTask: async (projectId: string, categoryId: string, taskId: string) => {
+    await api.delete(`/projects/${projectId}/categories/${categoryId}/tasks/${taskId}`)
+  },
+  // All tasks for a project
+  getProjectTasks: async (projectId: string) => {
+    const response = await api.get<ProjectCategoryTask[]>(`/projects/${projectId}/tasks`)
+    return response.data
   },
   getPlannedExpenses: async (projectId: string) => {
     const response = await api.get<ProjectPlannedExpense[]>(`/projects/${projectId}/planned-expenses`)
@@ -926,12 +947,25 @@ export interface ProjectCategory {
   project_id: string
   name: string
   planned_amount: number
+  notes: string | null
   created_at: string
 }
 
 export interface ProjectCategoryWithSpent extends ProjectCategory {
   total_spent: number
   remaining: number
+  tasks_total: number
+  tasks_completed: number
+}
+
+export interface ProjectCategoryTask {
+  id: string
+  project_category_id: string
+  title: string
+  is_completed: boolean
+  due_date: string | null
+  created_at: string
+  category_name: string | null
 }
 
 export interface Project {

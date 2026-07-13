@@ -127,7 +127,7 @@ async def update_category(
     current_row = current.fetchone()
     if not current_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-    parent_id = current_row.parent_id
+    old_parent_id = current_row.parent_id
 
     updates = []
     params = {"id": category_id}
@@ -144,15 +144,37 @@ async def update_category(
         updates.append("tags = :tags")
         params["tags"] = json.dumps(payload.tags)
 
+    # Handle parent_id change (moving subcategory to another parent)
+    new_parent_id = old_parent_id
+    if payload.parent_id is not None and payload.parent_id != old_parent_id:
+        # Validate new parent exists and is not a subcategory itself
+        if payload.parent_id:
+            parent_check = await db.execute(
+                text("SELECT parent_id FROM categories WHERE id = :id"),
+                {"id": payload.parent_id}
+            )
+            parent_row = parent_check.fetchone()
+            if not parent_row:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Parent category not found")
+            if parent_row.parent_id is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot set a subcategory as parent")
+        updates.append("parent_id = :parent_id")
+        params["parent_id"] = payload.parent_id
+        new_parent_id = payload.parent_id
+
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
 
     query = f"UPDATE categories SET {', '.join(updates)} WHERE id = :id"
     await db.execute(text(query), params)
 
-    # Update parent amount if this is a subcategory and amount changed
-    if parent_id and payload.amount is not None:
-        await update_parent_amount(db, parent_id)
+    # Update old parent amount if subcategory was moved
+    if old_parent_id and new_parent_id != old_parent_id:
+        await update_parent_amount(db, old_parent_id)
+
+    # Update new parent amount if subcategory was moved or amount changed
+    if new_parent_id and (payload.amount is not None or new_parent_id != old_parent_id):
+        await update_parent_amount(db, new_parent_id)
 
     await db.commit()
 
