@@ -444,9 +444,9 @@ const handleUpdateShare = async (memberId: string, share: number) => {
     const index = members.value.findIndex(m => m.id === memberId)
     if (index !== -1) members.value[index] = updated
     await loadBalances()
-    message.success('Share updated')
+    message.success(t('member.shareUpdated'))
   } catch (error: any) {
-    message.error(error.response?.status === 403 ? 'Only owners can update shares' : 'Error updating share')
+    message.error(error.response?.status === 403 ? t('member.ownerOnlyShare') : t('member.shareUpdateError'))
   } finally {
     updatingShare.value = null
   }
@@ -454,21 +454,21 @@ const handleUpdateShare = async (memberId: string, share: number) => {
 
 const handleInviteMember = async (data: { email: string; role: 'member' | 'owner' }) => {
   if (!data.email || !budgetStore.currentBudget) {
-    message.error('Email is required')
+    message.error(t('auth.emailRequired'))
     return
   }
   inviting.value = true
   try {
     await budgetMembersAPI.inviteMember(budgetStore.currentBudget.id, data.email, data.role)
-    message.success('Invitation sent!')
+    message.success(t('member.inviteSent'))
     showInviteModal.value = false
     inviteModalRef.value?.resetForm()
   } catch (error: any) {
     const status = error.response?.status
-    if (status === 404) message.error('User not found')
-    else if (status === 409) message.error('This user is already a member')
-    else if (status === 403) message.error('You must be an owner to invite')
-    else message.error('Error sending invitation')
+    if (status === 404) message.error(t('member.userNotFound'))
+    else if (status === 409) message.error(t('member.alreadyMember'))
+    else if (status === 403) message.error(t('member.ownerOnlyInvite'))
+    else message.error(t('member.inviteError'))
   } finally {
     inviting.value = false
   }
@@ -478,10 +478,10 @@ const handleRemoveMember = async (memberId: string) => {
   if (!budgetStore.currentBudget) return
   try {
     await budgetMembersAPI.removeMember(budgetStore.currentBudget.id, memberId)
-    message.success('Member removed')
+    message.success(t('member.memberRemoved'))
     await loadMembers()
   } catch (error) {
-    message.error('Error removing member')
+    message.error(t('member.memberRemoveError'))
   }
 }
 
@@ -489,10 +489,10 @@ const handleDeleteBudget = async () => {
   if (!budgetStore.currentBudget) return
   try {
     await budgetsAPI.delete(budgetStore.currentBudget.id)
-    message.success('Budget deleted')
+    message.success(t('budget.budgetDeleted'))
     router.push('/dashboard')
   } catch (error: any) {
-    message.error(error.response?.status === 403 ? 'You must be an owner to delete' : 'Error deleting budget')
+    message.error(error.response?.status === 403 ? t('member.ownerOnlyDelete') : t('budget.budgetDeleteError'))
   }
 }
 
@@ -515,23 +515,23 @@ const openEditModal = (category: any) => {
 
 const handleAddCategory = async (data: { name: string; amount: number; parentId: string | null; tags: string[]; isSubcategory: boolean }) => {
   if (!data.name) {
-    message.error('Please enter a name')
+    message.error(t('category.nameRequired'))
     return
   }
   if (data.isSubcategory && !data.parentId) {
-    message.error('Please select a parent category')
+    message.error(t('category.selectParentRequired'))
     return
   }
   addingCategory.value = true
   try {
     const budgetId = route.params.id as string
     await budgetStore.createCategory(budgetId, data.name, data.amount, data.parentId || undefined, data.tags)
-    message.success(data.isSubcategory ? 'Subcategory added!' : 'Category added!')
+    message.success(data.isSubcategory ? t('category.subcategoryAdded') : t('category.categoryAdded'))
     showAddCategory.value = false
     initialParentId.value = null
     addCategoryModalRef.value?.resetForm()
   } catch (error) {
-    message.error('Error adding category')
+    message.error(t('category.categoryAddError'))
   } finally {
     addingCategory.value = false
   }
@@ -539,7 +539,7 @@ const handleAddCategory = async (data: { name: string; amount: number; parentId:
 
 const handleEditCategory = async (data: { id: string; name: string; amount: number; tags: string[]; isSubcategory: boolean; parentId?: string | null }) => {
   if (!data.name) {
-    message.error('Please enter a name')
+    message.error(t('category.nameRequired'))
     return
   }
   editingCategory.value = true
@@ -554,10 +554,10 @@ const handleEditCategory = async (data: { id: string; name: string; amount: numb
       updateData.parent_id = data.parentId
     }
     await budgetStore.updateCategory(data.id, updateData)
-    message.success('Category updated!')
+    message.success(t('category.categoryUpdated'))
     showEditCategory.value = false
   } catch (error) {
-    message.error('Error updating category')
+    message.error(t('category.categoryUpdateError'))
   } finally {
     editingCategory.value = false
   }
@@ -566,12 +566,12 @@ const handleEditCategory = async (data: { id: string; name: string; amount: numb
 const handleDeleteCategory = async (categoryId: string) => {
   try {
     await budgetStore.deleteCategory(categoryId)
-    message.success('Category deleted!')
+    message.success(t('category.categoryDeleted'))
   } catch (error: any) {
     if (error.response?.data?.detail?.includes('subcategories')) {
-      message.error('Delete subcategories first')
+      message.error(t('category.deleteSubcategoriesFirst'))
     } else {
-      message.error('Error deleting category')
+      message.error(t('category.categoryDeleteError'))
     }
   }
 }
@@ -593,7 +593,7 @@ onMounted(async () => {
     await loadMembers()
     await loadBalances()
   } catch (error) {
-    message.error('Error loading data')
+    message.error(t('errors.loadingError'))
   }
 })
 
