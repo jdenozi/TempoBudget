@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.20.3-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.21.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -96,11 +96,11 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.20.0)
+## Recent Changes (v2.21.0)
 
-* **Receipt OCR import**: upload receipt photos to auto-fill transaction data using Tesseract
+* **EasyOCR integration**: switched from Tesseract to EasyOCR for significantly better receipt recognition accuracy
+* **Receipt OCR import**: upload receipt photos to auto-fill transaction data
 * **Pending transactions**: mark imported transactions for later review/validation
-* **Removed SSO**: simplified authentication (direct login only)
 
 ## License
 
