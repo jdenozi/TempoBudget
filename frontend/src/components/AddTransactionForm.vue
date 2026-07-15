@@ -13,6 +13,19 @@
 -->
 
 <template>
+  <div>
+    <!-- Import Receipt Button -->
+    <n-button
+      type="info"
+      block
+      style="margin-bottom: 16px;"
+      @click="showReceiptModal = true"
+    >
+      {{ t('receipt.import') }}
+    </n-button>
+
+    <n-divider style="margin: 8px 0 16px;" />
+
   <n-form ref="formRef" :model="transaction" :rules="rules">
     <!-- Transaction Type -->
     <n-form-item :label="t('transaction.type')" path="type">
@@ -160,6 +173,16 @@
       {{ t('common.save') }}
     </n-button>
   </n-form>
+
+    <!-- Receipt Upload Modal -->
+    <ReceiptUploadModal
+      v-model:show="showReceiptModal"
+      :is-mobile="true"
+      :budget-id="transaction.budgetId || ''"
+      :category-options="allCategoryOptions"
+      @success="handleReceiptSuccess"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -179,8 +202,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import {
   NForm, NFormItem, NInput, NInputNumber, NSelect, NRadioGroup,
   NRadioButton, NButton, NDatePicker, NCheckbox, NCollapseTransition,
-  NSpace, NSwitch, useMessage
+  NSpace, NSwitch, NDivider, useMessage
 } from 'naive-ui'
+import ReceiptUploadModal from '@/components/modals/ReceiptUploadModal.vue'
 import type { FormInst, FormRules } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
@@ -195,6 +219,7 @@ const formRef = ref<FormInst | null>(null)
 const budgetStore = useBudgetStore()
 const authStore = useAuthStore()
 const loading = ref(false)
+const showReceiptModal = ref(false)
 
 /** Members for group budget */
 const members = ref<BudgetMemberWithUser[]>([])
@@ -269,6 +294,16 @@ const frequencyOptions = computed(() => [
   { label: t('recurring.weekly'), value: 'weekly' },
   { label: t('recurring.yearly'), value: 'yearly' }
 ])
+
+/** All categories for receipt modal */
+const allCategoryOptions = computed(() =>
+  budgetStore.categories.map(c => ({ label: c.name, value: c.id }))
+)
+
+/** Handle receipt import success */
+const handleReceiptSuccess = () => {
+  emit('success')
+}
 
 /** Check if selected budget is a group budget */
 const isGroupBudget = computed(() => {
