@@ -51,6 +51,18 @@ class TestExtractAmount:
         text = "CB EMV 45,99"
         assert _extract_amount(text) == 45.99
 
+    def test_a_payer_strict(self):
+        # Should find 23.01 not 223.01
+        text = """
+        ARTICLE 223
+        A PAYER 23,01 EUR
+        """
+        assert _extract_amount(text) == 23.01
+
+    def test_a_payer_with_noise(self):
+        text = "A PAYER : 15,50 €"
+        assert _extract_amount(text) == 15.50
+
     def test_no_amount_found(self):
         text = "No amounts here"
         assert _extract_amount(text) is None

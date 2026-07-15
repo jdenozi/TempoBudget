@@ -78,7 +78,27 @@ def _extract_amount(text: str) -> Optional[float]:
     text_upper = text.upper()
     lines = text_upper.split('\n')
 
-    # Priority patterns for total amount (allow spaces in numbers from OCR errors)
+    # Priority patterns - look for amount RIGHT AFTER keyword (strict, max 3 digits before decimal)
+    strict_patterns = [
+        r'(?:À PAYER|A PAYER)[^0-9]*(\d{1,3}[.,]\d{2})',
+        r'TOTAL[^0-9]*(\d{1,3}[.,]\d{2})',
+        r'CB\s*EMV[^0-9]*(\d{1,3}[.,]\d{2})',
+        r'MONTANT[^0-9]*(\d{1,3}[.,]\d{2})',
+    ]
+
+    for pattern in strict_patterns:
+        for line in lines:
+            match = re.search(pattern, line)
+            if match:
+                amount_str = match.group(1).replace(',', '.')
+                try:
+                    val = float(amount_str)
+                    if 0.01 <= val <= 999.99:
+                        return val
+                except ValueError:
+                    continue
+
+    # Secondary patterns (allow spaces in numbers from OCR errors)
     total_patterns = [
         r'TOTAL\s*(?:TTC|À PAYER|A PAYER)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
         r'(?:À PAYER|A PAYER)\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
