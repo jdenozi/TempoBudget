@@ -4,12 +4,14 @@
 
 import csv
 import io
+import os
+import shutil
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +23,14 @@ from ..models import (
     UpdateRecurringTransaction, RecurringTransactionVersion,
     RecurringTransactionWithCategory
 )
-from ..models.transaction import UpcomingRecurring
+from ..models.transaction import UpcomingRecurring, ReceiptOCRResult, ConfirmReceiptPayload
+from ..services.ocr import extract_from_receipt
+
+DATA_PATH = os.getenv("DATA_PATH", os.path.join(os.path.dirname(__file__), "..", "..", "data"))
+RECEIPTS_DIR = os.path.join(DATA_PATH, "receipts")
+TEMP_RECEIPTS_DIR = os.path.join(DATA_PATH, "receipts_temp")
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+MAX_RECEIPT_SIZE = 10 * 1024 * 1024  # 10 MB
 
 router = APIRouter()
 
@@ -32,7 +41,8 @@ async def get_transactions(budget_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         text("""
             SELECT id, budget_id, category_id, title, amount, transaction_type,
-                   date, comment, is_recurring, is_budgeted, paid_by_user_id, created_at
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id,
+                   project_category_id, import_status, receipt_image_path, created_at
             FROM transactions WHERE budget_id = :budget_id ORDER BY date DESC
         """),
         {"budget_id": budget_id}
@@ -50,6 +60,9 @@ async def get_transactions(budget_id: str, db: AsyncSession = Depends(get_db)):
         is_recurring=row.is_recurring,
         is_budgeted=row.is_budgeted,
         paid_by_user_id=row.paid_by_user_id,
+        project_category_id=row.project_category_id,
+        import_status=row.import_status,
+        receipt_image_path=row.receipt_image_path,
         created_at=row.created_at,
     ) for row in rows]
 
@@ -943,3 +956,226 @@ async def process_recurring_transactions(budget_id: str, db: AsyncSession = Depe
 
     await db.commit()
     return created_transactions
+
+
+# ============================================================================
+# Receipt Import Routes
+# ============================================================================
+
+
+@router.post("/budgets/{budget_id}/transactions/from-receipt", response_model=ReceiptOCRResult)
+async def upload_receipt(
+    budget_id: str,
+    file: Annotated[UploadFile, File()],
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Upload a receipt image and extract transaction data using OCR.
+
+    Returns the extracted data for user review before confirmation.
+    """
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid image type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_RECEIPT_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large (max 10 MB)"
+        )
+
+    # Extract data using OCR
+    try:
+        ocr_result = extract_from_receipt(contents)
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OCR processing failed: {str(e)}"
+        )
+
+    # Save to temp directory
+    os.makedirs(TEMP_RECEIPTS_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
+    temp_filename = f"{uuid4()}{ext}"
+    temp_path = os.path.join(TEMP_RECEIPTS_DIR, temp_filename)
+
+    with open(temp_path, "wb") as f:
+        f.write(contents)
+
+    return ReceiptOCRResult(
+        title=ocr_result["title"],
+        amount=ocr_result["amount"],
+        date=ocr_result["date"],
+        raw_text=ocr_result["raw_text"],
+        confidence=ocr_result["confidence"],
+        temp_image_path=temp_filename,
+    )
+
+
+@router.post("/budgets/{budget_id}/transactions/confirm-receipt", response_model=Transaction)
+async def confirm_receipt(
+    budget_id: str,
+    payload: ConfirmReceiptPayload,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Confirm a receipt and create a transaction from the extracted/edited data.
+
+    Moves the temp image to the permanent receipts directory.
+    """
+    # Verify temp image exists
+    temp_path = os.path.join(TEMP_RECEIPTS_DIR, payload.temp_image_path)
+    if not os.path.isfile(temp_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Temporary receipt image not found. Please upload again."
+        )
+
+    # Move to permanent storage
+    os.makedirs(RECEIPTS_DIR, exist_ok=True)
+    permanent_filename = f"{uuid4()}{os.path.splitext(payload.temp_image_path)[1]}"
+    permanent_path = os.path.join(RECEIPTS_DIR, permanent_filename)
+    shutil.move(temp_path, permanent_path)
+
+    # Create transaction
+    transaction_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    import_status = "pending" if payload.create_as_pending else "confirmed"
+
+    await db.execute(
+        text("""
+            INSERT INTO transactions (id, budget_id, category_id, title, amount,
+                                       transaction_type, date, comment, is_recurring, is_budgeted,
+                                       import_status, receipt_image_path, created_at)
+            VALUES (:id, :budget_id, :category_id, :title, :amount,
+                    :transaction_type, :date, :comment, 0, :is_budgeted,
+                    :import_status, :receipt_image_path, :created_at)
+        """),
+        {
+            "id": transaction_id,
+            "budget_id": budget_id,
+            "category_id": payload.category_id,
+            "title": payload.title,
+            "amount": payload.amount,
+            "transaction_type": payload.transaction_type,
+            "date": payload.date,
+            "comment": payload.comment,
+            "is_budgeted": payload.is_budgeted,
+            "import_status": import_status,
+            "receipt_image_path": permanent_filename,
+            "created_at": now,
+        }
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text("""
+            SELECT id, budget_id, category_id, title, amount, transaction_type,
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id,
+                   project_category_id, import_status, receipt_image_path, created_at
+            FROM transactions WHERE id = :id
+        """),
+        {"id": transaction_id}
+    )
+    row = result.fetchone()
+    return Transaction(
+        id=row.id,
+        budget_id=row.budget_id,
+        category_id=row.category_id,
+        title=row.title,
+        amount=row.amount,
+        transaction_type=row.transaction_type,
+        date=row.date,
+        comment=row.comment,
+        is_recurring=row.is_recurring,
+        is_budgeted=row.is_budgeted,
+        paid_by_user_id=row.paid_by_user_id,
+        project_category_id=row.project_category_id,
+        import_status=row.import_status,
+        receipt_image_path=row.receipt_image_path,
+        created_at=row.created_at,
+    )
+
+
+@router.get("/budgets/{budget_id}/transactions/pending", response_model=list[Transaction])
+async def get_pending_transactions(
+    budget_id: str,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all transactions with pending import status for a budget."""
+    result = await db.execute(
+        text("""
+            SELECT id, budget_id, category_id, title, amount, transaction_type,
+                   date, comment, is_recurring, is_budgeted, paid_by_user_id,
+                   project_category_id, import_status, receipt_image_path, created_at
+            FROM transactions
+            WHERE budget_id = :budget_id AND import_status = 'pending'
+            ORDER BY date DESC
+        """),
+        {"budget_id": budget_id}
+    )
+    rows = result.fetchall()
+    return [Transaction(
+        id=row.id,
+        budget_id=row.budget_id,
+        category_id=row.category_id,
+        title=row.title,
+        amount=row.amount,
+        transaction_type=row.transaction_type,
+        date=row.date,
+        comment=row.comment,
+        is_recurring=row.is_recurring,
+        is_budgeted=row.is_budgeted,
+        paid_by_user_id=row.paid_by_user_id,
+        project_category_id=row.project_category_id,
+        import_status=row.import_status,
+        receipt_image_path=row.receipt_image_path,
+        created_at=row.created_at,
+    ) for row in rows]
+
+
+@router.put("/transactions/{transaction_id}/confirm")
+async def confirm_transaction(
+    transaction_id: str,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm a pending transaction (change import_status from 'pending' to 'confirmed')."""
+    result = await db.execute(
+        text("SELECT id, import_status FROM transactions WHERE id = :id"),
+        {"id": transaction_id}
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+    if row.import_status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transaction is not in pending status"
+        )
+
+    await db.execute(
+        text("UPDATE transactions SET import_status = 'confirmed' WHERE id = :id"),
+        {"id": transaction_id}
+    )
+    await db.commit()
+
+    return {"status": "confirmed"}
+
+
+@router.get("/receipts/{filename}")
+async def get_receipt_image(filename: str, user_id: Annotated[str, Depends(get_current_user)]):
+    """Serve a receipt image file."""
+    filepath = os.path.join(RECEIPTS_DIR, filename)
+    if not os.path.isfile(filepath):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found")
+    return FileResponse(filepath)

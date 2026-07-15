@@ -12,7 +12,7 @@
   <a href="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml">
     <img src="https://github.com/jdenozi/TempoBudget/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <img src="https://img.shields.io/badge/version-2.19.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.20.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -24,6 +24,8 @@
 * **Balance tracking**: See who owes what in shared budgets
 
 ### Transactions
+* **Receipt OCR import**: Upload a receipt photo, extract amount/date/title via Tesseract OCR
+* **Pending review**: Transactions from receipts can be marked "pending" for later validation
 * **Recurring transactions**: Automatic generation of monthly/weekly/yearly expenses
 * **Version history**: Track changes to recurring transactions with effective dates
 * **Date filtering**: Filter transactions and recurring by date range
@@ -94,13 +96,11 @@ docker-compose -f docker-compose.prod.yml up -d
 
 The application is accessible on port 80.
 
-## Recent Changes (v2.19.0)
+## Recent Changes (v2.20.0)
 
-* **7-day free trial**: automatic trial for all new signups, no invitation required
-* **Revamped landing page**: professional focus on e-invoicing compliance (2026 law)
-* **Trial badge**: displays remaining trial days in the header
-* **n8n sync tooling**: script and Claude hook to sync workflow templates
-* **Simplified pricing**: two plans (monthly/annual) with clear value proposition
+* **Receipt OCR import**: upload receipt photos to auto-fill transaction data using Tesseract
+* **Pending transactions**: mark imported transactions for later review/validation
+* **Removed SSO**: simplified authentication (direct login only)
 
 ## License
 

@@ -131,7 +131,19 @@ export interface Transaction {
   is_budgeted: number
   paid_by_user_id?: string
   project_category_id?: string | null
+  import_status?: 'pending' | 'confirmed' | null
+  receipt_image_path?: string | null
   created_at: string
+}
+
+/** Result of OCR processing on a receipt image */
+export interface ReceiptOCRResult {
+  title: string | null
+  amount: number | null
+  date: string | null
+  raw_text: string
+  confidence: number
+  temp_image_path: string
 }
 
 /** Recurring transaction template */
@@ -468,6 +480,70 @@ export const transactionsAPI = {
       responseType: 'blob',
     })
     return response.data
+  },
+
+  /**
+   * Upload a receipt image and extract data using OCR.
+   * @param budgetId - The budget's unique identifier
+   * @param file - The receipt image file
+   * @returns OCR extraction result
+   */
+  uploadReceipt: async (budgetId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.post<ReceiptOCRResult>(`/budgets/${budgetId}/transactions/from-receipt`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  /**
+   * Confirm a receipt and create a transaction.
+   * @param budgetId - The budget's unique identifier
+   * @param data - Transaction data with temp image path
+   * @returns The created transaction
+   */
+  confirmReceipt: async (budgetId: string, data: {
+    category_id: string
+    title: string
+    amount: number
+    transaction_type: 'income' | 'expense'
+    date: string
+    comment?: string
+    is_budgeted?: number
+    temp_image_path: string
+    create_as_pending?: boolean
+  }) => {
+    const response = await api.post<Transaction>(`/budgets/${budgetId}/transactions/confirm-receipt`, data)
+    return response.data
+  },
+
+  /**
+   * Get all pending transactions for a budget.
+   * @param budgetId - The budget's unique identifier
+   * @returns Array of pending transactions
+   */
+  getPending: async (budgetId: string) => {
+    const response = await api.get<Transaction[]>(`/budgets/${budgetId}/transactions/pending`)
+    return response.data
+  },
+
+  /**
+   * Confirm a pending transaction.
+   * @param transactionId - Transaction unique identifier
+   */
+  confirmTransaction: async (transactionId: string) => {
+    const response = await api.put(`/transactions/${transactionId}/confirm`)
+    return response.data
+  },
+
+  /**
+   * Get receipt image URL.
+   * @param filename - Receipt filename
+   * @returns Full URL to the receipt image
+   */
+  getReceiptUrl: (filename: string) => {
+    return `${API_URL}/receipts/${filename}`
   },
 }
 

@@ -69,12 +69,19 @@
       />
     </n-space>
 
-    <!-- Export Button -->
-    <div v-if="selectedBudgetId">
+    <!-- Import Status Filter & Export Button -->
+    <n-space v-if="selectedBudgetId" align="center">
+      <n-radio-group v-model:value="filterImportStatus" size="small">
+        <n-radio-button value="all">{{ t('receipt.filterAll') }}</n-radio-button>
+        <n-radio-button value="pending">
+          {{ t('receipt.filterPending') }}
+          <n-badge v-if="pendingCount > 0" :value="pendingCount" type="warning" style="margin-left: 4px;" />
+        </n-radio-button>
+      </n-radio-group>
       <n-button @click="handleExportCSV" type="info" size="small">
         {{ t('history.exportCSV') }}
       </n-button>
-    </div>
+    </n-space>
 
     <!-- Loading State -->
     <n-flex v-if="budgetStore.loading" justify="center" style="padding: 40px;">
@@ -134,6 +141,9 @@
                 <n-tag v-if="transaction.is_budgeted === 0" type="warning" size="small">
                   {{ t('transaction.exceptional') }}
                 </n-tag>
+                <n-tag v-if="transaction.import_status === 'pending'" type="warning" size="small">
+                  {{ t('receipt.pendingReview') }}
+                </n-tag>
               </n-space>
               <n-tag :type="transaction.transaction_type === 'expense' ? 'error' : 'success'" size="small">
                 {{ transaction.transaction_type === 'expense' ? '-' : '+' }}{{ transaction.amount.toFixed(2) }} €
@@ -155,6 +165,12 @@
 
           <template #footer>
             <n-space>
+              <n-button v-if="transaction.receipt_image_path" size="small" @click="viewReceipt(transaction.receipt_image_path!)">
+                {{ t('receipt.viewReceipt') }}
+              </n-button>
+              <n-button v-if="transaction.import_status === 'pending'" size="small" type="success" @click="handleConfirmTransaction(transaction.id)">
+                {{ t('receipt.validate') }}
+              </n-button>
               <n-button size="small" type="info" @click="openEditModal(transaction)">
                 Edit
               </n-button>
@@ -192,6 +208,11 @@
       v-else-if="!budgetStore.loading"
       description="Select a budget"
     />
+
+    <!-- Receipt Image Modal -->
+    <n-modal v-model:show="showReceiptModal" preset="card" :title="t('receipt.viewReceipt')" :style="{ maxWidth: '90vw' }">
+      <n-image :src="receiptImageUrl" style="max-width: 100%; max-height: 70vh;" />
+    </n-modal>
 
     <!-- Edit Transaction Modal -->
     <n-modal
@@ -301,7 +322,7 @@ import {
   NSpace, NFlex, NCard, NTag, NText, NButton, NDataTable, NPopconfirm,
   NSelect, NGrid, NGi, NStatistic, NSpin, NEmpty, NModal, NForm,
   NFormItem, NInput, NInputNumber, NRadioGroup, NRadioButton, NDatePicker,
-  NSwitch, useMessage
+  NSwitch, NBadge, NImage, useMessage
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import type { DataTableColumns } from 'naive-ui'
@@ -332,6 +353,9 @@ const filterSubcategoryId = ref<string | null>(null)
 
 /** Person filter */
 const filterPaidByUserId = ref<string | null>(null)
+
+/** Import status filter */
+const filterImportStatus = ref<'all' | 'pending'>('all')
 
 /** Budget members for shared budgets */
 const budgetMembers = ref<BudgetMemberWithUser[]>([])
@@ -550,7 +574,17 @@ const filteredTransactions = computed(() => {
     transactions = transactions.filter(t => t.paid_by_user_id === filterPaidByUserId.value)
   }
 
+  // Filter by import status
+  if (filterImportStatus.value === 'pending') {
+    transactions = transactions.filter(t => t.import_status === 'pending')
+  }
+
   return transactions
+})
+
+/** Count of pending transactions */
+const pendingCount = computed(() => {
+  return budgetStore.transactions.filter(t => t.import_status === 'pending').length
 })
 
 /** Filtered transactions without person filter (for per-person summary) */
@@ -631,6 +665,37 @@ const handleDelete = async (id: string) => {
     console.error('Error deleting transaction:', error)
     message.error('Error deleting')
   }
+}
+
+/**
+ * Confirms a pending transaction.
+ * @param id - Transaction ID
+ */
+const handleConfirmTransaction = async (id: string) => {
+  try {
+    await transactionsAPI.confirmTransaction(id)
+    message.success(t('receipt.validated'))
+    // Refresh transactions to update status
+    if (selectedBudgetId.value) {
+      await budgetStore.fetchTransactions(selectedBudgetId.value)
+    }
+  } catch (error) {
+    console.error('Error confirming transaction:', error)
+    message.error(t('errors.generic'))
+  }
+}
+
+/** Receipt image modal state */
+const showReceiptModal = ref(false)
+const receiptImageUrl = ref('')
+
+/**
+ * Shows the receipt image in a modal.
+ * @param filename - Receipt image filename
+ */
+const viewReceipt = (filename: string) => {
+  receiptImageUrl.value = transactionsAPI.getReceiptUrl(filename)
+  showReceiptModal.value = true
 }
 
 /**
@@ -800,27 +865,57 @@ const columns = computed<DataTableColumns<Transaction>>(() => [
     },
   },
   {
+    title: t('common.status'),
+    key: 'import_status',
+    render: (row) => {
+      if (row.import_status === 'pending') {
+        return h(NTag, { type: 'warning', size: 'small' }, { default: () => t('receipt.pendingReview') })
+      }
+      return null
+    },
+  },
+  {
     title: 'Actions',
     key: 'actions',
     render: (row) => {
-      return h(NSpace, {}, {
-        default: () => [
-          h(NButton, {
-            size: 'small',
-            type: 'info',
-            onClick: () => openEditModal(row),
-          }, { default: () => 'Edit' }),
-          h(NPopconfirm, {
-            onPositiveClick: () => handleDelete(row.id),
-          }, {
-            default: () => 'Delete this transaction?',
-            trigger: () => h(NButton, {
-              size: 'small',
-              type: 'error',
-            }, { default: () => 'Delete' }),
-          }),
-        ],
-      })
+      const buttons: any[] = []
+
+      // Receipt button
+      if (row.receipt_image_path) {
+        buttons.push(h(NButton, {
+          size: 'small',
+          onClick: () => viewReceipt(row.receipt_image_path!),
+        }, { default: () => t('receipt.viewReceipt') }))
+      }
+
+      // Validate button for pending transactions
+      if (row.import_status === 'pending') {
+        buttons.push(h(NButton, {
+          size: 'small',
+          type: 'success',
+          onClick: () => handleConfirmTransaction(row.id),
+        }, { default: () => t('receipt.validate') }))
+      }
+
+      // Edit button
+      buttons.push(h(NButton, {
+        size: 'small',
+        type: 'info',
+        onClick: () => openEditModal(row),
+      }, { default: () => 'Edit' }))
+
+      // Delete button
+      buttons.push(h(NPopconfirm, {
+        onPositiveClick: () => handleDelete(row.id),
+      }, {
+        default: () => 'Delete this transaction?',
+        trigger: () => h(NButton, {
+          size: 'small',
+          type: 'error',
+        }, { default: () => 'Delete' }),
+      }))
+
+      return h(NSpace, {}, { default: () => buttons })
     },
   },
 ])

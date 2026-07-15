@@ -1,5 +1,17 @@
 <template>
   <n-drawer-content :title="t('transaction.addTransaction')" closable>
+    <!-- Import Receipt Button -->
+    <n-button
+      type="info"
+      block
+      style="margin-bottom: 16px;"
+      @click="showReceiptModal = true"
+    >
+      {{ t('receipt.import') }}
+    </n-button>
+
+    <n-divider style="margin: 8px 0 16px;" />
+
     <n-form ref="formRef" :model="transaction" :rules="rules">
       <n-form-item :label="t('transaction.type')" path="type">
         <n-radio-group v-model:value="transaction.type">
@@ -90,21 +102,31 @@
         </n-button>
       </n-space>
     </template>
+
+    <!-- Receipt Upload Modal -->
+    <ReceiptUploadModal
+      v-model:show="showReceiptModal"
+      :is-mobile="isMobile"
+      :budget-id="budgetStore.currentBudget?.id || ''"
+      :category-options="categoryOptions"
+      @success="handleReceiptSuccess"
+    />
   </n-drawer-content>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { FormInst, FormRules } from 'naive-ui'
 import {
   NDrawerContent, NForm, NFormItem, NInput, NInputNumber, NSelect,
   NDatePicker, NCheckbox, NRadioGroup, NRadio, NTag, NButton,
-  NSpace, NCollapseTransition, useMessage
+  NSpace, NCollapseTransition, NDivider, useMessage
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useBudgetStore } from '@/stores/budget'
 import { recurringAPI } from '@/services/api'
 import { formatDateLocal } from '@/utils/date'
+import ReceiptUploadModal from '@/components/modals/ReceiptUploadModal.vue'
 
 const { t } = useI18n()
 
@@ -152,6 +174,17 @@ const budgetStore = useBudgetStore()
 const loading = ref(false)
 const formRef = ref<FormInst | null>(null)
 const transaction = ref<TransactionForm>(createInitialForm())
+const showReceiptModal = ref(false)
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+const handleReceiptSuccess = () => {
+  emit('success')
+  emit('close')
+}
 
 const rules = computed<FormRules>(() => ({
   categoryId: {
@@ -244,10 +277,17 @@ async function handleSubmit() {
 }
 
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+
   const first = budgetStore.categories[0]
   if (first) {
     transaction.value.categoryId = first.id
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 

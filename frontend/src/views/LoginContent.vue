@@ -50,17 +50,6 @@
             {{ t('auth.loginButton') }}
           </n-button>
 
-          <n-divider style="margin: 8px 0;">ou</n-divider>
-
-          <n-button
-            block
-            size="large"
-            type="info"
-            @click="handleSSO"
-          >
-            Connexion via TempoHub (SSO)
-          </n-button>
-
           <n-divider style="margin: 8px 0;">{{ t('auth.noAccount') }}</n-divider>
 
           <n-button
@@ -298,13 +287,6 @@ const handleLogin = () => {
       loading.value = false
     }
   })
-}
-
-/**
- * Handles SSO login via TempoHub/Authentik.
- */
-const handleSSO = () => {
-  authStore.loginWithOIDC()
 }
 
 /**

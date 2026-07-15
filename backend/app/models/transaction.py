@@ -20,6 +20,8 @@ class Transaction(BaseModel):
     is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
     paid_by_user_id: str | None = Field(None, description="ID of user who paid (for group budgets)")
     project_category_id: str | None = Field(None, description="Linked project category ID")
+    import_status: str | None = Field(None, description="Receipt import status: 'pending' or 'confirmed'")
+    receipt_image_path: str | None = Field(None, description="Path to the receipt image file")
     created_at: str = Field(..., description="Creation timestamp")
 
     class Config:
@@ -139,3 +141,26 @@ class RecurringTransactionWithCategory(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReceiptOCRResult(BaseModel):
+    """Result of OCR processing on a receipt image."""
+    title: str | None = Field(None, description="Extracted merchant/store name")
+    amount: float | None = Field(None, description="Extracted total amount")
+    date: str | None = Field(None, description="Extracted date (YYYY-MM-DD)")
+    raw_text: str = Field(..., description="Raw OCR text for debugging")
+    confidence: float = Field(..., description="Confidence score (0-1)")
+    temp_image_path: str = Field(..., description="Temporary path of uploaded image")
+
+
+class ConfirmReceiptPayload(BaseModel):
+    """Payload for confirming a receipt and creating a transaction."""
+    category_id: str = Field(..., description="ID of the category")
+    title: str = Field(..., min_length=1, description="Transaction title")
+    amount: float = Field(..., gt=0, description="Transaction amount")
+    transaction_type: Literal["income", "expense"] = Field(..., description="Type")
+    date: str = Field(..., description="Date (ISO 8601 format)")
+    comment: str | None = Field(None, description="Optional comment")
+    is_budgeted: int = Field(1, description="Whether counted in budget (0/1)")
+    temp_image_path: str = Field(..., description="Temporary path of the receipt image")
+    create_as_pending: bool = Field(True, description="Create with pending status for later confirmation")

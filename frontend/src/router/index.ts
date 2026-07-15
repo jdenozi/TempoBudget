@@ -30,7 +30,6 @@ import RecurringView from '@/views/RecurringView.vue'
 import HistoryView from '@/views/HistoryView.vue'
 import ChartsView from '@/views/ChartsView.vue'
 import ProfileView from '@/views/ProfileView.vue'
-import AuthCallbackView from '@/views/AuthCallbackView.vue'
 import PricingView from '@/views/PricingView.vue'
 import SubscriptionSuccessView from '@/views/SubscriptionSuccessView.vue'
 import SubscriptionCancelView from '@/views/SubscriptionCancelView.vue'
@@ -53,11 +52,6 @@ const router = createRouter({
       name: 'register',
       component: LoginView,
       props: { openRegister: true },
-    },
-    {
-      path: '/auth/success',
-      name: 'auth-callback',
-      component: AuthCallbackView,
     },
     {
       path: '/pricing',
@@ -266,7 +260,7 @@ router.beforeEach(async (to, from, next) => {
   const subscriptionStore = useSubscriptionStore()
 
   // Allow public routes without authentication
-  const publicPaths = ['/auth/success', '/welcome', '/pricing', '/subscription/cancel']
+  const publicPaths = ['/welcome', '/pricing', '/subscription/cancel']
   if (publicPaths.includes(to.path)) {
     next()
     return
