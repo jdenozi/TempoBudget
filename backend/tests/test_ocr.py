@@ -171,24 +171,30 @@ class TestCalculateConfidence:
     """Tests for confidence score calculation."""
 
     def test_all_fields_present(self):
-        score = _calculate_confidence(amount=12.50, date="2024-07-15", title="Store")
+        # amount=0.4 + date=0.2 + title=0.1 + ocr_confidence*0.3 = 0.7 + 0.3 = 1.0
+        score = _calculate_confidence(amount=12.50, date="2024-07-15", title="Store", ocr_confidence=1.0)
         assert score == 1.0
+
+    def test_all_fields_no_ocr_confidence(self):
+        # amount=0.4 + date=0.2 + title=0.1 = 0.7
+        score = _calculate_confidence(amount=12.50, date="2024-07-15", title="Store")
+        assert score == 0.7
 
     def test_only_amount(self):
         score = _calculate_confidence(amount=12.50, date=None, title=None)
-        assert score == 0.5
+        assert score == 0.4
 
     def test_only_date(self):
         score = _calculate_confidence(amount=None, date="2024-07-15", title=None)
-        assert score == 0.3
+        assert score == 0.2
 
     def test_only_title(self):
         score = _calculate_confidence(amount=None, date=None, title="Store Name")
-        assert score == 0.2
+        assert score == 0.1
 
     def test_amount_and_date(self):
         score = _calculate_confidence(amount=12.50, date="2024-07-15", title=None)
-        assert score == 0.8
+        assert score == 0.6
 
     def test_nothing_extracted(self):
         score = _calculate_confidence(amount=None, date=None, title=None)
@@ -197,3 +203,8 @@ class TestCalculateConfidence:
     def test_short_title_ignored(self):
         score = _calculate_confidence(amount=None, date=None, title="AB")
         assert score == 0.0
+
+    def test_with_ocr_confidence(self):
+        # OCR confidence adds up to 0.3 to the score
+        score = _calculate_confidence(amount=12.50, date=None, title=None, ocr_confidence=0.9)
+        assert score == 0.4 + 0.9 * 0.3  # 0.67

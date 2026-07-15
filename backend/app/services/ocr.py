@@ -1,22 +1,22 @@
 # Copyright (c) 2024 Tempo Budget
 # SPDX-License-Identifier: MIT
-"""OCR service for extracting data from receipt images."""
+"""OCR service for extracting data from receipt images using EasyOCR."""
 
 import re
 from datetime import datetime
 from io import BytesIO
 from typing import Optional, TypedDict
 
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image
 
 try:
-    import pytesseract
-    TESSERACT_AVAILABLE = True
+    import easyocr
+    EASYOCR_AVAILABLE = True
+    # Initialize reader once (lazy loading on first use)
+    _reader = None
 except ImportError:
-    TESSERACT_AVAILABLE = False
-
-# Tesseract config: PSM 6 = uniform block of text, OEM 3 = LSTM
-TESSERACT_CONFIG = '--psm 6 --oem 3'
+    EASYOCR_AVAILABLE = False
+    _reader = None
 
 
 class ReceiptData(TypedDict):
@@ -28,50 +28,12 @@ class ReceiptData(TypedDict):
     confidence: float
 
 
-def _preprocess_image(image: Image.Image, binarize: bool = True) -> Image.Image:
-    """
-    Preprocess image for better OCR accuracy.
-
-    Steps:
-    1. Convert to grayscale
-    2. Resize if too small (for better OCR)
-    3. Increase contrast
-    4. Sharpen
-    5. Binarize (optional)
-    """
-    # Convert to grayscale
-    if image.mode != 'L':
-        image = image.convert('L')
-
-    # Resize if too small (aim for ~300 DPI equivalent)
-    min_width = 800
-    if image.width < min_width:
-        ratio = min_width / image.width
-        new_size = (int(image.width * ratio), int(image.height * ratio))
-        image = image.resize(new_size, Image.LANCZOS)
-
-    # Increase contrast
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(1.8)
-
-    # Sharpen
-    image = image.filter(ImageFilter.SHARPEN)
-
-    # Binarize (convert to pure black/white)
-    if binarize:
-        threshold = 140
-        image = image.point(lambda x: 255 if x > threshold else 0, '1')
-
-    return image
-
-
-def _run_ocr(image: Image.Image) -> str:
-    """Run Tesseract OCR on image with optimal config."""
-    try:
-        return pytesseract.image_to_string(image, lang='fra+eng', config=TESSERACT_CONFIG)
-    except Exception:
-        # Fallback to English only if French not available
-        return pytesseract.image_to_string(image, lang='eng', config=TESSERACT_CONFIG)
+def _get_reader():
+    """Get or create EasyOCR reader (singleton pattern)."""
+    global _reader
+    if _reader is None:
+        _reader = easyocr.Reader(['fr', 'en'], gpu=False)
+    return _reader
 
 
 def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
@@ -84,34 +46,33 @@ def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
     Returns:
         Extracted data including title, amount, date, raw OCR text, and confidence score
     """
-    if not TESSERACT_AVAILABLE:
-        raise RuntimeError("pytesseract is not installed. Please install it with: pip install pytesseract")
+    if not EASYOCR_AVAILABLE:
+        raise RuntimeError("easyocr is not installed. Please install it with: pip install easyocr")
 
     image = Image.open(BytesIO(image_bytes))
 
-    # Try with full preprocessing (binarization)
-    processed = _preprocess_image(image.copy(), binarize=True)
-    raw_text = _run_ocr(processed)
+    # Convert to RGB if necessary (EasyOCR expects RGB or grayscale)
+    if image.mode == 'RGBA':
+        image = image.convert('RGB')
+
+    # Run EasyOCR
+    reader = _get_reader()
+    results = reader.readtext(BytesIO(image_bytes).getvalue())
+
+    # Extract text and build raw_text
+    lines = []
+    total_confidence = 0.0
+    for (bbox, text, conf) in results:
+        lines.append(text)
+        total_confidence += conf
+
+    raw_text = '\n'.join(lines)
+    avg_confidence = total_confidence / len(results) if results else 0.0
 
     amount = _extract_amount(raw_text)
     date = _extract_date(raw_text)
     title = _extract_title(raw_text)
-    confidence = _calculate_confidence(amount, date, title)
-
-    # If confidence is low, try without binarization (for colored receipts)
-    if confidence < 0.5:
-        processed_soft = _preprocess_image(image.copy(), binarize=False)
-        raw_text_soft = _run_ocr(processed_soft)
-
-        amount_soft = _extract_amount(raw_text_soft)
-        date_soft = _extract_date(raw_text_soft)
-        title_soft = _extract_title(raw_text_soft)
-        confidence_soft = _calculate_confidence(amount_soft, date_soft, title_soft)
-
-        if confidence_soft > confidence:
-            amount, date, title, raw_text, confidence = (
-                amount_soft, date_soft, title_soft, raw_text_soft, confidence_soft
-            )
+    confidence = _calculate_confidence(amount, date, title, avg_confidence)
 
     return ReceiptData(
         title=title,
@@ -220,7 +181,7 @@ def _extract_date(text: str) -> Optional[str]:
     text_upper = text.upper()
 
     # Pattern: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
-    match = re.search(r'(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})', text)
+    match = re.search(r'(\d{1,2})[/\-.](\\d{1,2})[/\-.](\d{4})', text)
     if match:
         day, month, year = match.groups()
         try:
@@ -280,19 +241,27 @@ def _extract_title(text: str) -> Optional[str]:
     return None
 
 
-def _calculate_confidence(amount: Optional[float], date: Optional[str], title: Optional[str]) -> float:
+def _calculate_confidence(
+    amount: Optional[float],
+    date: Optional[str],
+    title: Optional[str],
+    ocr_confidence: float = 0.0
+) -> float:
     """
     Calculate a confidence score (0-1) based on extracted data quality.
     """
     score = 0.0
 
     if amount is not None:
-        score += 0.5
+        score += 0.4
 
     if date is not None:
-        score += 0.3
-
-    if title is not None and len(title) > 3:
         score += 0.2
 
-    return score
+    if title is not None and len(title) > 3:
+        score += 0.1
+
+    # Add OCR confidence (weighted)
+    score += ocr_confidence * 0.3
+
+    return min(score, 1.0)
