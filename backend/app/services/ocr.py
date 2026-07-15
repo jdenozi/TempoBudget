@@ -26,6 +26,73 @@ class ReceiptData(TypedDict):
     date: Optional[str]
     raw_text: str
     confidence: float
+    suggested_category: Optional[str]
+
+
+# Store name patterns mapped to category keywords
+STORE_CATEGORIES = {
+    'alimentation': [
+        'LIDL', 'ALDI', 'INTERMARCHE', 'INTERMARCHÉ', 'CARREFOUR', 'LECLERC',
+        'AUCHAN', 'CASINO', 'MONOPRIX', 'FRANPRIX', 'SUPER U', 'HYPER U',
+        'PICARD', 'GRAND FRAIS', 'BIOCOOP', 'NATURALIA', 'LEADER PRICE',
+        'NETTO', 'MATCH', 'CORA', 'GEANT', 'GÉANT', 'DIA', 'SPAR', 'PROXY',
+        'COLRUYT', 'DELHAIZE', 'SIMPLY', 'ATAC', 'THIRIET', 'PROMOCASH',
+        'METRO', 'PRIMEUR', 'BOUCHERIE', 'BOULANGERIE', 'PATISSERIE',
+        'FROMAGERIE', 'EPICERIE', 'MARCHE', 'MARCHÉ',
+    ],
+    'restaurant': [
+        'MCDONALD', 'MC DONALD', 'BURGER KING', 'KFC', 'SUBWAY', 'QUICK',
+        'PAUL', 'STARBUCKS', 'DOMINO', 'PIZZA HUT', 'BUFFALO', 'FLUNCH',
+        'COURTEPAILLE', 'HIPPOPOTAMUS', 'LEON', 'BRIOCHE DOREE', 'BRIOCHE DORÉE',
+        'CLASS CROUTE', 'COLUMBUS', 'FIVE GUYS', 'POPEYES', 'TACO BELL',
+        'RESTAURANT', 'BRASSERIE', 'CAFE', 'CAFÉ', 'BISTRO', 'KEBAB', 'PIZZERIA',
+        'SUSHI', 'WOK', 'MCDO',
+    ],
+    'carburant': [
+        'TOTAL', 'TOTALENERGIES', 'SHELL', 'ESSO', 'BP ', 'AVIA', 'AGIP',
+        'CARBURANT', 'STATION SERVICE', 'ESSENCE', 'GASOIL', 'GAZOLE',
+        'ENI ', 'Q8 ', 'DYNEFF',
+    ],
+    'pharmacie': [
+        'PHARMACIE', 'PARAPHARMACIE', 'PHARMA',
+    ],
+    'bricolage': [
+        'LEROY MERLIN', 'CASTORAMA', 'BRICORAMA', 'MR BRICOLAGE', 'BRICO DEPOT',
+        'BRICO DÉPÔT', 'WELDOM', 'BRICOMARCHE', 'BRICOMARCHÉ', 'POINT P',
+        'GEDIBOIS', 'LAPEYRE',
+    ],
+    'vetements': [
+        'H&M', 'ZARA', 'KIABI', 'DECATHLON', 'CELIO', 'JULES', 'CAMAIEU',
+        'CAMAÏEU', 'PROMOD', 'GEMO', 'GÉMO', 'LA HALLE', 'PIMKIE', 'JENNYFER',
+        'MANGO', 'PULL AND BEAR', 'BERSHKA', 'STRADIVARIUS', 'UNIQLO',
+        'PRIMARK', 'C&A', 'ETAM', 'UNDIZ', 'CALZEDONIA', 'INTERSPORT',
+        'GO SPORT', 'SPORT 2000', 'FOOT LOCKER',
+    ],
+    'high-tech': [
+        'FNAC', 'DARTY', 'BOULANGER', 'ELECTRO DEPOT', 'ELECTRO DÉPÔT',
+        'LDLC', 'GROSBILL', 'MATERIEL.NET', 'APPLE STORE', 'ORANGE',
+        'SFR', 'BOUYGUES', 'FREE',
+    ],
+    'maison': [
+        'IKEA', 'CONFORAMA', 'BUT ', 'MAISONS DU MONDE', 'ALINEA', 'ALINÉA',
+        'CASA', 'GIFI', 'CENTRAKOR', 'ACTION', 'HEMA', 'FLYING TIGER',
+        'ZODIO', 'TRUFFAUT', 'JARDILAND', 'GAMM VERT', 'BOTANIC',
+    ],
+    'loisirs': [
+        'CULTURA', 'NATURE ET DECOUVERTE', 'NATURE & DÉCOUVERTES',
+        'MICROMANIA', 'CINEMA', 'CINÉMA', 'UGC', 'GAUMONT', 'PATHE', 'PATHÉ',
+        'CGR', 'KINEPOLIS', 'MK2',
+    ],
+    'beaute': [
+        'SEPHORA', 'NOCIBE', 'NOCIBÉ', 'MARIONNAUD', 'YVES ROCHER',
+        'LOCCITANE', "L'OCCITANE", 'KIKO', 'BEAUTY SUCCESS', 'ADOPT',
+        'COIFFEUR', 'COIFFURE', 'SALON',
+    ],
+    'transports': [
+        'SNCF', 'RATP', 'NAVIGO', 'PEAGE', 'PÉAGE', 'PARKING', 'VINCI',
+        'SANEF', 'COFIROUTE', 'AUTOROUTE', 'TAXI', 'UBER', 'BOLT', 'LIME',
+    ],
+}
 
 
 def _get_reader():
@@ -34,6 +101,21 @@ def _get_reader():
     if _reader is None:
         _reader = easyocr.Reader(['fr', 'en'], gpu=False)
     return _reader
+
+
+def _detect_category(text: str) -> Optional[str]:
+    """
+    Detect likely category based on store name patterns in receipt text.
+    Returns category name in French matching common budget categories.
+    """
+    text_upper = text.upper()
+
+    for category, keywords in STORE_CATEGORIES.items():
+        for keyword in keywords:
+            if keyword in text_upper:
+                return category
+
+    return None
 
 
 def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
@@ -72,6 +154,7 @@ def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
     amount = _extract_amount(raw_text)
     date = _extract_date(raw_text)
     title = _extract_title(raw_text)
+    suggested_category = _detect_category(raw_text)
     confidence = _calculate_confidence(amount, date, title, avg_confidence)
 
     return ReceiptData(
@@ -80,6 +163,7 @@ def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
         date=date,
         raw_text=raw_text,
         confidence=confidence,
+        suggested_category=suggested_category,
     )
 
 

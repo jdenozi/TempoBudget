@@ -228,9 +228,22 @@ const handleUpload = async (options: UploadCustomRequestOptions) => {
     ocrResult.value = result
 
     // Pre-fill form with extracted data
+    // Try to match suggested category with available options
+    let matchedCategoryId: string | null = null
+    if (result.suggested_category) {
+      const suggested = result.suggested_category.toLowerCase()
+      const match = props.categoryOptions.find(opt =>
+        opt.label.toLowerCase().includes(suggested) ||
+        suggested.includes(opt.label.toLowerCase())
+      )
+      if (match) {
+        matchedCategoryId = match.value
+      }
+    }
+
     formData.value = {
       transaction_type: 'expense',
-      category_id: props.categoryOptions[0]?.value || null,
+      category_id: matchedCategoryId || props.categoryOptions[0]?.value || null,
       amount: result.amount || 0,
       title: result.title || '',
       date: result.date ? parseDateToTimestamp(result.date) : Date.now(),

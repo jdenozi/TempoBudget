@@ -151,6 +151,7 @@ class ReceiptOCRResult(BaseModel):
     raw_text: str = Field(..., description="Raw OCR text for debugging")
     confidence: float = Field(..., description="Confidence score (0-1)")
     temp_image_path: str = Field(..., description="Temporary path of uploaded image")
+    suggested_category: str | None = Field(None, description="Suggested category based on merchant")
 
 
 class ConfirmReceiptPayload(BaseModel):

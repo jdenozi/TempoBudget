@@ -1015,6 +1015,7 @@ async def upload_receipt(
         raw_text=ocr_result["raw_text"],
         confidence=ocr_result["confidence"],
         temp_image_path=temp_filename,
+        suggested_category=ocr_result.get("suggested_category"),
     )
 
 

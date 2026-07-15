@@ -144,6 +144,7 @@ export interface ReceiptOCRResult {
   raw_text: string
   confidence: number
   temp_image_path: string
+  suggested_category: string | null
 }
 
 /** Recurring transaction template */
