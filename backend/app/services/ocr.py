@@ -7,13 +7,16 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional, TypedDict
 
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 try:
     import pytesseract
     TESSERACT_AVAILABLE = True
 except ImportError:
     TESSERACT_AVAILABLE = False
+
+# Tesseract config: PSM 6 = uniform block of text, OEM 3 = LSTM
+TESSERACT_CONFIG = '--psm 6 --oem 3'
 
 
 class ReceiptData(TypedDict):
@@ -23,6 +26,52 @@ class ReceiptData(TypedDict):
     date: Optional[str]
     raw_text: str
     confidence: float
+
+
+def _preprocess_image(image: Image.Image, binarize: bool = True) -> Image.Image:
+    """
+    Preprocess image for better OCR accuracy.
+
+    Steps:
+    1. Convert to grayscale
+    2. Resize if too small (for better OCR)
+    3. Increase contrast
+    4. Sharpen
+    5. Binarize (optional)
+    """
+    # Convert to grayscale
+    if image.mode != 'L':
+        image = image.convert('L')
+
+    # Resize if too small (aim for ~300 DPI equivalent)
+    min_width = 800
+    if image.width < min_width:
+        ratio = min_width / image.width
+        new_size = (int(image.width * ratio), int(image.height * ratio))
+        image = image.resize(new_size, Image.LANCZOS)
+
+    # Increase contrast
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.8)
+
+    # Sharpen
+    image = image.filter(ImageFilter.SHARPEN)
+
+    # Binarize (convert to pure black/white)
+    if binarize:
+        threshold = 140
+        image = image.point(lambda x: 255 if x > threshold else 0, '1')
+
+    return image
+
+
+def _run_ocr(image: Image.Image) -> str:
+    """Run Tesseract OCR on image with optimal config."""
+    try:
+        return pytesseract.image_to_string(image, lang='fra+eng', config=TESSERACT_CONFIG)
+    except Exception:
+        # Fallback to English only if French not available
+        return pytesseract.image_to_string(image, lang='eng', config=TESSERACT_CONFIG)
 
 
 def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
@@ -40,21 +89,29 @@ def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
 
     image = Image.open(BytesIO(image_bytes))
 
-    # Convert to grayscale for better OCR
-    if image.mode != 'L':
-        image = image.convert('L')
-
-    # Use French + English for better recognition
-    try:
-        raw_text = pytesseract.image_to_string(image, lang='fra+eng')
-    except Exception:
-        # Fallback to English only if French not available
-        raw_text = pytesseract.image_to_string(image, lang='eng')
+    # Try with full preprocessing (binarization)
+    processed = _preprocess_image(image.copy(), binarize=True)
+    raw_text = _run_ocr(processed)
 
     amount = _extract_amount(raw_text)
     date = _extract_date(raw_text)
     title = _extract_title(raw_text)
     confidence = _calculate_confidence(amount, date, title)
+
+    # If confidence is low, try without binarization (for colored receipts)
+    if confidence < 0.5:
+        processed_soft = _preprocess_image(image.copy(), binarize=False)
+        raw_text_soft = _run_ocr(processed_soft)
+
+        amount_soft = _extract_amount(raw_text_soft)
+        date_soft = _extract_date(raw_text_soft)
+        title_soft = _extract_title(raw_text_soft)
+        confidence_soft = _calculate_confidence(amount_soft, date_soft, title_soft)
+
+        if confidence_soft > confidence:
+            amount, date, title, raw_text, confidence = (
+                amount_soft, date_soft, title_soft, raw_text_soft, confidence_soft
+            )
 
     return ReceiptData(
         title=title,
@@ -78,61 +135,58 @@ def _extract_amount(text: str) -> Optional[float]:
     text_upper = text.upper()
     lines = text_upper.split('\n')
 
-    # Priority patterns - look for amount RIGHT AFTER keyword (strict, max 3 digits before decimal)
+    # Keywords indicating total amount
+    total_keywords = ['A PAYER', 'À PAYER', 'TOTAL', 'MONTANT', 'CB EMV', 'SOMME']
+
+    # Method 1: Find line with keyword and extract amount from it or next line
+    for i, line in enumerate(lines):
+        line_clean = line.strip()
+        for keyword in total_keywords:
+            if keyword in line_clean:
+                # Search in current line and next line combined
+                search_text = line_clean
+                if i + 1 < len(lines):
+                    search_text += ' ' + lines[i + 1].strip()
+
+                # Strict pattern: 1-3 digits, separator, 2 digits
+                match = re.search(r'(\d{1,3})[.,](\d{2})(?:\s*€|\s*EUR|\s|$)', search_text)
+                if match:
+                    amount = float(f"{match.group(1)}.{match.group(2)}")
+                    if 0.01 <= amount <= 999.99:
+                        return amount
+
+    # Method 2: Pattern matching with keyword prefix (stricter)
     strict_patterns = [
-        r'(?:À PAYER|A PAYER)[^0-9]*(\d{1,3}[.,]\d{2})',
-        r'TOTAL[^0-9]*(\d{1,3}[.,]\d{2})',
-        r'CB\s*EMV[^0-9]*(\d{1,3}[.,]\d{2})',
-        r'MONTANT[^0-9]*(\d{1,3}[.,]\d{2})',
+        r'(?:À PAYER|A PAYER)\s*[:\s]*(\d{1,3})[.,](\d{2})',
+        r'TOTAL\s*(?:TTC)?\s*[:\s]*(\d{1,3})[.,](\d{2})',
+        r'CB\s*EMV\s*[:\s]*(\d{1,3})[.,](\d{2})',
+        r'MONTANT\s*[:\s]*(\d{1,3})[.,](\d{2})',
     ]
 
     for pattern in strict_patterns:
         for line in lines:
             match = re.search(pattern, line)
             if match:
-                amount_str = match.group(1).replace(',', '.')
-                try:
-                    val = float(amount_str)
-                    if 0.01 <= val <= 999.99:
-                        return val
-                except ValueError:
-                    continue
+                amount = float(f"{match.group(1)}.{match.group(2)}")
+                if 0.01 <= amount <= 999.99:
+                    return amount
 
-    # Secondary patterns (allow spaces in numbers from OCR errors)
-    total_patterns = [
-        r'TOTAL\s*(?:TTC|À PAYER|A PAYER)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-        r'(?:À PAYER|A PAYER)\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-        r'MONTANT\s*(?:TOTAL|TTC)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-        r'NET\s*(?:À PAYER|A PAYER)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-        r'SOMME\s*(?:DUE|TOTALE)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-        r'CB\s*EMV\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
-    ]
+    # Method 3: Look for amounts with € symbol (likely the total)
+    euro_amounts = re.findall(r'(\d{1,3})[.,](\d{2})\s*€', text_upper)
+    if euro_amounts:
+        # Take the last one (usually the total at the bottom)
+        last = euro_amounts[-1]
+        return float(f"{last[0]}.{last[1]}")
 
-    for pattern in total_patterns:
-        for line in lines:
-            match = re.search(pattern, line)
-            if match:
-                # Remove spaces from OCR artifacts
-                amount_str = match.group(1).replace(' ', '').replace(',', '.')
-                try:
-                    return float(amount_str)
-                except ValueError:
-                    continue
-
-    # Fallback: find the LAST reasonable amount (total is usually at the bottom)
-    # Only consider amounts between 0.01 and 9999.99
-    all_amounts = re.findall(r'(\d{1,4}[.,]\d{2})\s*(?:€|EUR)?', text_upper)
+    # Fallback: find the LAST reasonable amount
+    all_amounts = re.findall(r'(\d{1,3})[.,](\d{2})', text_upper)
     if all_amounts:
         amounts = []
-        for a in all_amounts:
-            try:
-                val = float(a.replace(',', '.'))
-                if 0.01 <= val <= 9999.99:
-                    amounts.append(val)
-            except ValueError:
-                continue
+        for parts in all_amounts:
+            val = float(f"{parts[0]}.{parts[1]}")
+            if 0.01 <= val <= 999.99:
+                amounts.append(val)
         if amounts:
-            # Return the last amount found (typically the total at the bottom)
             return amounts[-1]
 
     return None
