@@ -34,13 +34,22 @@ class TestExtractAmount:
         text = "NET A PAYER 50,00 EUR"
         assert _extract_amount(text) == 50.00
 
-    def test_fallback_largest_amount(self):
+    def test_fallback_last_amount(self):
         text = """
         Article 1: 5,00 €
         Article 2: 10,00 €
         Article 3: 25,00 €
         """
+        # Now returns last amount (typically total at bottom), not largest
         assert _extract_amount(text) == 25.00
+
+    def test_ocr_space_in_number(self):
+        text = "TOTAL: 23, 01 €"
+        assert _extract_amount(text) == 23.01
+
+    def test_cb_emv_pattern(self):
+        text = "CB EMV 45,99"
+        assert _extract_amount(text) == 45.99
 
     def test_no_amount_found(self):
         text = "No amounts here"

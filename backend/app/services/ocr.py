@@ -78,36 +78,42 @@ def _extract_amount(text: str) -> Optional[float]:
     text_upper = text.upper()
     lines = text_upper.split('\n')
 
-    # Priority patterns for total amount
+    # Priority patterns for total amount (allow spaces in numbers from OCR errors)
     total_patterns = [
-        r'TOTAL\s*(?:TTC|À PAYER|A PAYER)?\s*[:\s]*(\d+[.,]\d{2})',
-        r'(?:À PAYER|A PAYER)\s*[:\s]*(\d+[.,]\d{2})',
-        r'MONTANT\s*(?:TOTAL|TTC)?\s*[:\s]*(\d+[.,]\d{2})',
-        r'NET\s*(?:À PAYER|A PAYER)?\s*[:\s]*(\d+[.,]\d{2})',
-        r'SOMME\s*(?:DUE|TOTALE)?\s*[:\s]*(\d+[.,]\d{2})',
+        r'TOTAL\s*(?:TTC|À PAYER|A PAYER)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
+        r'(?:À PAYER|A PAYER)\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
+        r'MONTANT\s*(?:TOTAL|TTC)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
+        r'NET\s*(?:À PAYER|A PAYER)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
+        r'SOMME\s*(?:DUE|TOTALE)?\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
+        r'CB\s*EMV\s*[:\s]*(\d[\d\s]*[.,]\s*\d{2})',
     ]
 
     for pattern in total_patterns:
         for line in lines:
             match = re.search(pattern, line)
             if match:
-                amount_str = match.group(1).replace(',', '.')
+                # Remove spaces from OCR artifacts
+                amount_str = match.group(1).replace(' ', '').replace(',', '.')
                 try:
                     return float(amount_str)
                 except ValueError:
                     continue
 
-    # Fallback: find the largest amount on the receipt
-    all_amounts = re.findall(r'(\d+[.,]\d{2})\s*(?:€|EUR)?', text_upper)
+    # Fallback: find the LAST reasonable amount (total is usually at the bottom)
+    # Only consider amounts between 0.01 and 9999.99
+    all_amounts = re.findall(r'(\d{1,4}[.,]\d{2})\s*(?:€|EUR)?', text_upper)
     if all_amounts:
         amounts = []
         for a in all_amounts:
             try:
-                amounts.append(float(a.replace(',', '.')))
+                val = float(a.replace(',', '.'))
+                if 0.01 <= val <= 9999.99:
+                    amounts.append(val)
             except ValueError:
                 continue
         if amounts:
-            return max(amounts)
+            # Return the last amount found (typically the total at the bottom)
+            return amounts[-1]
 
     return None
 
