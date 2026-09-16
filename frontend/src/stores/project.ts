@@ -14,6 +14,7 @@ import {
   type Project, type ProjectSummary, type ProjectPlannedExpense,
   type ProjectReminder, type ProjectTransaction, type ProjectCategoryWithSpent,
   type ProjectMemberWithUser, type ProjectInvitationWithDetails,
+  type ProjectMemberBalance,
 } from '@/services/api'
 
 export const useProjectStore = defineStore('project', () => {
@@ -78,23 +79,39 @@ export const useProjectStore = defineStore('project', () => {
 
   async function createCategory(projectId: string, data: { name: string; planned_amount: number }) {
     const category = await projectsAPI.createCategory(projectId, data)
-    if (currentProject.value?.id === projectId) {
-      currentProject.value.categories.push({
-        id: category.id, project_id: category.project_id,
-        name: category.name, planned_amount: category.planned_amount,
-        created_at: category.created_at, total_spent: 0, remaining: category.planned_amount,
-      })
+    const newCat: ProjectCategoryWithSpent = {
+      id: category.id,
+      project_id: category.project_id,
+      name: category.name,
+      planned_amount: category.planned_amount,
+      created_at: category.created_at,
+      total_spent: 0,
+      remaining: category.planned_amount,
     }
+
+    // Update in currentProject
+    if (currentProject.value?.id === projectId) {
+      currentProject.value.categories.push(newCat)
+    }
+
+    // Also update in projects list
+    const projectInList = projects.value.find(p => p.id === projectId)
+    if (projectInList) {
+      projectInList.categories.push({ ...newCat })
+    }
+
     return category
   }
 
   async function updateCategory(projectId: string, categoryId: string, data: { name?: string; planned_amount?: number }) {
     const updated = await projectsAPI.updateCategory(projectId, categoryId, data)
-    if (currentProject.value?.id === projectId) {
-      const idx = currentProject.value.categories.findIndex(c => c.id === categoryId)
+
+    // Helper to update a category in a categories array
+    const updateInArray = (categories: ProjectCategoryWithSpent[]) => {
+      const idx = categories.findIndex(c => c.id === categoryId)
       if (idx !== -1) {
-        const existing = currentProject.value.categories[idx]!
-        const cat: ProjectCategoryWithSpent = {
+        const existing = categories[idx]!
+        categories[idx] = {
           id: existing.id,
           project_id: existing.project_id,
           name: updated.name,
@@ -103,16 +120,35 @@ export const useProjectStore = defineStore('project', () => {
           total_spent: existing.total_spent,
           remaining: updated.planned_amount - existing.total_spent,
         }
-        currentProject.value.categories[idx] = cat
       }
     }
+
+    // Update in currentProject
+    if (currentProject.value?.id === projectId) {
+      updateInArray(currentProject.value.categories)
+    }
+
+    // Also update in projects list (used by HistoryView for category options)
+    const projectInList = projects.value.find(p => p.id === projectId)
+    if (projectInList) {
+      updateInArray(projectInList.categories)
+    }
+
     return updated
   }
 
   async function deleteCategory(projectId: string, categoryId: string) {
     await projectsAPI.deleteCategory(projectId, categoryId)
+
+    // Update in currentProject
     if (currentProject.value?.id === projectId) {
       currentProject.value.categories = currentProject.value.categories.filter(c => c.id !== categoryId)
+    }
+
+    // Also update in projects list
+    const projectInList = projects.value.find(p => p.id === projectId)
+    if (projectInList) {
+      projectInList.categories = projectInList.categories.filter(c => c.id !== categoryId)
     }
   }
 
@@ -159,6 +195,7 @@ export const useProjectStore = defineStore('project', () => {
   // ── Members ──
 
   const members = ref<ProjectMemberWithUser[]>([])
+  const memberBalances = ref<ProjectMemberBalance[]>([])
   const projectInvitations = ref<ProjectInvitationWithDetails[]>([])
 
   async function fetchMembers(projectId: string) {
@@ -172,6 +209,17 @@ export const useProjectStore = defineStore('project', () => {
   async function removeMember(projectId: string, memberId: string) {
     await projectsAPI.removeMember(projectId, memberId)
     members.value = members.value.filter(m => m.id !== memberId)
+  }
+
+  async function updateMemberShare(projectId: string, memberId: string, share: number) {
+    const updated = await projectsAPI.updateMemberShare(projectId, memberId, share)
+    const idx = members.value.findIndex(m => m.id === memberId)
+    if (idx !== -1) members.value[idx] = updated
+    return updated
+  }
+
+  async function fetchMemberBalances(projectId: string) {
+    memberBalances.value = await projectsAPI.getBalances(projectId)
   }
 
   async function fetchProjectInvitations() {
@@ -190,13 +238,13 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     projects, summaries, currentProject, plannedExpenses, projectTransactions, reminders, loading,
-    members, projectInvitations,
+    members, memberBalances, projectInvitations,
     fetchProjects, fetchSummaries, fetchProject,
     createProject, updateProject, deleteProject,
     createCategory, updateCategory, deleteCategory,
     fetchPlannedExpenses, createPlannedExpense, updatePlannedExpense, deletePlannedExpense,
     fetchProjectTransactions, fetchReminders,
-    fetchMembers, inviteMember, removeMember,
+    fetchMembers, inviteMember, removeMember, updateMemberShare, fetchMemberBalances,
     fetchProjectInvitations, acceptProjectInvitation, rejectProjectInvitation,
   }
 })

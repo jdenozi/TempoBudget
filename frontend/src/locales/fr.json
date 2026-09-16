@@ -1019,6 +1019,14 @@
     "alreadyMember": "Cet utilisateur est déjà membre ou a une invitation en attente",
     "memberRemoved": "Membre retiré",
     "removeMemberConfirm": "Retirer ce membre du projet ?",
+    "shareUpdated": "Part mise à jour",
+    "shareWarningTitle": "Les parts ne totalisent pas 100%",
+    "shareWarningDesc": "Le total des parts est de {total}%. Les dépenses communes seront réparties proportionnellement.",
+    "balances": "Répartition des dépenses",
+    "noBalances": "Aucune donnée de répartition",
+    "due": "Dû",
+    "paid": "Payé",
+    "balanceLegend": "Positif = a trop payé (les autres lui doivent). Négatif = doit aux autres.",
     "categoryNotes": "Notes",
     "categoryNotesPlaceholder": "Ajoutez des notes pour cette catégorie...",
     "categoryTasks": "Tâches",
@@ -1032,7 +1040,10 @@
     "tasksTab": "Tâches",
     "globalTasksProgress": "Progression globale",
     "tasksCompleted": "tâches terminées",
-    "allTasks": "Toutes les tâches"
+    "allTasks": "Toutes les tâches",
+    "exportCSV": "Exporter CSV",
+    "exportSuccess": "Export réussi",
+    "exportError": "Erreur lors de l'export"
   },
   "help": {
     "title": "Aide",

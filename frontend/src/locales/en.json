@@ -1019,6 +1019,14 @@
     "alreadyMember": "This user is already a member or has a pending invitation",
     "memberRemoved": "Member removed",
     "removeMemberConfirm": "Remove this member from the project?",
+    "shareUpdated": "Share updated",
+    "shareWarningTitle": "Shares do not total 100%",
+    "shareWarningDesc": "Total shares are {total}%. Common expenses will be split proportionally.",
+    "balances": "Expense split",
+    "noBalances": "No split data",
+    "due": "Due",
+    "paid": "Paid",
+    "balanceLegend": "Positive = overpaid (others owe them). Negative = owes others.",
     "categoryNotes": "Notes",
     "categoryNotesPlaceholder": "Add notes for this category...",
     "categoryTasks": "Tasks",
@@ -1032,7 +1040,10 @@
     "tasksTab": "Tasks",
     "globalTasksProgress": "Global progress",
     "tasksCompleted": "tasks completed",
-    "allTasks": "All tasks"
+    "allTasks": "All tasks",
+    "exportCSV": "Export CSV",
+    "exportSuccess": "Export successful",
+    "exportError": "Export error"
   },
   "help": {
     "title": "Help",

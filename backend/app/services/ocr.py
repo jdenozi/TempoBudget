@@ -7,7 +7,14 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional, TypedDict
 
-from PIL import Image
+from PIL import Image, ImageOps
+
+# Register HEIC/HEIF support for iPhone images
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass  # pillow-heif not installed, HEIC won't be supported
 
 try:
     import easyocr
@@ -133,13 +140,21 @@ def extract_from_receipt(image_bytes: bytes) -> ReceiptData:
 
     image = Image.open(BytesIO(image_bytes))
 
+    # Apply EXIF orientation (fixes rotated iPhone photos)
+    image = ImageOps.exif_transpose(image)
+
     # Convert to RGB if necessary (EasyOCR expects RGB or grayscale)
-    if image.mode == 'RGBA':
+    if image.mode in ('RGBA', 'P'):
         image = image.convert('RGB')
 
-    # Run EasyOCR
+    # Convert corrected image to bytes for EasyOCR
+    img_buffer = BytesIO()
+    image.save(img_buffer, format='JPEG', quality=95)
+    corrected_bytes = img_buffer.getvalue()
+
+    # Run EasyOCR on the corrected image
     reader = _get_reader()
-    results = reader.readtext(BytesIO(image_bytes).getvalue())
+    results = reader.readtext(corrected_bytes)
 
     # Extract text and build raw_text
     lines = []

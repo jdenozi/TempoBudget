@@ -3,10 +3,12 @@
 """Project budget management routes."""
 
 from datetime import datetime, timezone
+from io import BytesIO
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,10 +35,24 @@ class ProjectMemberWithUser(BaseModel):
     project_id: str
     user_id: str
     role: str
+    share: float
     created_at: str
     user_name: str
     user_email: str
     user_avatar: str | None = None
+
+
+class UpdateProjectMemberShareRequest(BaseModel):
+    share: float = Field(..., ge=0, le=100)
+
+
+class ProjectMemberBalance(BaseModel):
+    user_id: str
+    user_name: str
+    share: float
+    total_due: float
+    total_paid: float
+    balance: float
 
 
 class InviteProjectMemberRequest(BaseModel):
@@ -322,6 +338,113 @@ async def get_project(
         total_spent=round(total_spent, 2),
         remaining=round(row.total_budget - total_spent, 2),
         categories=categories,
+    )
+
+
+@router.get("/{project_id}/export/csv")
+async def export_project_csv(
+    project_id: str,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Export project transactions as a CSV file."""
+    import csv
+    from io import StringIO
+
+    row = await _verify_project_access(db, project_id, user_id)
+    categories = await _get_project_categories_with_spent(db, project_id)
+
+    # Get transactions
+    cat_ids = [c.id for c in categories]
+    transactions = []
+    if cat_ids:
+        placeholders = ", ".join(f":cid{i}" for i in range(len(cat_ids)))
+        params = {f"cid{i}": cid for i, cid in enumerate(cat_ids)}
+
+        # Personal transactions
+        personal_result = await db.execute(
+            text(f"""
+                SELECT t.id, t.title, t.amount, t.transaction_type, t.date, t.comment,
+                       pc.name as project_category_name,
+                       u.name as payer_name
+                FROM transactions t
+                LEFT JOIN project_categories pc ON t.project_category_id = pc.id
+                LEFT JOIN budgets b ON t.budget_id = b.id
+                LEFT JOIN users u ON COALESCE(t.paid_by_user_id, b.user_id) = u.id
+                WHERE t.project_category_id IN ({placeholders})
+            """),
+            params
+        )
+        for r in personal_result.fetchall():
+            transactions.append({
+                "title": r.title,
+                "amount": r.amount,
+                "type": r.transaction_type,
+                "date": r.date,
+                "category": r.project_category_name or "",
+                "payer": r.payer_name or "",
+                "comment": r.comment or "",
+                "source": "personal",
+            })
+
+        # Pro transactions
+        pro_result = await db.execute(
+            text(f"""
+                SELECT t.id, t.title, t.amount, t.transaction_type, t.date, t.comment,
+                       pc.name as project_category_name,
+                       u.name as payer_name
+                FROM pro_transactions t
+                LEFT JOIN project_categories pc ON t.project_category_id = pc.id
+                LEFT JOIN users u ON t.user_id = u.id
+                WHERE t.project_category_id IN ({placeholders})
+            """),
+            params
+        )
+        for r in pro_result.fetchall():
+            transactions.append({
+                "title": r.title,
+                "amount": r.amount,
+                "type": r.transaction_type,
+                "date": r.date,
+                "category": r.project_category_name or "",
+                "payer": r.payer_name or "",
+                "comment": r.comment or "",
+                "source": "pro",
+            })
+
+        transactions.sort(key=lambda t: t["date"], reverse=True)
+
+    # Generate CSV
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow(["Date", "Titre", "Montant", "Type", "Catégorie", "Payé par", "Source", "Commentaire"])
+
+    # Data rows
+    for tx in transactions:
+        type_label = "Dépense" if tx["type"] == "expense" else "Revenu"
+        writer.writerow([
+            tx["date"],
+            tx["title"],
+            f"{tx['amount']:.2f}",
+            type_label,
+            tx["category"],
+            tx["payer"],
+            tx["source"],
+            tx["comment"],
+        ])
+
+    csv_content = output.getvalue()
+
+    # Create safe filename
+    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in row.name)
+    filename = f"{safe_name}_export.csv"
+
+    return StreamingResponse(
+        BytesIO(csv_content.encode("utf-8-sig")),  # UTF-8 BOM for Excel compatibility
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -792,7 +915,7 @@ async def get_project_members(
 
     result = await db.execute(
         text("""
-            SELECT pm.id, pm.project_id, pm.user_id, pm.role, pm.created_at,
+            SELECT pm.id, pm.project_id, pm.user_id, pm.role, pm.share, pm.created_at,
                    u.name as user_name, u.email as user_email, u.avatar as user_avatar
             FROM project_members pm
             JOIN users u ON pm.user_id = u.id
@@ -804,7 +927,7 @@ async def get_project_members(
     return [
         ProjectMemberWithUser(
             id=row.id, project_id=row.project_id, user_id=row.user_id,
-            role=row.role, created_at=row.created_at,
+            role=row.role, share=row.share, created_at=row.created_at,
             user_name=row.user_name, user_email=row.user_email,
             user_avatar=row.user_avatar,
         )
@@ -897,6 +1020,150 @@ async def remove_project_member(
         {"id": member_id, "pid": project_id}
     )
     await db.commit()
+
+
+@router.put("/{project_id}/members/{member_id}/share", response_model=ProjectMemberWithUser)
+async def update_project_member_share(
+    project_id: str,
+    member_id: str,
+    payload: UpdateProjectMemberShareRequest,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a member's share percentage (owner only)."""
+    await _verify_project_owner(db, project_id, user_id)
+
+    result = await db.execute(
+        text("SELECT id FROM project_members WHERE id = :id AND project_id = :pid"),
+        {"id": member_id, "pid": project_id}
+    )
+    if not result.fetchone():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+
+    await db.execute(
+        text("UPDATE project_members SET share = :share WHERE id = :id"),
+        {"id": member_id, "share": payload.share}
+    )
+    await db.commit()
+
+    # Return updated member
+    result = await db.execute(
+        text("""
+            SELECT pm.id, pm.project_id, pm.user_id, pm.role, pm.share, pm.created_at,
+                   u.name as user_name, u.email as user_email, u.avatar as user_avatar
+            FROM project_members pm
+            JOIN users u ON pm.user_id = u.id
+            WHERE pm.id = :id
+        """),
+        {"id": member_id}
+    )
+    row = result.fetchone()
+    return ProjectMemberWithUser(
+        id=row.id, project_id=row.project_id, user_id=row.user_id,
+        role=row.role, share=row.share, created_at=row.created_at,
+        user_name=row.user_name, user_email=row.user_email,
+        user_avatar=row.user_avatar,
+    )
+
+
+@router.get("/{project_id}/balances", response_model=list[ProjectMemberBalance])
+async def get_project_balances(
+    project_id: str,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """Calculate balance for each member based on their share percentage.
+
+    For transactions with paid_by_user_id = NULL (common expenses), the cost
+    is split according to each member's share percentage.
+    """
+    await _verify_project_access(db, project_id, user_id)
+
+    # Get all members with their shares
+    members_result = await db.execute(
+        text("""
+            SELECT pm.user_id, pm.share, u.name as user_name
+            FROM project_members pm
+            JOIN users u ON pm.user_id = u.id
+            WHERE pm.project_id = :pid
+        """),
+        {"pid": project_id}
+    )
+    members = {row.user_id: {"share": row.share, "name": row.user_name} for row in members_result.fetchall()}
+
+    if not members:
+        return []
+
+    # Get category IDs for this project
+    cat_result = await db.execute(
+        text("SELECT id FROM project_categories WHERE project_id = :pid"),
+        {"pid": project_id}
+    )
+    cat_ids = [row.id for row in cat_result.fetchall()]
+
+    if not cat_ids:
+        # No categories = no transactions, return zero balances
+        return [
+            ProjectMemberBalance(
+                user_id=uid, user_name=info["name"], share=info["share"],
+                total_due=0, total_paid=0, balance=0
+            )
+            for uid, info in members.items()
+        ]
+
+    placeholders = ", ".join(f":cid{i}" for i in range(len(cat_ids)))
+    params = {f"cid{i}": cid for i, cid in enumerate(cat_ids)}
+
+    # Get all personal transactions (expenses only) linked to this project
+    tx_result = await db.execute(
+        text(f"""
+            SELECT t.amount, t.transaction_type,
+                   COALESCE(t.paid_by_user_id, '__common__') as payer_id
+            FROM transactions t
+            WHERE t.project_category_id IN ({placeholders})
+              AND t.transaction_type = 'expense'
+        """),
+        params
+    )
+    transactions = tx_result.fetchall()
+
+    # Calculate totals
+    # total_common: sum of common expenses (to be split by share)
+    # paid_by_user: how much each user actually paid
+    total_common = 0.0
+    paid_by_user: dict[str, float] = {uid: 0.0 for uid in members}
+
+    for tx in transactions:
+        if tx.payer_id == "__common__":
+            total_common += tx.amount
+        elif tx.payer_id in paid_by_user:
+            paid_by_user[tx.payer_id] += tx.amount
+
+    # Calculate total shares for normalization
+    total_shares = sum(info["share"] for info in members.values())
+
+    # Calculate balances
+    balances = []
+    for uid, info in members.items():
+        share_ratio = info["share"] / total_shares if total_shares > 0 else 0
+        # What this member should pay for common expenses
+        due_from_common = total_common * share_ratio
+        total_paid = paid_by_user[uid]
+        # Balance = what they paid - what they should pay for common
+        # Positive = overpaid (others owe them)
+        # Negative = underpaid (owes others)
+        balance = total_paid - due_from_common
+
+        balances.append(ProjectMemberBalance(
+            user_id=uid,
+            user_name=info["name"],
+            share=info["share"],
+            total_due=round(due_from_common, 2),
+            total_paid=round(total_paid, 2),
+            balance=round(balance, 2),
+        ))
+
+    return balances
 
 
 # ────────────────────────────── Project Invitations ──────────────────────────────

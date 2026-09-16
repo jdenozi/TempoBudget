@@ -869,6 +869,17 @@ export const projectsAPI = {
   removeMember: async (projectId: string, memberId: string) => {
     await api.delete(`/projects/${projectId}/members/${memberId}`)
   },
+  updateMemberShare: async (projectId: string, memberId: string, share: number) => {
+    const response = await api.put<ProjectMemberWithUser>(
+      `/projects/${projectId}/members/${memberId}/share`,
+      { share }
+    )
+    return response.data
+  },
+  getBalances: async (projectId: string) => {
+    const response = await api.get<ProjectMemberBalance[]>(`/projects/${projectId}/balances`)
+    return response.data
+  },
   // Invitations
   getMyInvitations: async () => {
     const response = await api.get<ProjectInvitationWithDetails[]>('/projects/invitations/pending')
@@ -880,6 +891,12 @@ export const projectsAPI = {
   },
   rejectInvitation: async (invitationId: string) => {
     const response = await api.post(`/projects/invitations/${invitationId}/reject`)
+    return response.data
+  },
+  exportCSV: async (projectId: string) => {
+    const response = await api.get(`/projects/${projectId}/export/csv`, {
+      responseType: 'blob',
+    })
     return response.data
   },
 }
@@ -1125,10 +1142,20 @@ export interface ProjectMemberWithUser {
   project_id: string
   user_id: string
   role: string
+  share: number
   created_at: string
   user_name: string
   user_email: string
   user_avatar: string | null
+}
+
+export interface ProjectMemberBalance {
+  user_id: string
+  user_name: string
+  share: number
+  total_due: number
+  total_paid: number
+  balance: number
 }
 
 export interface ProjectInvitationWithDetails {

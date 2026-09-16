@@ -16,6 +16,12 @@
           <n-tag :type="statusTagType(project.status)" size="small">{{ t('project.' + project.status) }}</n-tag>
           <n-tag :type="project.mode === 'pro' ? 'info' : 'default'" size="small">{{ t('project.' + project.mode) }}</n-tag>
         </n-flex>
+        <n-flex align="center" :size="8">
+          <n-button size="small" @click="handleExportCSV" :loading="exporting">
+            <template #icon><DownloadOutline /></template>
+            {{ t('project.exportCSV') }}
+          </n-button>
+        </n-flex>
       </n-flex>
 
       <!-- Summary -->
@@ -248,6 +254,11 @@
           <n-button v-if="isOwner" size="small" type="primary" @click="showInviteModal = true">{{ t('project.inviteMember') }}</n-button>
         </template>
         <template v-if="projectStore.members.length > 0">
+          <!-- Share warning if total != 100% -->
+          <n-alert v-if="projectStore.members.length > 1 && totalShares !== 100" type="warning" :title="t('project.shareWarningTitle')" style="margin-bottom: 12px;">
+            {{ t('project.shareWarningDesc', { total: totalShares.toFixed(1) }) }}
+          </n-alert>
+
           <div v-for="member in projectStore.members" :key="member.id" class="list-row">
             <n-flex justify="space-between" align="center" :size="8" :wrap="true">
               <n-flex align="center" :size="8">
@@ -257,16 +268,58 @@
                 <n-text depth="3">{{ member.user_email }}</n-text>
                 <n-tag :type="member.role === 'owner' ? 'success' : 'default'" size="small">{{ member.role }}</n-tag>
               </n-flex>
-              <n-popconfirm v-if="isOwner && member.role !== 'owner'" @positive-click="handleRemoveMember(member.id)">
-                <template #trigger>
-                  <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+              <n-flex align="center" :size="8">
+                <template v-if="projectStore.members.length > 1">
+                  <n-input-number
+                    v-if="isOwner"
+                    :value="member.share"
+                    :min="0"
+                    :max="100"
+                    :precision="1"
+                    size="small"
+                    style="width: 100px;"
+                    @update:value="(val) => handleUpdateShare(member.id, val || 0)"
+                  >
+                    <template #suffix>%</template>
+                  </n-input-number>
+                  <n-tag v-else size="small">{{ member.share }}%</n-tag>
                 </template>
-                {{ t('project.removeMemberConfirm') }}
-              </n-popconfirm>
+                <n-popconfirm v-if="isOwner && member.role !== 'owner'" @positive-click="handleRemoveMember(member.id)">
+                  <template #trigger>
+                    <n-button size="tiny" type="error">{{ t('common.delete') }}</n-button>
+                  </template>
+                  {{ t('project.removeMemberConfirm') }}
+                </n-popconfirm>
+              </n-flex>
             </n-flex>
           </div>
         </template>
         <n-empty v-else :description="t('project.noMembers')" />
+      </n-card>
+
+      <!-- Balances (only shown when multiple members) -->
+      <n-card v-if="projectStore.members.length > 1" :title="t('project.balances')" size="small">
+        <template v-if="projectStore.memberBalances.length > 0">
+          <div v-for="bal in projectStore.memberBalances" :key="bal.user_id" class="list-row">
+            <n-flex justify="space-between" align="center" :size="8" :wrap="true">
+              <n-flex align="center" :size="8">
+                <strong>{{ bal.user_name }}</strong>
+                <n-text depth="3">({{ bal.share }}%)</n-text>
+              </n-flex>
+              <n-flex align="center" :size="12">
+                <n-text depth="3">{{ t('project.due') }}: {{ bal.total_due.toFixed(2) }} €</n-text>
+                <n-text depth="3">{{ t('project.paid') }}: {{ bal.total_paid.toFixed(2) }} €</n-text>
+                <n-tag :type="bal.balance >= 0 ? 'success' : 'error'" size="small">
+                  {{ bal.balance >= 0 ? '+' : '' }}{{ bal.balance.toFixed(2) }} €
+                </n-tag>
+              </n-flex>
+            </n-flex>
+          </div>
+          <div class="balance-legend">
+            <n-text depth="3">{{ t('project.balanceLegend') }}</n-text>
+          </div>
+        </template>
+        <n-empty v-else :description="t('project.noBalances')" />
       </n-card>
     </template>
 
@@ -394,14 +447,14 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   NSpace, NFlex, NButton, NCard, NGrid, NGi, NStatistic, NText, NTag,
   NIcon, NSpin, NEmpty, NProgress, NModal, NForm, NFormItem,
-  NInput, NInputNumber, NDatePicker, NSelect, NAvatar,
+  NInput, NInputNumber, NDatePicker, NSelect, NAvatar, NAlert,
   NPopconfirm, NPopover, NRadioGroup, NRadioButton, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { ArrowBackOutline, CashOutline, ChevronDownOutline, ChevronForwardOutline } from '@vicons/ionicons5'
+import { ArrowBackOutline, CashOutline, ChevronDownOutline, ChevronForwardOutline, DownloadOutline } from '@vicons/ionicons5'
 import { useProjectStore } from '@/stores/project'
 import { useMobileDetect } from '@/composables/useMobileDetect'
-import { transactionsAPI, proTransactionsAPI } from '@/services/api'
+import { transactionsAPI, proTransactionsAPI, projectsAPI } from '@/services/api'
 import type { ProjectCategoryWithSpent, ProjectPlannedExpense, ProjectTransaction } from '@/services/api'
 
 const { t } = useI18n()
@@ -415,6 +468,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 const saving = ref(false)
+const exporting = ref(false)
 const showCategoryModal = ref(false)
 const showExpenseModal = ref(false)
 const showInviteModal = ref(false)
@@ -549,6 +603,10 @@ const isOwner = computed(() => {
   return projectStore.members.some(m => m.user_id === authStore.user!.id && m.role === 'owner')
 })
 
+const totalShares = computed(() =>
+  projectStore.members.reduce((sum, m) => sum + m.share, 0)
+)
+
 const loadData = async () => {
   await projectStore.fetchProject(projectId.value)
   await Promise.all([
@@ -556,6 +614,10 @@ const loadData = async () => {
     projectStore.fetchProjectTransactions(projectId.value),
     projectStore.fetchMembers(projectId.value),
   ])
+  // Fetch balances if multiple members
+  if (projectStore.members.length > 1) {
+    await projectStore.fetchMemberBalances(projectId.value)
+  }
 }
 
 onMounted(loadData)
@@ -767,8 +829,44 @@ const handleRemoveMember = async (memberId: string) => {
   try {
     await projectStore.removeMember(projectId.value, memberId)
     message.success(t('project.memberRemoved'))
+    // Refresh balances
+    if (projectStore.members.length > 1) {
+      await projectStore.fetchMemberBalances(projectId.value)
+    }
   } catch {
     message.error(t('errors.generic'))
+  }
+}
+
+const handleUpdateShare = async (memberId: string, share: number) => {
+  try {
+    await projectStore.updateMemberShare(projectId.value, memberId, share)
+    message.success(t('project.shareUpdated'))
+    // Refresh balances
+    await projectStore.fetchMemberBalances(projectId.value)
+  } catch {
+    message.error(t('errors.generic'))
+  }
+}
+
+const handleExportCSV = async () => {
+  if (!project.value) return
+  exporting.value = true
+  try {
+    const blob = await projectsAPI.exportCSV(projectId.value)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${project.value.name}_export.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    message.success(t('project.exportSuccess'))
+  } catch {
+    message.error(t('project.exportError'))
+  } finally {
+    exporting.value = false
   }
 }
 </script>
@@ -952,6 +1050,13 @@ const handleRemoveMember = async (memberId: string) => {
   font-size: 12px;
   min-width: 48px;
   text-align: right;
+}
+.balance-legend {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--n-border-color);
+  font-size: 12px;
+  font-style: italic;
 }
 </style>
 

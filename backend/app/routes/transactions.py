@@ -29,7 +29,7 @@ from ..services.ocr import extract_from_receipt
 DATA_PATH = os.getenv("DATA_PATH", os.path.join(os.path.dirname(__file__), "..", "..", "data"))
 RECEIPTS_DIR = os.path.join(DATA_PATH, "receipts")
 TEMP_RECEIPTS_DIR = os.path.join(DATA_PATH, "receipts_temp")
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 MAX_RECEIPT_SIZE = 10 * 1024 * 1024  # 10 MB
 
 router = APIRouter()
